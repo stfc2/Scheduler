@@ -1,0 +1,389 @@
+<?php
+/*    
+	This file is part of STFC.
+	Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
+		
+	STFC is based on STGC,
+	Copyright 2003-2007 by Florian Brede (florian_brede@hotmail.com) and Philipp Schmidt
+	
+    STFC is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+
+    STFC is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+
+
+class moves_action_54 extends moves_common {
+    function _action_main() {
+
+global $NUM_BUILDING;
+
+// #############################################################################
+// Daten der Angreifer
+
+$sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
+		FROM (ship_fleets f)
+		INNER JOIN user u ON u.user_id = f.user_id
+		WHERE f.fleet_id IN ('.$this->fleet_ids_str.')';
+
+if(($atk_fleets = $this->db->queryrowset($sql)) === false) {
+	return $this->log(MV_M_DATABASE, 'Could not query attackers fleets data! SKIP');
+}
+
+
+// #############################################################################
+// Daten der Verteidiger
+
+$user_id = $this->dest['user_id'];
+$planetary_attack = true;
+
+// Das k�nte man natrlich optimieren, doch es soll m�lichst
+// viel Kompatibilit� zur Vorlage action_51.php erhalten bleiben
+$cur_user = array(
+    'user_id' => $user_id,
+    'user_name' => $this->dest['user_name'],
+    'user_race' => $this->dest['user_race'],
+    'user_planets' => $this->dest['user_planets'],
+    'user_alliance' => $this->dest['user_alliance']
+);
+
+$sql = 'SELECT DISTINCT f.user_id,
+               u.user_alliance,
+               ud.ud_id, ud.accepted,
+               ad.ad_id, ad.type, ad.status
+        FROM (ship_fleets f)
+        INNER JOIN (user u) ON u.user_id = f.user_id
+        LEFT JOIN (user_diplomacy ud) ON ( ( ud.user1_id = '.$user_id.' AND ud.user2_id = f.user_id ) OR ( ud.user1_id = f.user_id AND ud.user2_id = '.$user_id.' ) )
+        LEFT JOIN (alliance_diplomacy ad) ON ( ( ad.alliance1_id = '.$cur_user['user_alliance'].' AND ad.alliance2_id = u.user_alliance) OR ( ad.alliance1_id = u.user_alliance AND ad.alliance2_id = '.$cur_user['user_alliance'].' ) )
+        WHERE f.planet_id = '.$this->move['dest'].' AND
+              f.user_id <> '.$user_id.' AND
+              f.user_id <> '.$this->move['user_id'].' AND
+              f.alert_phase >= '.ALERT_PHASE_YELLOW;
+
+if(!$q_st_uid = $this->db->query($sql)) {
+    return $this->log(MV_M_DATABASE, 'Could not query stationated fleets user data! SKIP');
+}
+
+$st_user = array();
+
+while($st_uid = $this->db->fetchrow($q_st_uid)) {
+    $allied = false;
+
+    if($st_uid['user_alliance'] == $this->dest['user_alliance']) $allied = true;
+
+    if(!empty($st_uid['ud_id'])) {
+        if($st_uid['accepted'] == 1) $allied = true;
+    }
+
+    if(!empty($st_uid['ad_id'])) {
+        if( ($st_uid['type'] == ALLIANCE_DIPLOMACY_PACT) && ($st_uid['status'] == 0) ) $allied = true;
+    }
+
+    if($allied) $st_user[] = $st_uid['user_id'];
+}
+
+$n_st_user = count($st_user);
+
+if($n_st_user > 0) {
+    $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
+             FROM (ship_fleets f)
+             INNER JOIN user u ON u.user_id = f.user_id
+             WHERE f.planet_id = '.$this->move['dest'].' AND
+			       (
+                     (
+                       f.user_id = '.$user_id.'
+                     )
+                     OR
+                     (
+                       f.user_id IN ('.implode(',', $st_user).') AND
+                       f.alert_phase >= '.ALERT_PHASE_YELLOW.'
+                     )
+                   )';
+}
+else {
+    $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
+             FROM (ship_fleets f)
+             INNER JOIN user u ON u.user_id = f.user_id
+             WHERE f.planet_id = '.$this->move['dest'].' AND
+                   f.user_id = '.$user_id;
+}
+
+if(($dfd_fleets = $this->db->queryrowset($sql)) === false) {
+	return $this->log(MV_M_DATABASE, 'Could not query defenders fleets data! SKIP');
+}
+
+$dfd_fleet_ids = array();
+
+foreach($dfd_fleets as $i => $cur_fleet) {
+	$dfd_fleet_ids[] = $cur_fleet['fleet_id'];
+}
+
+
+if($this->do_ship_combat($this->fleet_ids_str, implode(',', $dfd_fleet_ids), MV_COMBAT_LEVEL_PLANETARY) == MV_EXEC_ERROR) {
+	$this->log(MV_M_DATABASE, 'Move Action 54: Something went wrong with this fight!');
+    return MV_EXEC_ERROR;
+}
+
+
+// #############################################################################
+// Wenn der Angreifer gewonnen hat, Weiterbombardieren oder ist Schlu�
+
+$dfd_title = 'Angriff auf '.$this->dest['planet_name'];
+
+$status_code = 0;
+
+if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
+    $n_buildings = $NUM_BUILDING + 1;
+    $n_building_lvls = 0;
+
+    $i = 0;
+
+    while($i <= $n_buildings) {
+        $n_building_lvls += (int)$this->dest['building_'.(++$i)];
+    }
+
+    $bomb_i = (!empty($this->action_data[1])) ? (int)$this->action_data[1] : 0;
+
+
+
+	//Spezial "Antiborg" Schiffe
+	$queryadd='';				
+   if ($this->dest['user_id']==BORG_USERID)
+   {
+  		$sql = 'SELECT COUNT(ship_id) AS num FROM (ships s) WHERE s.template_id = 8 AND s.fleet_id IN ('.$this->fleet_ids_str.')';
+  		
+     	if(($borgw = $this->db->queryrow($sql)) === false) {
+    		return $this->log(MV_M_DATABASE, 'Could not query fleets planetary weapons data! SKIP');
+  		}
+     	  	
+	  	if ($borgw['num']>0)
+	  	{
+	  		$unitkill=array(min($this->dest['unit_1'],($borgw['num']*rand(200,400) ) ),
+	  								min($this->dest['unit_2'],($borgw['num']*rand(100,300) ) ),
+	  								min($this->dest['unit_3'],($borgw['num']*rand(75,200) ) ),
+	  								min($this->dest['unit_4'],($borgw['num']*rand(50,100) ) )
+	  								);
+	  		
+	  		$queryadd=' unit_1=unit_1-'.$unitkill[0].', 
+	  						unit_2=unit_2-'.$unitkill[1].', 
+	  						unit_3=unit_3-'.$unitkill[2].', 
+	  	  					unit_4=unit_4-'.$unitkill[3].', ';
+  		}
+	}
+
+
+    if($n_building_lvls == 1 && $queryadd=='') {
+        // Genug bombardiert...
+
+        $sql = 'UPDATE ship_fleets
+                SET planet_id = '.$this->move['dest'].',
+                    move_id = 0
+                WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+
+        if(!$this->db->query($sql)) {
+            return $this->log(MV_M_DATABASE, 'Could not update fleets location data! SKIP');
+        }
+
+        if($bomb_i > 0) {
+            $status_code = -2;
+            $atk_title = 'Angriff auf '.$this->dest['planet_name'].' beendet';
+        }
+        else {
+            $status_code - 1;
+            $atk_title = 'Angriff auf '.$this->dest['planet_name'].' teilweise erfolgreich';
+        }
+    }
+    else {
+        $sql = 'SELECT SUM(st.value_3) AS sum_planetary_weapons
+                FROM (ships s)
+                INNER JOIN ship_templates st ON st.id = s.template_id
+                WHERE s.fleet_id IN ('.$this->fleet_ids_str.')';
+
+        if(($plweapons = $this->db->queryrow($sql)) === false) {
+            return $this->log(MV_M_DATABASE, 'Could not query fleets planetary weapons data! SKIP');
+        }
+
+        $planetary_weapons = (int)$plweapons['sum_planetary_weapons'];
+
+        if($planetary_weapons == 0) {
+            $sql = 'UPDATE ship_fleets
+                    SET planet_id = '.$this->move['dest'].',
+                        move_id = 0
+                    WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update fleets location data! SKIP');
+            }
+
+            $status_code = -3;
+
+            $atk_title = 'Angriff auf '.$this->dest['planet_name'].' teilweise erfolgreich';
+        }
+        else {
+            if(!isset($this->action_data[0])) {
+                return $this->log(MV_M_ERROR, 'action_54: Could not find required action_data parameter 0! SKIP');
+            }
+
+            $focus = (int)$this->move['action_data'][0];
+
+            if($focus < 0) $focus = 0;
+            if($focus > 3) $focus = 3;
+
+
+		
+            $new_dest = PlanetaryAttack($planetary_weapons, $this->dest, $focus, $RACE_DATA[$this->dest['user_race']][17]);
+
+            $sql = 'UPDATE planets
+                    SET resource_4 = '.$new_dest['resource_4'].',
+                        building_1 = '.$new_dest['building_1'].',
+                        building_2 = '.$new_dest['building_2'].',
+                        building_3 = '.$new_dest['building_3'].',
+                        building_4 = '.$new_dest['building_4'].',
+                        building_5 = '.$new_dest['building_5'].',
+                        building_6 = '.$new_dest['building_6'].',
+                        building_7 = '.$new_dest['building_7'].',
+                        building_8 = '.$new_dest['building_8'].',
+                        building_9 = '.$new_dest['building_9'].',
+                        building_10 = 0,
+                        building_11 = '.$new_dest['building_11'].',
+                        building_12 = '.$new_dest['building_12'].',
+                        building_13 = 0,
+			unit_1 = '.$new_dest['unit_1'].',
+                        unit_2 = '.$new_dest['unit_2'].',
+                        unit_3 = '.$new_dest['unit_3'].',
+                        unit_4 = '.$new_dest['unit_4'].',
+                        unit_5 = '.$new_dest['unit_5'].',
+                        unit_6 = '.$new_dest['unit_6'].',
+                        '.$queryadd.'
+								recompute_static=1
+                    WHERE planet_id = '.$this->move['dest'];
+
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update planets data after attack! SKIP');
+            }
+
+            $sql = 'UPDATE planets
+            			SET unit_1=0 WHERE unit_1<0';
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update planets data after attack! SKIP');
+            }
+            $sql = 'UPDATE planets
+            			SET unit_2=0 WHERE unit_2<0';
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update planets data after attack! SKIP');
+            }
+            $sql = 'UPDATE planets
+            			SET unit_3=0 WHERE unit_3<0';
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update planets data after attack! SKIP');
+            }
+            $sql = 'UPDATE planets
+            			SET unit_4=0 WHERE unit_4<0';
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update planets data after attack! SKIP');
+            }
+
+
+
+            $sql = 'UPDATE scheduler_shipmovement
+                    SET move_begin = '.$this->CURRENT_TICK.',
+                        move_finish = '.($this->CURRENT_TICK + 8).',
+                        action_data = "'.serialize(array($focus, ($bomb_i + 1))).'"
+                    WHERE move_id = '.$this->mid;
+
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update move data! SKIP');
+            }
+
+            $status_code = ($bomb_i > 0) ? 2 : 1;
+
+            $atk_title = 'Angriff auf '.$this->dest['planet_name'].' erfolgreich';
+
+            $this->flags['keep_move_alive'] = true;
+        }
+    }
+}
+else {
+    $atk_title = 'Angriff auf '.$this->dest['planet_name'].' fehlgeschlagen';
+}
+
+
+// #############################################################################
+// Logbuch schreiben
+
+$log1_data = array(54, $this->move['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], 0, 0, 0, MV_CMB_ATTACKER, ( ($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) ? 1 : 0 ), 0,0, $atk_fleets, $dfd_fleets);
+$log2_data = array(54, $this->move['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], 0, 0, 0, MV_CMB_DEFENDER, ( ($this->cmb[MV_CMB_WINNER] == MV_CMB_DEFENDER) ? 1 : 0 ), 0,0, $atk_fleets, $dfd_fleets);
+
+
+$log1_data[10] = $this->cmb[MV_CMB_KILLS_EXT];
+$log2_data[10] = $this->cmb[MV_CMB_KILLS_EXT];
+
+
+$log2_data[14] = $this->cmb[MV_CMB_KILLS_PLANETARY];
+
+$log1_data[17] = $log2_data[17] = $status_code;
+
+if(!empty($new_dest)) {
+    $log1_data[18] = $log2_data[18] = array(
+        $this->dest['resource_4'] - $new_dest['resource_4'],
+        $this->dest['building_1'] - $new_dest['building_1'],
+        $this->dest['building_2'] - $new_dest['building_2'],
+        $this->dest['building_3'] - $new_dest['building_3'],
+        $this->dest['building_4'] - $new_dest['building_4'],
+        $this->dest['building_5'] - $new_dest['building_5'],
+        $this->dest['building_6'] - $new_dest['building_6'],
+        $this->dest['building_7'] - $new_dest['building_7'],
+        $this->dest['building_8'] - $new_dest['building_8'],
+        $this->dest['building_9'] - $new_dest['building_9'],
+        0,
+        $this->dest['building_11'] - $new_dest['building_11'],
+        $this->dest['building_12'] - $new_dest['building_12'],
+	$this->dest['unit_1'] - $new_dest['unit_1'],
+        $this->dest['unit_2'] - $new_dest['unit_2'],
+        $this->dest['unit_3'] - $new_dest['unit_3'],
+        $this->dest['unit_4'] - $new_dest['unit_4'],
+        $this->dest['unit_5'] - $new_dest['unit_5'],
+        $this->dest['unit_6'] - $new_dest['unit_6'],
+	0
+    );
+}
+    $log1_data[19] = $log2_data[19] = $this->dest['user_race'];
+
+
+if(isset($unitkill)) {
+    $log1_data[20] = $log2_data[20] = $unitkill;
+
+}
+
+add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $atk_title, $log1_data);
+add_logbook_entry($this->dest['user_id'], LOGBOOK_TACTICAL, $dfd_title, $log2_data);
+
+if($n_st_user > 0) {
+    $log2_data[2] = $this->move['start'];
+    $log2_data[3] = $this->dest['planet_name'];
+    $log2_data[4] = $user_id;
+    $log2_data[5] = 0;
+    $log2_data[6] = 0;
+    $log2_data[7] = 0;
+    $log2_data[16] = 1;
+
+    for($i = 0; $i < $n_st_user; ++$i) {
+        add_logbook_entry($st_user[$i], LOGBOOK_TACTICAL, 'Verb�ndeten bei '.$this->dest['planet_name'].' verteidigt', $log2_data);
+    }
+}
+
+return MV_EXEC_OK;
+
+    }
+}
+
+?>
