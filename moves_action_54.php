@@ -25,7 +25,7 @@
 class moves_action_54 extends moves_common {
     function _action_main() {
 
-global $NUM_BUILDING;
+global $NUM_BUILDING, $RACE_DATA;
 
 // #############################################################################
 // Daten der Angreifer
@@ -137,12 +137,25 @@ if($this->do_ship_combat($this->fleet_ids_str, implode(',', $dfd_fleet_ids), MV_
 // #############################################################################
 // Wenn der Angreifer gewonnen hat, Weiterbombardieren oder ist Schlu�
 
-$dfd_title = 'Angriff auf '.$this->dest['planet_name'];
+// #############################################################################
+// 03/04/08 - AC: Retrieve player language
+switch($this->dest['language'])
+{
+    case 'GER':
+        $dfd_title = 'Angriff auf '.$this->dest['planet_name'];
+    break;
+    case 'ITA':
+        $dfd_title = 'Attacco su '.$this->dest['planet_name'];
+    break;
+    default:
+        $dfd_title = 'Attack on '.$this->dest['planet_name'];
+    break;
+}
 
 $status_code = 0;
 
 if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
-    $n_buildings = $NUM_BUILDING + 1;
+    $n_buildings = $NUM_BUILDING;
     $n_building_lvls = 0;
 
     $i = 0;
@@ -153,10 +166,12 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
     $bomb_i = (!empty($this->action_data[1])) ? (int)$this->action_data[1] : 0;
 
+    // 080408 DC: the oracle says....
+    $this->log(MV_M_NOTICE, 'I read building_lvls = '.$n_building_lvls.' and bomb_i = '.$bomb_i);
 
 
 	//Spezial "Antiborg" Schiffe
-	$queryadd='';				
+	$queryadd='';
    if ($this->dest['user_id']==BORG_USERID)
    {
   		$sql = 'SELECT COUNT(ship_id) AS num FROM (ships s) WHERE s.template_id = 8 AND s.fleet_id IN ('.$this->fleet_ids_str.')';
@@ -182,12 +197,15 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
 
     if($n_building_lvls == 1 && $queryadd=='') {
-        // Genug bombardiert...
+        // Enough Bombed...
 
         $sql = 'UPDATE ship_fleets
                 SET planet_id = '.$this->move['dest'].',
                     move_id = 0
                 WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+
+        // 080408 DC: Atrocity & Genocide are not YET permitted
+        $this->log(MV_M_NOTICE, 'Atrocity & Genocide not YET permitted, bombing will not be done.');
 
         if(!$this->db->query($sql)) {
             return $this->log(MV_M_DATABASE, 'Could not update fleets location data! SKIP');
@@ -195,11 +213,39 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
         if($bomb_i > 0) {
             $status_code = -2;
-            $atk_title = 'Angriff auf '.$this->dest['planet_name'].' beendet';
+
+            // #############################################################################
+            // 03/04/08 - AC: Retrieve player language
+            switch($this->move['language'])
+            {
+                case 'GER':
+                   $atk_title = 'Angriff auf '.$this->dest['planet_name'].' beendet';
+                break;
+                case 'ITA':
+                    $atk_title = 'Attacco su '.$this->dest['planet_name'].' terminato';
+                break;
+                default:
+                    $atk_title = 'Attack on '.$this->dest['planet_name'].' ended';
+                break;
+            }
         }
         else {
             $status_code - 1;
-            $atk_title = 'Angriff auf '.$this->dest['planet_name'].' teilweise erfolgreich';
+
+            // #############################################################################
+            // 03/04/08 - AC: Retrieve player language
+            switch($this->move['language'])
+            {
+                case 'GER':
+                   $atk_title = 'Angriff auf '.$this->dest['planet_name'].' teilweise erfolgreich';
+                break;
+                case 'ITA':
+                    $atk_title = 'Attacco su '.$this->dest['planet_name'].' parzialmente riuscito';
+                break;
+                default:
+                    $atk_title = 'Attack on '.$this->dest['planet_name'].' partially successful';
+                break;
+            }
         }
     }
     else {
@@ -226,7 +272,20 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
             $status_code = -3;
 
-            $atk_title = 'Angriff auf '.$this->dest['planet_name'].' teilweise erfolgreich';
+            // #############################################################################
+            // 03/04/08 - AC: Retrieve player language
+            switch($this->move['language'])
+            {
+                case 'GER':
+                   $atk_title = 'Angriff auf '.$this->dest['planet_name'].' teilweise erfolgreich';
+                break;
+                case 'ITA':
+                    $atk_title = 'Attacco su '.$this->dest['planet_name'].' parzialmente riuscito';
+                break;
+                default:
+                    $atk_title = 'Attack on '.$this->dest['planet_name'].' partially successful';
+                break;
+            }
         }
         else {
             if(!isset($this->action_data[0])) {
@@ -239,7 +298,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             if($focus > 3) $focus = 3;
 
 
-		
+
             $new_dest = PlanetaryAttack($planetary_weapons, $this->dest, $focus, $RACE_DATA[$this->dest['user_race']][17]);
 
             $sql = 'UPDATE planets
@@ -257,14 +316,14 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                         building_11 = '.$new_dest['building_11'].',
                         building_12 = '.$new_dest['building_12'].',
                         building_13 = 0,
-			unit_1 = '.$new_dest['unit_1'].',
+                        unit_1 = '.$new_dest['unit_1'].',
                         unit_2 = '.$new_dest['unit_2'].',
                         unit_3 = '.$new_dest['unit_3'].',
                         unit_4 = '.$new_dest['unit_4'].',
                         unit_5 = '.$new_dest['unit_5'].',
                         unit_6 = '.$new_dest['unit_6'].',
                         '.$queryadd.'
-								recompute_static=1
+                        recompute_static=1
                     WHERE planet_id = '.$this->move['dest'];
 
             if(!$this->db->query($sql)) {
@@ -306,14 +365,40 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
             $status_code = ($bomb_i > 0) ? 2 : 1;
 
-            $atk_title = 'Angriff auf '.$this->dest['planet_name'].' erfolgreich';
+            // #############################################################################
+            // 03/04/08 - AC: Retrieve player language
+            switch($this->move['language'])
+            {
+                case 'GER':
+                    $atk_title = 'Angriff auf '.$this->dest['planet_name'].' erfolgreich';
+                break;
+                case 'ITA':
+                    $atk_title = 'Attacco su '.$this->dest['planet_name'].' riuscito';
+                break;
+                default:
+                    $atk_title = 'Attack on '.$this->dest['planet_name'].' successful';
+                break;
+            }
 
             $this->flags['keep_move_alive'] = true;
         }
     }
 }
 else {
-    $atk_title = 'Angriff auf '.$this->dest['planet_name'].' fehlgeschlagen';
+    // #############################################################################
+    // 03/04/08 - AC: Retrieve player language
+    switch($this->move['language'])
+    {
+        case 'GER':
+            $atk_title = 'Angriff auf '.$this->dest['planet_name'].' fehlgeschlagen';
+        break;
+        case 'ITA':
+            $atk_title = 'Attacco su '.$this->dest['planet_name'].' fallito';
+        break;
+        default:
+            $atk_title = 'Attack on '.$this->dest['planet_name'].' failed';
+        break;
+    }
 }
 
 
@@ -377,7 +462,27 @@ if($n_st_user > 0) {
     $log2_data[16] = 1;
 
     for($i = 0; $i < $n_st_user; ++$i) {
-        add_logbook_entry($st_user[$i], LOGBOOK_TACTICAL, 'Verb�ndeten bei '.$this->dest['planet_name'].' verteidigt', $log2_data);
+        // #############################################################################
+        // 03/04/08 - AC: Retrieve player language
+        $log_title = 'One of your allies defended '.$this->dest['planet_name'];
+        $sql = 'SELECT language FROM user WHERE user_id = '.$st_user[$i];
+        if(!($lang = $this->db->queryrow($sql))) {
+            $this->log(MV_M_DATABASE, 'Could not retrieve player language');
+        }
+        else
+        {
+            switch($lang['language'])
+            {
+                case 'GER':
+                    $log_title = 'Verbündeten bei '.$this->dest['planet_name'].' verteidigt';
+                break;
+                case 'ITA':
+                    $log_title = 'Difesa alleata presso '.$this->dest['planet_name'];
+                break;
+            }
+        }
+
+        add_logbook_entry($st_user[$i], LOGBOOK_TACTICAL, $log_title, $log2_data);
     }
 }
 

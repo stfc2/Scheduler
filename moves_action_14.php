@@ -109,7 +109,7 @@ class moves_action_14 extends moves_common {
 
             if($n_fwares == 0) continue;
 
-            $this->log('Transportsperre', 'Flotten-UserID: '.$rfleet['user_id'].' - Planeten-UserID: '.$user_id.'');
+            $this->log('Transport lock', 'Fleet-UserID: '.$rfleet['user_id'].' - Planet-UserID: '.$user_id.'');
 
             if($rfleet['user_id']!=$user_id) {
               $push = true;

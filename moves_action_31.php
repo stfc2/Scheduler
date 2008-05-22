@@ -40,13 +40,13 @@ class moves_action_31 extends moves_common {
         }
 
         // #############################################################################
-        // Rohstoffe übertragen
+        // Rohstoffe Ã¼bertragen
 
         $wares_names = array('resource_1', 'resource_2', 'resource_3', 'resource_4', 'unit_1', 'unit_2', 'unit_3', 'unit_4', 'unit_5', 'unit_6');
 
         // $pwares -> Waren auf dem Planeten
         // $fwares -> Waren auf der Flotte
-        // $twares -> transferierte Waren (wird gebraucht für Schulden-Berechnung)
+        // $twares -> transferierte Waren (wird gebraucht fÃ¼r Schulden-Berechnung)
 
         $pwares = $fwares = $twares = array();
 
@@ -138,13 +138,13 @@ class moves_action_31 extends moves_common {
         }
 
         // Umarbeiten von $twares auf das von der Schuldenberechnung erwartete Format
-        // (könnte man noch umschreiben, aber wozu, wenn es funktioniert...)
+        // (kÃ¶nnte man noch umschreiben, aber wozu, wenn es funktioniert...)
 
         $rfleets = array('n1' => $twares[0], 'n2' => $twares[1], 'n3' => $twares[2]);
 
 
         // #############################################################################
-        // Schulden überprüfen
+        // Schulden Ã¼berprÃ¼fen
 
         $sql = 'SELECT id, resource_1, resource_2, resource_3, ship_id
                 FROM bidding_owed
@@ -215,7 +215,7 @@ class moves_action_31 extends moves_common {
         }
 
         // #############################################################################
-        // Schiffe zurückgeschicken
+        // Schiffe zurÃ¼ckgeschicken
 
         $sql = 'INSERT INTO scheduler_shipmovement (user_id, move_status, move_exec_started, start, dest, total_distance, remaining_distance, tick_speed, move_begin, move_finish, n_ships, action_code, action_data)
                 VALUES ('.$this->move['user_id'].', 0, 0, '.$this->move['dest'].', '.$this->move['start'].', '.$this->move['total_distance'].', '.$this->move['total_distance'].', '.$this->move['tick_speed'].', '.$this->CURRENT_TICK.', '.($this->CURRENT_TICK + ($this->move['move_finish'] - $this->move['move_begin'])).', '.$this->move['n_ships'].', 12, "31")';
@@ -260,16 +260,50 @@ class moves_action_31 extends moves_common {
             $log_data[8][] = array($stpl['name'], $stpl['ship_torso'], $stpl['race'], $stpl['n_ships']);
         }
 
+        // #############################################################################
+        // 31/03/08 - AC: Retrieve player language
+        switch($this->move['language'])
+        {
+            case 'GER':
+                $log_title1 = 'Transport bei '.$this->dest['planet_name'].' nicht durchgefÃ¼hrt';
+                $log_title3 = 'Transport bei '.$this->dest['planet_name'].' durchgefÃ¼hrt';
+            break;
+            case 'ITA':
+                $log_title1 = 'Trasporto per '.$this->dest['planet_name'].' non compiuto';
+                $log_title3 = 'Trasporto per '.$this->dest['planet_name'].' compiuto';
+            break;
+            default:
+                $log_title1 = 'Transport for '.$this->dest['planet_name'].' not accomplished';
+                $log_title3 = 'Transport for '.$this->dest['planet_name'].' accomplished';
+            break;
+        }
+
+        switch($this->dest['language'])
+        {
+            case 'GER':
+                $log_title2 = 'Transport bei '.$this->dest['planet_name'].' konnte nicht abgeladen werden';
+                $log_title4 = 'Transport bei '.$this->dest['planet_name'].' erhalten';
+            break;
+            case 'ITA':
+                $log_title2 = 'Trasporto per '.$this->dest['planet_name'].' non scaricato';
+                $log_title4 = 'Trasporto per '.$this->dest['planet_name'].' ricevuto';
+            break;
+            default:
+                $log_title2 = 'Transport for '.$this->dest['planet_name'].' could not be unloaded';
+                $log_title4 = 'Transport for '.$this->dest['planet_name'].' received';
+            break;
+        }
+
         if($push) {
 
-          add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, 'Transport bei '.$this->dest['planet_name'].' nicht durchgeführt', $log_data);
-          add_logbook_entry($this->dest['user_id'], LOGBOOK_TACTICAL, 'Transport bei '.$this->dest['planet_name'].' konnte nicht abgeladen werden', $log_data);
+          add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $log_title1, $log_data);
+          add_logbook_entry($this->dest['user_id'], LOGBOOK_TACTICAL, $log_title2, $log_data);
 
         }
         else {
 
-          add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, 'Transport bei '.$this->dest['planet_name'].' durchgeführt', $log_data);
-          add_logbook_entry($this->dest['user_id'], LOGBOOK_TACTICAL, 'Transport bei '.$this->dest['planet_name'].' erhalten', $log_data);
+          add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $log_title3, $log_data);
+          add_logbook_entry($this->dest['user_id'], LOGBOOK_TACTICAL, $log_title4, $log_data);
 
         }
 

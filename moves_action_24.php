@@ -1,11 +1,11 @@
 <?php
 /*    
-	This file is part of STFC.
-	Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
-		
-	STFC is based on STGC,
-	Copyright 2003-2007 by Florian Brede (florian_brede@hotmail.com) and Philipp Schmidt
-	
+    This file is part of STFC.
+    Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
+
+    STFC is based on STGC,
+    Copyright 2003-2007 by Florian Brede (florian_brede@hotmail.com) and Philipp Schmidt
+
     STFC is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
@@ -25,13 +25,35 @@
 class moves_action_24 extends moves_common {
     function _action_main() {
         // #############################################################################
-        // Logbuch vorbereiten, um jederzeit abbrechen zu können
+        // Prepare Logbook to be able to cancel at any time
 
         $log_data = array(24, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], 0);
 
 
         // #############################################################################
-        // Planeten überprüfen
+        // 10/03/08 - AC: Retrieve player language
+        switch($this->move['language'])
+        {
+            case 'GER':
+                $col_title = 'Kolonisation von ';
+                $col_fail = ' fehlgeschlagen';
+                $col_success = ' erfolgreich';
+            break;
+            case 'ITA':
+                $col_title = 'Colonizzazione di ';
+                $col_fail = ' fallita';
+                $col_success = ' riuscita';
+            break;
+            default:
+                $col_title = 'Colonization of ';
+                $col_fail = ' failed';
+                $col_success = ' successfully';
+            break;
+        }
+
+
+        // #############################################################################
+        // Planets check
 
         if(!empty($this->dest['user_id'])) {
             $sql = 'UPDATE ship_fleets
@@ -39,20 +61,20 @@ class moves_action_24 extends moves_common {
                         move_id = 0
                     WHERE fleet_id IN ('.$this->fleet_ids_str.')';
                     
-            // Hier wär eine Stelle, an der ich benachrichtigt werden sollte
+            // Here there is a point at which I should be notified
             if(!$this->db->query($sql)) {
                 return $this->log(MV_M_DATABASE, 'Could not update fleets location data! CONTINUE');
             }
 
             $log_data[8] = -1;
-            add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, 'Kolonisation von '.$this->dest['planet_name'].' fehlgeschlagen', $log_data);
+            add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $col_title.$this->dest['planet_name'].$col_fail, $log_data);
 
             return MV_EXEC_OK;
         }
 
 
         // #############################################################################
-        // Kolonisationsschiff überprüfen
+        // Colonization ship check
 
         if(empty($this->action_data[0])) {
             return $this->log(MV_M_ERROR, 'action_24: Could not find required action_data entry [0]! SKIP');
@@ -93,21 +115,21 @@ class moves_action_24 extends moves_common {
                         move_id = 0
                     WHERE fleet_id IN ('.$this->fleet_ids_str.')';
                     
-            // Hier wär eine Stelle, an der ich benachrichtigt werden sollte
+            // Here there is a point at which I should be notified
             if(!$this->db->query($sql)) {
                 $this->log(MV_M_DATABASE, 'Could not update fleets location data! CONTINUE');
             }
 
             $log_data[8] = -2;
-            add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, 'Kolonisation von '.$this->dest['planet_name'].' fehlgeschlagen', $log_data);
+            add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $col_title.$this->dest['planet_name'].$col_fail, $log_data);
 
             return MV_EXEC_OK;
         }
 
 
         // #############################################################################
-        // Wir brauchen die Anzahl der Planeten, die der kolonisierende besitzt
-        // (wir wollen planet_owner_enum sicher bestimmen)
+        // We need the number of planets, which owns the colonizer
+        // (we want to determine planet_owner_enum surely)
 
         $sql = 'SELECT COUNT(planet_id) AS n_planets
                 FROM planets
@@ -124,7 +146,7 @@ class moves_action_24 extends moves_common {
 
 
         // #############################################################################
-        // Kolonisation versuchen
+        // Colonization attempt
 
         $sql = 'DELETE FROM scheduler_instbuild
                 WHERE planet_id = '.$this->move['dest'];
@@ -224,8 +246,8 @@ class moves_action_24 extends moves_common {
                     unittrainnumberleft_9 = 0,
                     unittrainnumberleft_10 = 0,
                     unittrain_actual = 0,
-		    		unittrainid_nexttime=0,
-		    		building_queue=0,
+                    unittrainid_nexttime=0,
+                    building_queue=0,
                   	planet_surrender=0
                 WHERE planet_id = '.$this->move['dest'];
      
@@ -235,15 +257,15 @@ class moves_action_24 extends moves_common {
             return $this->log(MV_M_DATABASE, 'Could not update planets data! SKIP');
         }
 
-        //Konzept des Schiffe vernichten bei feindlicher Übernahme.
-        //Version 0.2b von Mojo1987 - Berechnung angepasst
+        //Concept of vessels destroyed by hostile takeover.
+        //Version 0.2b by Mojo1987 - Computation adapted
 
-        $this->log('Schiffsübergabe Schutz', 'Beginne löschen von Schiffen');
+        $this->log('Ship handover protection', 'Start ships deletion');
 
         $sql = 'SELECT s.ship_id FROM (ships s) WHERE s.fleet_id = -'.$this->move['dest'].'';
 
         if(!$del_ship = $this->db->query($sql)) {
-           $this->log('Fehler beim Schiffe holen', 'Could not query planets ships! CONTINUE - '.$sql.'');
+           $this->log('Errors with ships get', 'Could not query planets ships! CONTINUE - '.$sql.'');
         }
 
         while($ship_wahl = $this->db->fetchrow($del_ship)) {
@@ -255,13 +277,13 @@ class moves_action_24 extends moves_common {
             $sql = 'DELETE FROM ships WHERE ship_id = '.$ship_wahl['ship_id'].'';
 
             if(!$this->db->query($sql)) {
-                $this->log('Fehler beim Schiffe löschen', 'Could not query deleted ship! CONTINUE');
+                $this->log('Errors with ships deletion', 'Could not query deleted ship! CONTINUE');
             }
-            else { $this->log('Schiffe gelöscht', 'Ship_ID: '.$ship_wahl['ship_id'].' Zufallszahl: '.$zufall.' <b>ERFOLG!</b>'); }
+            else { $this->log('Ships deleted', 'Ship_ID: '.$ship_wahl['ship_id'].' Random number: '.$zufall.' <b> SUCCESS!</b>'); }
           }
         
         }
-        $this->log('Schiffsübergabe Schutz', 'Löschen beendet');
+        $this->log('Ship handover protection', 'Delete terminated');
 
 
         $sql = 'DELETE FROM ships
@@ -288,7 +310,7 @@ class moves_action_24 extends moves_common {
 
 
         // #############################################################################
-        // Flotten positionieren
+        // Fleets positioning
 
         $sql = 'UPDATE ship_fleets
                 SET planet_id = '.$this->move['dest'].',
@@ -301,13 +323,13 @@ class moves_action_24 extends moves_common {
 
 
         // #############################################################################
-        // Logbuch schreiben
+        // Write Logbook
 
         $log_data[8] = 1;
         $log_data[9] = $cship['name'];
         $log_data[10] = $cship['race'];
 
-        add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, 'Kolonisation von '.$this->dest['planet_name'].' erfolgreich', $log_data);
+        add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $col_title.$this->dest['planet_name'].$col_success, $log_data);
 
         return MV_EXEC_OK;
     }

@@ -205,12 +205,30 @@ class moves_action_22 extends moves_common {
         $log1_data[10] = $this->dest['user_race'];
 
 
+        // #############################################################################
+        // 31/03/08 - AC: Retrieve player language
+        switch($this->move['language'])
+        {
+            case 'GER':
+                $log_title = 'Spionagebericht von ';
+                $log_success = ' ausspioniert';
+            break;
+            case 'ITA':
+                $log_title = 'Report spionaggio di ';
+                $log_success = ' spiato';
+            break;
+            default:
+                $log_title = 'Spy report of ';
+                $log_success = ' spied';
+            break;
+        }
 
-        add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, 'Spionagebericht von '.$this->dest['planet_name'], $log1_data);
+
+        add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $log_title.$this->dest['planet_name'], $log1_data);
 
 
 
-        if(!empty($log2_data)) add_logbook_entry($this->dest['user_id'], LOGBOOK_TACTICAL, $this->dest['planet_name'].' ausspioniert', $log2_data);
+        if(!empty($log2_data)) add_logbook_entry($this->dest['user_id'], LOGBOOK_TACTICAL, $this->dest['planet_name'].$log_success, $log2_data);
 
 
 

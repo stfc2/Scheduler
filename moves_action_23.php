@@ -51,7 +51,7 @@ class moves_action_23 extends moves_common {
         }
 
         // #############################################################################
-        // Schulden überprüfen
+        // Schulden Ã¼berprÃ¼fen
         
         $sql = 'SELECT id, resource_1, resource_2, resource_3, ship_id
                 FROM bidding_owed
@@ -171,8 +171,37 @@ class moves_action_23 extends moves_common {
             $log_data[8][] = array($stpl['name'], $stpl['ship_torso'], $stpl['race'], $stpl['n_ships']);
         }
 
-        add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, 'Flottenverband '.$this->dest['user_name'].' übergeben', $log_data);
-        add_logbook_entry($this->dest['user_id'], LOGBOOK_TACTICAL, 'Flottenverband von '.$this->move['user_name'].' hat sich ergeben', $log_data);
+        // #############################################################################
+        // 31/03/08 - AC: Retrieve player language
+        switch($this->move['language'])
+        {
+            case 'GER':
+                $log_title1 = 'Flottenverband '.$this->dest['user_name'].' Ã¼bergeben';
+            break;
+            case 'ITA':
+                $log_title1 = 'Associazione flotta consegnata a '.$this->dest['user_name'];
+            break;
+            default:
+                $log_title1 = 'Fleet association handed over to '.$this->dest['user_name'];
+            break;
+        }
+
+        switch($this->dest['language'])
+        {
+            case 'GER':
+                $log_title2 = 'Flottenverband von '.$this->move['user_name'].' hat sich ergeben';
+            break;
+            case 'ITA':
+                $log_title2 = 'Ricevuta associazione flotta di '.$this->move['user_name'];
+            break;
+            default:
+                $log_title2 = 'Fleet association of '.$this->move['user_name'].' has revealed';
+            break;
+        }
+
+
+        add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $log_title1, $log_data);
+        add_logbook_entry($this->dest['user_id'], LOGBOOK_TACTICAL, $log_title2, $log_data);
 
         return MV_EXEC_OK;
     }

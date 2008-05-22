@@ -116,7 +116,7 @@ else {
              WHERE f.planet_id = '.$this->move['dest'].' AND
                    f.user_id = '.$this->dest['user_id'];
 }
-               			
+
 if(($dfd_fleets = $this->db->queryrowset($sql)) === false) {
 	return $this->log(MV_M_DATABASE, 'Could not query defenders fleets data! SKIP');
 }
@@ -166,12 +166,62 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
         return $this->log(MV_M_DATABASE, 'Could not update fleets movement data! SKIP');
     }
 
-    $atk_title = 'Angriff auf '.$this->dest['planet_name'].' erfolgreich';
-    $dfd_title = 'Schwerer Angriff auf '.$this->dest['planet_name'];
+    // #############################################################################
+    // 02/04/08 - AC: Retrieve player language
+    switch($this->move['language'])
+    {
+        case 'GER':
+            $atk_title = 'Angriff auf '.$this->dest['planet_name'].' erfolgreich';
+        break;
+        case 'ITA':
+            $atk_title = 'Attacco su '.$this->dest['planet_name'].' riuscito';
+        break;
+        default:
+            $atk_title = 'Attack on '.$this->dest['planet_name'].' successful';
+        break;
+    }
+
+    switch($this->dest['language'])
+    {
+        case 'GER':
+            $dfd_title = 'Schwerer Angriff auf '.$this->dest['planet_name'];
+        break;
+        case 'ITA':
+            $dfd_title = 'Attacco fatale su '.$this->dest['planet_name'];
+        break;
+        default:
+            $dfd_title = 'Fatal attack on '.$this->dest['planet_name'];
+        break;
+    }
 }
 else {
-    $atk_title = 'Angriff auf '.$this->dest['planet_name'].' fehlgeschlagen';
-    $dfd_title = 'Verteidigung von '.$this->dest['planet_name'].' erfolgreich';
+    // #############################################################################
+    // 02/04/08 - AC: Retrieve player language
+    switch($this->move['language'])
+    {
+        case 'GER':
+            $atk_title = 'Angriff auf '.$this->dest['planet_name'].' fehlgeschlagen';
+        break;
+        case 'ITA':
+            $atk_title = 'Attacco su '.$this->dest['planet_name'].' fallito';
+        break;
+        default:
+            $atk_title = 'Attack on '.$this->dest['planet_name'].' failed';
+        break;
+    }
+
+    switch($this->dest['language'])
+    {
+        case 'GER':
+            $dfd_title = 'Verteidigung von '.$this->dest['planet_name'].' erfolgreich';
+        break;
+        case 'ITA':
+            $dfd_title = 'Difesa di '.$this->dest['planet_name'].' riuscita';
+        break;
+        default:
+            $dfd_title = 'Defence of '.$this->dest['planet_name'].' successful';
+        break;
+    }
 }
 
 
@@ -198,7 +248,27 @@ if($n_st_user > 0) {
     $log2_data[16] = 1;
 
     for($i = 0; $i < $n_st_user; ++$i) {
-        add_logbook_entry($st_user[$i], LOGBOOK_TACTICAL_2, 'Verbündeten bei '.$this->dest['planet_name'].' verteidigt', $log2_data);
+        // #############################################################################
+        // 02/04/08 - AC: Retrieve player language
+        $log_title = 'One of your allies defended '.$this->dest['planet_name'];
+        $sql = 'SELECT language FROM user WHERE user_id = '.$st_user[$i];
+        if(!($lang = $this->db->queryrow($sql))) {
+            $this->log(MV_M_DATABASE, 'Could not retrieve player language');
+        }
+        else
+        {
+            switch($lang['language'])
+            {
+                case 'GER':
+                    $log_title = 'Verbündeten bei '.$this->dest['planet_name'].' verteidigt';
+                break;
+                case 'ITA':
+                    $log_title = 'Difesa alleata presso '.$this->dest['planet_name'];
+                break;
+            }
+        }
+
+        add_logbook_entry($st_user[$i], LOGBOOK_TACTICAL_2, $log_title, $log2_data);
     }
 }
 

@@ -120,7 +120,20 @@ if($this->do_ship_combat($atk_fleet_ids_str, implode(',', $dfd_fleet_ids), MV_CO
 // #############################################################################
 // Wenn der Angreifer gewonnen hat, �ernahmeversuch starten
 
-$dfd_title = 'Angriff der Borg auf '.$this->dest['planet_name'];
+// #############################################################################
+// 03/04/08 - AC: Retrieve player language
+switch($this->dest['language'])
+{
+    case 'GER':
+        $dfd_title = 'Angriff der Borg auf '.$this->dest['planet_name'];
+    break;
+    case 'ITA':
+        $dfd_title = 'Attacco Borg su '.$this->dest['planet_name'];
+    break;
+    default:
+        $dfd_title = 'Borg attack on '.$this->dest['planet_name'];
+    break;
+}
 
 $action_status = 0;
 
@@ -219,7 +232,20 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
             $action_status = -1;
 
-            $atk_title = 'Angriff auf '.$this->dest['planet_name'].' teilweise erfolgreich';
+            // #############################################################################
+            // 03/04/08 - AC: Retrieve player language
+            switch($this->move['language'])
+            {
+                case 'GER':
+                    $atk_title = 'Angriff auf '.$this->dest['planet_name'].' teilweise erfolgreich';
+                break;
+                case 'ITA':
+                    $atk_title = 'Attacco su '.$this->dest['planet_name'].' parzialmente riuscito';
+                break;
+                default:
+                    $atk_title = 'Attack on '.$this->dest['planet_name'].' partially successful';
+                break;
+            }
         }
         else {
             account_log($this->move['user_id'], $this->dest['user_id'], 4);
@@ -358,7 +384,24 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                 }
 
                 if($this->dest['user_planets'] == 1) {
-                    SystemMessage($this->dest['user_id'], 'Verlust aller deiner Planeten', 'Da du alle deine Planeten verloren hast, wurde fr dich ein neuer Planet an einer zuf�ligen Stelle der Galaxie erstellt.');
+                    // #############################################################################
+                    // 03/04/08 - AC: Retrieve player language
+                    switch($this->dest['language'])
+                    {
+                        case 'GER':
+                            $msg_title = 'Verlust aller deiner Planeten';
+                            $msg_body = 'Da du alle deine Planeten verloren hast, wurde f&uuml;r dich ein neuer Planet an einer zuf�ligen Stelle der Galaxie erstellt.';
+                        break;
+                        case 'ITA':
+                            $msg_title = 'Perdita di tutti i pianeti';
+                            $msg_body = 'Dato che hai perduto tutti i pianeti ne &egrave; stato creato uno nuovo nella galassia.';
+                        break;
+                        default:
+                            $msg_title = 'Loss of all your planets';
+                            $msg_body = 'Since you lost all your planets a new one have been created in the body of the galaxy.';
+                        break;
+                    }
+                    SystemMessage($this->dest['user_id'], $msg_title, $msg_body);
                 }
                 else {
                     if(!$this->db->query('SET @i=0')) {
@@ -468,9 +511,9 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                         unit_4 = '.$atk_alive[3].',
                         unit_5 = 0,
                         unit_6 = 0,
-   	                workermine_1 = 100,
-    	                workermine_2 = 100,
-	                workermine_3 = 100,
+                        workermine_1 = 100,
+                        workermine_2 = 100,
+                        workermine_3 = 100,
                         catresearch_1 = 0,
                         catresearch_2 = 0,
                         catresearch_3 = 0,
@@ -481,10 +524,10 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                         catresearch_8 = 0,
                         catresearch_9 = 0,
                         catresearch_10 = 0,
-                    	unittrain_actual = 0,
-		    	unittrainid_nexttime=0,
-			planet_insurrection_time=0,
-		    	building_queue=0
+                        unittrain_actual = 0,
+                        unittrainid_nexttime=0,
+                        planet_insurrection_time=0,
+                        building_queue=0
                     WHERE planet_id = '.$this->move['dest'];
 
             if(!$this->db->query($sql)) {
@@ -515,13 +558,39 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
             $action_status = 1;
 
-            $atk_title = 'Angriff auf '.$this->dest['planet_name'].' erfolgreich';
+            // #############################################################################
+            // 03/04/08 - AC: Retrieve player language
+            switch($this->move['language'])
+            {
+                case 'GER':
+                    $atk_title = 'Angriff auf '.$this->dest['planet_name'].' erfolgreich';
+                break;
+                case 'ITA':
+                    $atk_title = 'Attacco su '.$this->dest['planet_name'].' riuscito';
+                break;
+                default:
+                    $atk_title = 'Attack on '.$this->dest['planet_name'].' successful';
+                break;
+            }
         }
     }
     else {
         $action_status = -2;
 
-        $atk_title = 'Angriff auf '.$this->dest['planet_name'].' teilweise erfolgreich';
+        // #############################################################################
+        // 03/04/08 - AC: Retrieve player language
+        switch($this->move['language'])
+        {
+            case 'GER':
+                $atk_title = 'Angriff auf '.$this->dest['planet_name'].' teilweise erfolgreich';
+            break;
+            case 'ITA':
+                $atk_title = 'Attacco su '.$this->dest['planet_name'].' parzialmente riuscito';
+            break;
+            default:
+                $atk_title = 'Attack on '.$this->dest['planet_name'].' partially successful';
+            break;
+        }
     }
 
     $sql = 'UPDATE ship_fleets
@@ -540,7 +609,20 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
     }
 }
 else {
-    $atk_title = 'Angriff auf '.$this->dest['planet_name'].' fehlgeschlagen';
+    // #############################################################################
+    // 03/04/08 - AC: Retrieve player language
+    switch($this->move['language'])
+    {
+        case 'GER':
+            $atk_title = 'Angriff auf '.$this->dest['planet_name'].' fehlgeschlagen';
+        break;
+        case 'ITA':
+            $atk_title = 'Attacco su '.$this->dest['planet_name'].' fallito';
+        break;
+        default:
+            $atk_title = 'Attack on '.$this->dest['planet_name'].' failed';
+        break;
+    }
 }
 
 
@@ -581,7 +663,27 @@ if($n_st_user > 0) {
     $log2_data[16] = 1;
 
     for($i = 0; $i < $n_st_user; ++$i) {
-        add_logbook_entry($st_user[$i], LOGBOOK_TACTICAL, 'Verbndeten bei '.$this->dest['planet_name'].' verteidigt', $log2_data);
+        // #############################################################################
+        // 03/04/08 - AC: Retrieve player language
+        $log_title = 'One of your allies defended '.$this->dest['planet_name'];
+        $sql = 'SELECT language FROM user WHERE user_id = '.$st_user[$i];
+        if(!($lang = $this->db->queryrow($sql))) {
+            $this->log(MV_M_DATABASE, 'Could not retrieve player language');
+        }
+        else
+        {
+            switch($lang['language'])
+            {
+                case 'GER':
+                    $log_title = 'Verbündeten bei '.$this->dest['planet_name'].' verteidigt';
+                break;
+                case 'ITA':
+                    $log_title = 'Difesa alleata presso '.$this->dest['planet_name'];
+                break;
+            }
+        }
+
+        add_logbook_entry($st_user[$i], LOGBOOK_TACTICAL, $log_title, $log2_data);
     }
 }
 

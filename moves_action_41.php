@@ -64,7 +64,7 @@ $sql_3 = 'SELECT DISTINCT f.user_id,f.fleet_id,ssm.dest,
                ad.ad_id, ad.type, ad.status,ssm.move_id
         FROM (ship_fleets f)
         INNER JOIN user u ON u.user_id = f.user_id
-	LEFT JOIN (scheduler_shipmovement ssm) ON ssm.move_id=f.move_id
+        LEFT JOIN (scheduler_shipmovement ssm) ON ssm.move_id=f.move_id
         LEFT JOIN user_diplomacy ud ON ( ( ud.user1_id = '.$this->move['user_id'].' AND ud.user2_id = f.user_id ) OR ( ud.user1_id = f.user_id AND ud.user2_id = '.$this->move['user_id'].' ) )
         LEFT JOIN alliance_diplomacy ad ON ( ( ad.alliance1_id ='.$user_attacker['user_alliance'].' AND ad.alliance2_id = u.user_alliance) OR ( ad.alliance1_id = u.user_alliance AND ad.alliance2_id = '.$user_attacker['user_alliance'].' ) ) 
         WHERE ssm.move_finish<='.$this->move['move_finish'].' AND
@@ -207,7 +207,7 @@ else {
              WHERE f.planet_id = '.$this->move['dest'].' AND
                    f.user_id = '.$this->dest['user_id'];
 }
-               			
+
 if(($dfd_fleets = $this->db->queryrowset($sql)) === false) {
 	return $this->log(MV_M_DATABASE, 'Could not query defenders fleets data! SKIP');
 }
@@ -238,12 +238,62 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
         return $this->log(MV_M_DATABASE, 'Could not update fleets location data! SKIP');
     }
 
-    $atk_title = 'Angriff auf '.$this->dest['planet_name'].' erfolgreich';
-    $dfd_title = 'Schwerer Angriff auf '.$this->dest['planet_name'];
+    // #############################################################################
+    // 02/04/08 - AC: Retrieve player language
+    switch($this->move['language'])
+    {
+        case 'GER':
+            $atk_title = 'Angriff auf '.$this->dest['planet_name'].' erfolgreich';
+        break;
+        case 'ITA':
+            $atk_title = 'Attacco su '.$this->dest['planet_name'].' riuscito';
+        break;
+        default:
+            $atk_title = 'Attack on '.$this->dest['planet_name'].' successful';
+        break;
+    }
+
+    switch($this->dest['language'])
+    {
+        case 'GER':
+            $dfd_title = 'Schwerer Angriff auf '.$this->dest['planet_name'];
+        break;
+        case 'ITA':
+            $dfd_title = 'Attacco fatale su '.$this->dest['planet_name'];
+        break;
+        default:
+            $dfd_title = 'Fatal attack on '.$this->dest['planet_name'];
+        break;
+    }
 }
 else {
-    $atk_title = 'Angriff auf '.$this->dest['planet_name'].' fehlgeschlagen';
-    $dfd_title = 'Verteidigung von '.$this->dest['planet_name'].' erfolgreich';
+    // #############################################################################
+    // 02/04/08 - AC: Retrieve player language
+    switch($this->move['language'])
+    {
+        case 'GER':
+            $atk_title = 'Angriff auf '.$this->dest['planet_name'].' fehlgeschlagen';
+        break;
+        case 'ITA':
+            $atk_title = 'Attacco su '.$this->dest['planet_name'].' fallito';
+        break;
+        default:
+            $atk_title = 'Attack on '.$this->dest['planet_name'].' failed';
+        break;
+    }
+
+    switch($this->dest['language'])
+    {
+        case 'GER':
+            $dfd_title = 'Verteidigung von '.$this->dest['planet_name'].' erfolgreich';
+        break;
+        case 'ITA':
+            $dfd_title = 'Difesa di '.$this->dest['planet_name'].' riuscita';
+        break;
+        default:
+            $dfd_title = 'Defence of '.$this->dest['planet_name'].' successful';
+        break;
+    }
 }
 
 
@@ -271,7 +321,27 @@ if($a_st_user > 0) {
     $log3_data[16] = 1;
 
     for($i = 0; $i < $a_st_user; ++$i) {
-        add_logbook_entry($at_user[$i], LOGBOOK_TACTICAL_2, 'Mit Verbündeten bei '.$this->dest['planet_name'].' angegriffen', $log3_data);
+        // #############################################################################
+        // 02/04/08 - AC: Retrieve player language
+        $log_title = 'One of your allies attacked '.$this->dest['planet_name'];
+        $sql = 'SELECT language FROM user WHERE user_id = '.$at_user[$i];
+        if(!($lang = $this->db->queryrow($sql))) {
+            $this->log(MV_M_DATABASE, 'Could not retrieve player language');
+        }
+        else
+        {
+            switch($lang['language'])
+            {
+                case 'GER':
+                    $log_title = 'Mit Verbündeten bei '.$this->dest['planet_name'].' angegriffen';
+                break;
+                case 'ITA':
+                    $log_title = 'Attacco alleato presso '.$this->dest['planet_name'];
+                break;
+            }
+        }
+
+        add_logbook_entry($at_user[$i], LOGBOOK_TACTICAL_2, $log_title, $log3_data);
     }
 }
 if($n_st_user > 0) {
@@ -284,7 +354,27 @@ if($n_st_user > 0) {
     $log2_data[16] = 1;
 
     for($i = 0; $i < $n_st_user; ++$i) {
-        add_logbook_entry($st_user[$i], LOGBOOK_TACTICAL_2, 'Verbündeten bei '.$this->dest['planet_name'].' verteidigt', $log2_data);
+        // #############################################################################
+        // 02/04/08 - AC: Retrieve player language
+        $log_title = 'One of your allies defended '.$this->dest['planet_name'];
+        $sql = 'SELECT language FROM user WHERE user_id = '.$st_user[$i];
+        if(!($lang = $this->db->queryrow($sql))) {
+            $this->log(MV_M_DATABASE, 'Could not retrieve player language');
+        }
+        else
+        {
+            switch($lang['language'])
+            {
+                case 'GER':
+                    $log_title = 'Verbündeten bei '.$this->dest['planet_name'].' verteidigt';
+                break;
+                case 'ITA':
+                    $log_title = 'Difesa alleata presso '.$this->dest['planet_name'];
+                break;
+            }
+        }
+
+        add_logbook_entry($st_user[$i], LOGBOOK_TACTICAL_2, $log_title, $log2_data);
     }
 }
 
@@ -295,7 +385,7 @@ if(!$aad = $this->db->query($sql_3)) {
 
 while($aa_uid = $this->db->fetchrow($aad))
 {
-$this->log(MV_M_DATABASE, '::::'.$aa_uid['move_id'].'Nun löschen wir:'.$this->move['user_id'].'<br>');
+$this->log(MV_M_DATABASE, '::::'.$aa_uid['move_id'].'Now we delete:'.$this->move['user_id'].'<br>');
 if($aa_uid['move_id']!=$this->move['user_id'])
 {
       /*  $sql = 'UPDATE scheduler_shipmovement

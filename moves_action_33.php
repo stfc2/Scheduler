@@ -71,8 +71,23 @@ class moves_action_33 extends moves_common {
 
         $log_data = array(33, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'],
                           $aship['ship_id'], $aship['name'], $aship['ship_torso'], $aship['race']);
-                          
-        add_logbook_entry($this->dest['user_id'], LOGBOOK_TACTICAL, 'Ersteigertes Schiff von '.$this->move['user_name'].' angekommen', $log_data);
+
+        // #############################################################################
+        // 01/04/08 - AC: Retrieve player language
+        switch($this->dest['language'])
+        {
+            case 'GER':
+                $log_title = 'Ersteigertes Schiff von '.$this->move['user_name'].' angekommen';
+            break;
+            case 'ITA':
+                $log_title = 'Ersteigertes nave di '.$this->move['user_name'].' arrivata';
+            break;
+            default:
+                $log_title = 'Ersteigertes ship of '.$this->move['user_name'].' arrived';
+            break;
+        }
+
+        add_logbook_entry($this->dest['user_id'], LOGBOOK_TACTICAL, $log_title, $log_data);
 
         return MV_EXEC_OK;
     }
