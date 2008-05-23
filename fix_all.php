@@ -23,360 +23,24 @@
 
 // ########################################################################################
 // ########################################################################################
-// Startup Konfig
+// Startup Config
+
+// include game definitions, path url and so on
+include('config.script.php');
 
 error_reporting(E_ERROR);
 ini_set('memory_limit', '200M');
 set_time_limit(120); // 2 minutes
 
 if(!empty($_SERVER['SERVER_SOFTWARE'])) {
-    echo 'Der Scheduler kann nur per CLI aufgerufen werden!'; exit;
+    echo 'The scheduler can only be called by CLI!'; exit;
 }
 
-define('TICK_LOG_FILE', '|script_dir|/game/logs/fixall/tick_'.date('d-m-Y', time()).'.log');
+define('TICK_LOG_FILE', $game_path . 'game/logs/fixall/tick_'.date('d-m-Y', time()).'.log');
 define('IN_SCHEDULER', true); // wir sind im scheduler...
 
-
-// ########################################################################################
-// ########################################################################################
-// SQL-Abstraktions-Klasse
-
-
-class sql {
-    var $login = array();
-    var $error = array();
-
-    var $link_id = 0;
-    var $query_id = 0;
-
-    var $i_query = 0;
-    
-    var $already_reconnected = -1; // So ist bei erster Verbindung 0
-
-
-    function sql($server, $database, $user, $password = '') {
-        $this->login = array(
-            'server' => $server,
-            'database' => $database,
-            'user' => $user,
-            'password' => $password
-        );
-    }
-
-    function raise_error($message = false, $number = false, $sql = '') {
-        if($message === false) $message = mysql_error($this->link_id);
-        if($number === false) $number = mysql_errno($this->link_id);
-
-        $this->error = array(
-            'message' => $message,
-            'number' => $number,
-            'sql' => $sql
-        );
-
-        return false;
-    }
-
-    function connect() {
-        if(!is_resource($this->link_id)) {
-            if($this->already_reconnected == 5) {
-                global $sdl;
-                
-                $sdl->log('ILLEGAL: Mysql->connect(): Trying to reconnect 6th time! DIE');
-                exit;
-            }
-
-            if(!$this->link_id = @mysql_connect($this->login['server'], $this->login['user'], $this->login['password'])) {
-                global $sdl;
-
-                $sdl->log('CRITICAL: Mysql->connect(): Could not connect to mysql server! DIE');
-                exit;
-            }
-
-            if(!@mysql_select_db($this->login['database'], $this->link_id)) {
-                global $sdl;
-
-                $sdl->log('CRITICAL: Mysql->connect(): Could not select database! DIE');
-                exit;
-            }
-            
-            $this->already_reconnected++;
-        }
-        
-
-
-        return true;
-    }
-
-    function close() {
-        if(is_resource($this->link_id)) {
-            if(!@mysql_close($this->link_id)) {
-                return $this->raise_error();
-            }
-        }
-
-        return true;
-    }
-
-    function query($query, $unbuffered = false) {
-        if(!$this->connect()) {
-            return false;
-        }
-
-        $query_function = ($unbuffered) ? 'mysql_unbuffered_query' : 'mysql_query';
-
-        if(!$this->query_id = @$query_function($query, $this->link_id)) {
-            return $this->raise_error(false, false, $query);
-        }
-
-        ++$this->i_query;
-
-        return $this->query_id;
-    }
-
-    function fetchrow($query_id = 0, $result_type = MYSQL_ASSOC) {
-        if(!is_resource($query_id)) $query_id = $this->query_id;
-
-        if(!$_row = @mysql_fetch_array($query_id, $result_type)) {
-            if(($_error = mysql_error()) !== '') {
-                return $this->raise_error($_error);
-            }
-            else {
-                return array();
-            }
-        }
-
-        return $_row;
-    }
-
-    function fetchrowset($query_id = 0, $result_type = MYSQL_ASSOC) {
-        if(!is_resource($query_id)) $query_id = $this->query_id;
-
-        $_row = $_rowset = array();
-
-        while($_row = @mysql_fetch_array($query_id, $result_type)) {
-            $_rowset[] = $_row;
-        }
-
-        if(!$_rowset) {
-            if(($_error = mysql_error()) !== '') {
-                return $this->raise_error();
-            }
-            else {
-                return array();
-            }
-        }
-
-        return $_rowset;
-    }
-
-    function queryrow($query, $result_type = MYSQL_ASSOC) {
-        if(!$_qid = $this->query($query)) {
-            return false;
-        }
-
-        return $this->fetchrow($_qid, $result_type);
-    }
-
-    function queryrowset($query, $result_type = MYSQL_ASSOC) {
-        if(!$_qid = $this->query($query, true)) {
-            return false;
-        }
-
-        return $this->fetchrowset($_qid, $result_type);
-    }
-
-    function free_result($query_id = 0) {
-        if(!is_resource($query_id)) $query_id = $this->query_id;
-
-        if(!@mysql_free_result($query_id)) {
-            return $this->raise_error();
-        }
-
-        return true;
-    }
-
-    function num_rows($query_id = 0) {
-        if(!is_resource($query_id)) $query_id = $this->query_id;
-
-        $_num = @mysql_num_rows($query_id);
-
-        if($_num === false) {
-            return $this->raise_error();
-        }
-
-        return $_num;
-    }
-
-    function affected_rows() {
-        $_num = @mysql_affected_rows($this->link_id);
-
-        if($_num === false) {
-            return $this->raise_error();
-        }
-
-        return $_num;
-    }
-
-    function insert_id() {
-        $_id = @mysql_insert_id($this->link_id);
-
-        if($_id === false) {
-            return $this->raise_error();
-        }
-
-        return $_id;
-    }
-}
-
-
-// ########################################################################################
-// ########################################################################################
-// App-Klasse (im Moment nur Logging/Timing)
-
-class scheduler {
-    var $start_values = array();
-
-    function log($message) {
-        $fp = fopen(TICK_LOG_FILE, 'a');
-        fwrite($fp, $message."\n");
-        echo str_replace('\n','<br>',$message.'\n');
-        fclose($fp);
-    }
-
-    function start_job($name) {
-        global $db;
-        
-        $this->log('<font color=#0000ff>Starting <b>'.$name.'</b>...</font>');
-
-        $this->start_values[$name] = array( time() + microtime() , $db->i_query );
-    }
-
-    function finish_job($name) {
-        global $db;
-
-        $this->log('<font color=#0000ff>Executed <b>'.$name.'</b> (</font><font color=#ff0000>queries: '.($db->i_query - $this->start_values[$name][1]).'</font><font color=#0000ff>) in </font><font color=#009900>'.round( (time() + microtime()) - $this->start_values[$name][0] , 4).' secs</font><br>');
-
-    }
-}
-
-
-// ########################################################################################
-// ########################################################################################
-// andere Funktionen
-
-function RetrieveRealCatId($id,$user_id)
-{
-global $db,$sdl;
-$player=$db->queryrow('SELECT user_race FROM user WHERE user_id="'.$user_id.'"');
-$catquery=$db->query('SELECT id FROM ship_ccategory WHERE race="'.$player['user_race'].'"');
-$cat_id=1;
-while (($cat=$db->fetchrow($catquery))==true)
-{
-if ($cat['id']==$id) return $cat_id;
-$cat_id++;
-}
-return -1;
-}
-
-
-
-
-
- 
-function GetBuildingTimeTicks($building,$planet,$user_race)
-{
-global $db;
-global $RACE_DATA, $BUILDING_NAME, $BUILDING_DATA, $MAX_BUILDING_LVL,$NEXT_TICK,$ACTUAL_TICK,$PLANETS_DATA;
-
-$time=($BUILDING_DATA[$building][3] + 3*pow($planet['building_'.($building+1)],$BUILDING_DATA[$building][4]));
-if ($building==9)
-	$time=$BUILDING_DATA[$building][3];
-$time*=$RACE_DATA[$user_race][1];
-$time/=100;
-$time*=(100-2*($planet['research_4']*$RACE_DATA[$user_race][20]));
-$time*=$PLANETS_DATA[$planet['planet_type']][5];
-$time=round($time,0);
-
-return $time;
-}
-
-
-
-function UnitTimeTicksScheduler($unit,$planet_research,$user_race)
-{
-global $RACE_DATA, $UNIT_NAME, $UNIT_DATA, $MAX_BUILDING_LVL,$NEXT_TICK,$ACTUAL_TICK;
-if ($unit<0 || $unit>5) return 0;
-
-$time=$UNIT_DATA[$unit][4];
-$time*=$RACE_DATA[$user_race][2];
-$time/=100;
-$time*=(100-2*($planet_research*$RACE_DATA[$user_race][20]));
-
-if ($time<1) $time=1;
-$time=round($time,0);
-return $time;
-}
-
-
-
-function ResourcesPerTickMetal($planet) {
-	$rid=0;
-    global $RACE_DATA,$PLANETS_DATA, $addres;
-    $result = 0.25*(3*((pow(((3*$PLANETS_DATA[$planet['planet_type']][$rid])*(1+$planet['building_'.($rid+2)])),1.35))/100*(50+ (50*(1/($planet['building_'.($rid+2)]*100+100))*($planet['workermine_'.($rid+1)]+100))))*($RACE_DATA[$planet['user_race']][9+$rid]*($addres[$planet['research_5']]*$RACE_DATA[$planet['user_race']][20])));
-	if($result < 10) $round = 1;
-    else $round = 0;
-    return round($result, $round);
-}
-
-function ResourcesPerTickMineral($planet) {
-	$rid=1;
-    global $RACE_DATA,$PLANETS_DATA, $addres;
-    $result = 0.25*(3*((pow(((3*$PLANETS_DATA[$planet['planet_type']][$rid])*(1+$planet['building_'.($rid+2)])),1.35))/100*(50+ (50*(1/($planet['building_'.($rid+2)]*100+100))*($planet['workermine_'.($rid+1)]+100))))*($RACE_DATA[$planet['user_race']][9+$rid]*($addres[$planet['research_5']]*$RACE_DATA[$planet['user_race']][20])));
-    if($result < 10) $round = 1;
-    else $round = 0;
-    return round($result, $round);
-}
-
-function ResourcesPerTickLatinum($planet) {
-	$rid=2;
-    global $RACE_DATA,$PLANETS_DATA, $addres;
-    $result = 0.2*(3*((pow(((3*$PLANETS_DATA[$planet['planet_type']][$rid])*(1+$planet['building_'.($rid+2)])),1.35))/100*(50+ (50*(1/($planet['building_'.($rid+2)]*100+100))*($planet['workermine_'.($rid+1)]+100))))*($RACE_DATA[$planet['user_race']][9+$rid]*($addres[$planet['research_5']]*$RACE_DATA[$planet['user_race']][20])));
-    if($result < 10) $round = 1;
-    else $round = 0;
-    return round($result, $round);
-}
-
-
-
-function UnitPrice($unit,$resource, $race)
-{
-global $db;
-global $RACE_DATA, $UNIT_NAME, $UNIT_DATA, $MAX_BUILDING_LVL,$NEXT_TICK,$ACTUAL_TICK;
-if ($unit<0 || $unit>5) return 0;
-
-$price = $UNIT_DATA[$unit][$resource];
-$price*= $RACE_DATA[$race][6];
-return round($price,0);
-}
-
-
-function GetTaxes($percent,$alliance_id)
-{
-global $db;
-
-if ($percent<=0) return (array(0,0,0));
-$res=$db->queryrow('SELECT SUM(p.add_1/100*'.$percent.') AS r1,SUM(p.add_2/100*'.$percent.') AS r2,SUM(p.add_3/100*'.$percent.') AS r3 FROM (user u) LEFT join (planets p) ON p.planet_owner=u.user_id WHERE (u.user_alliance="'.$alliance_id.'") AND (u.user_active=1)');
-$res[0]=round($res['r1']);
-$res[1]=round($res['r2']);
-$res[2]=round($res['r3']);
-return $res;
-}
-
-
-
-
-
-
+// include commons classes and functions
+include('commons.php');
 
 
 // ########################################################################################
@@ -385,12 +49,12 @@ return $res;
 
 $starttime = ( microtime() + time() );
 
-include('|script_dir|/game/include/global.php');
-include('|script_dir|/game/include/functions.php');
-include('|script_dir|/game/include/text_races.php');
-include('|script_dir|/game/include/race_data.php');
-include('|script_dir|/game/include/ship_data.php');
-include('|script_dir|/game/include/libs/moves.php');
+include($game_path . 'game/include/global.php');
+include($game_path . 'game/include/functions.php');
+include($game_path . 'game/include/text_races.php');
+include($game_path . 'game/include/race_data.php');
+include($game_path . 'game/include/ship_data.php');
+include($game_path . 'game/include/libs/moves.php');
 
 $sdl = new scheduler();
 $db = new sql($config['server'].":".$config['port'], $config['game_database'], $config['user'], $config['password']); // create sql-object for db-connection
@@ -413,22 +77,22 @@ $STARDATE = $cfg_data['stardate'];
 
 
 /*
-Beispiel Job:
+Example Job:
 
-$sdl->start_job('Mein Job');
+$sdl->start_job('Mine Job');
 
-mach irgendwas...bei Fehlern/Meldung:
+do something ... during error / message:
   $sdl->log('...');
-am besten mit - davor, damit es sich von den anderen nachrichten abhebt, also: $sdl->log('- hier stimmt was nicht');
+best also - before, so it's apart from the other messages, also: $sdl->log('- this was not true');
 
-$sdl->finish_job('Mein Job'); // beendet den timer
+$sdl->finish_job('Mine Job'); // terminates the timer
 
  */
 
 
-$sdl->start_job('Ressourcen neu berechnen');
+$sdl->start_job('Recalculate resources');
 $db->query('UPDATE planets SET recompute_static=1');
-$sdl->finish_job('Ressourcen neu berechnen');
+$sdl->finish_job('Recalculate tesources');
 
 
 
@@ -438,8 +102,8 @@ $sdl->finish_job('Ressourcen neu berechnen');
 
 
 
-$sdl->start_job('Sicherheitstruppen neu berechnen');
-$sql = 'SELECT u.user_id FROM user u WHERE u.user_active=1';	
+$sdl->start_job('Recalculate security forces');
+$sql = 'SELECT u.user_id FROM user u WHERE u.user_active=1';
 
 if(!$q_user = $db->query($sql)) {
 
@@ -449,7 +113,7 @@ if(!$q_user = $db->query($sql)) {
 while($user = $db->fetchrow($q_user)) {
 
 
-$sql = 'SELECT planet_id, planet_owner_enum FROM planets WHERE planet_owner='.$user['user_id'].' ORDER BY  planet_owned_date ASC, planet_id ASC';	
+$sql = 'SELECT planet_id, planet_owner_enum FROM planets WHERE planet_owner='.$user['user_id'].' ORDER BY  planet_owned_date ASC, planet_id ASC';
 if(!$q_planet = $db->query($sql)) {
 
 	$game->message(DATABASE_ERROR, 'Could not query user data');
@@ -487,11 +151,9 @@ $count2++;
                     }               
 
 }
-$sdl->log($count.' von '.$count2.' Planeten haben nun angepasste Werte');
+$sdl->log($count.' of '.$count2.' planets now have adjusted values');
 
-$sdl->finish_job('Sicherheitstruppen neu berechnen');
-
-
+$sdl->finish_job('Recalculate security forces');
 
 
 
@@ -510,7 +172,9 @@ $sdl->finish_job('Sicherheitstruppen neu berechnen');
 
 
 
-$sdl->start_job('Gebï¿½de/Forschungslevel fixen');
+
+
+$sdl->start_job('Buildings / Research level fix');
 
 if (isset($MAX_BUILDING_LVL))
 {
@@ -556,7 +220,7 @@ if ($MAX_RESEARCH_LVL[$capital][$t]>=9) $db->query('UPDATE planets SET research_
 
 }
 }
-$sdl->finish_job('Gebï¿½de/Forschungslevel fixen');
+$sdl->finish_job('Buildings / Research level fix');
 
 
 
@@ -636,7 +300,7 @@ while($fleet = $db->fetchrow($q_fleets)) {
 
         
 
-        $sdl->log('Flotte: <b>'.$fleet_id.'</b>; (Nicht-sichere MoveID: '.$fleet['move_id'].' [Typ: '.$fleet['action_code'].']) Flotte ist leer. Gelï¿½cht');
+        $sdl->log('Flotte: <b>'.$fleet_id.'</b>; (Nicht-sichere MoveID: '.$fleet['move_id'].' [Typ: '.$fleet['action_code'].']) Flotte ist leer. Gelöscht');
 
     }
 
@@ -671,7 +335,7 @@ while($fleet = $db->fetchrow($q_fleets)) {
 
         
 
-        $sdl->log('Flotte: <b>'.$fleet_id.'</b>; Spieler existiert nicht mehr. Schiffe und Flotten gelï¿½cht');
+        $sdl->log('Flotte: <b>'.$fleet_id.'</b>; Spieler existiert nicht mehr. Schiffe und Flotten gelöscht');
 
     }
 
@@ -732,7 +396,7 @@ while($fleet = $db->fetchrow($q_fleets)) {
 
         if( ($move_status > 10) && ($move_status < 40) ) {
 
-            $sdl->log('Geisterflotte: <b>'.$fleet_id.'</b>; Vollstï¿½diger Move: <b>[Typ: '.$fleet['action_code'].'] [Typ: '.$fleet['action_code'].']</b>. Versuche Repositionierung');
+            $sdl->log('Geisterflotte: <b>'.$fleet_id.'</b>; Vollständiger Move: <b>[Typ: '.$fleet['action_code'].'] [Typ: '.$fleet['action_code'].']</b>. Versuche Repositionierung');
 
             
 
@@ -742,7 +406,7 @@ while($fleet = $db->fetchrow($q_fleets)) {
 
         elseif( ($move_status > 30) && ($move_status < 40) ) {
 
-            $sdl->log('Geisterflotte: <b>'.$fleet_id.'</b>; Unvollstï¿½diger Move: <b>'.$fleet['move_id'].' [Typ: '.$fleet['action_code'].']</b>. Versuche Repositionierung');
+            $sdl->log('Geisterflotte: <b>'.$fleet_id.'</b>; Unvollständiger Move: <b>'.$fleet['move_id'].' [Typ: '.$fleet['action_code'].']</b>. Versuche Repositionierung');
 
             
 
@@ -751,7 +415,7 @@ while($fleet = $db->fetchrow($q_fleets)) {
         }
         elseif( ($move_status == 4) ) { // Rueckruf einer Koloflotte oder Rueckruf im ersten Tick
 
-            $sdl->log('Geisterflotte: <b>'.$fleet_id.'</b>; Unvollstï¿½diger Move -> status 4: <b>'.$fleet['move_id'].' [Typ: '.$fleet['action_code'].']</b>. Versuche Repositionierung');
+            $sdl->log('Geisterflotte: <b>'.$fleet_id.'</b>; Unvollständiger Move -> status 4: <b>'.$fleet['move_id'].' [Typ: '.$fleet['action_code'].']</b>. Versuche Repositionierung');
             $RESET_FLEET = $fleet['start'];
 
         }
@@ -779,7 +443,7 @@ while($fleet = $db->fetchrow($q_fleets)) {
 
         }
 
-        $sdl->log('Flotte <b>'.$fleet_id.'</b> wird zu Planet <b>'.$RESET_FLEET.'</b> zurckgesetzt');
+        $sdl->log('Flotte <b>'.$fleet_id.'</b> wird zu Planet <b>'.$RESET_FLEET.'</b> zurückgesetzt');
 
 
 
@@ -800,11 +464,11 @@ $sdl->finish_job('Geisterflotten beheben');
 
 */
 
-$sdl->start_job('Aufgegebene Planeten an den Siedler übergeben');
+$sdl->start_job('Rioters planets take over by the settlers');
 
   $sql = 'UPDATE planets
-            		SET planet_owner='.INDEPENDENT_USERID.',
-			planet_owned_date = '.time().',
+                    SET planet_owner='.INDEPENDENT_USERID.',
+                        planet_owned_date = '.time().',
                         resource_1 = 10000,
                         resource_2 = 10000,
                         resource_3 = 10000,
@@ -818,17 +482,18 @@ $sdl->start_job('Aufgegebene Planeten an den Siedler übergeben');
                         building_6 = '.mt_rand(0, 9).',
                         building_7 = '.mt_rand(0, 9).',
                         building_8 = '.mt_rand(0, 9).',
-                        building_10 = '.mt_rand(0, 9).',
+                        building_10 = '.mt_rand(5, 15).',
                         building_11 = '.mt_rand(0, 9).',
+                        building_13 = '.mt_rand(0, 10).',
                         unit_1 = '.mt_rand(500, 1500).',
                         unit_2 = '.mt_rand(500, 1000).',
                         unit_3 = '.mt_rand(0, 500).',
                         unit_4 = 0,
                         unit_5 = 0,
                         unit_6 = 0,
-        	            workermine_1 = 100,
-    	                workermine_2 = 100,
-	                    workermine_3 = 100,
+                        workermine_1 = 100,
+                        workermine_2 = 100,
+                        workermine_3 = 100,
                         catresearch_1 = 0,
                         catresearch_2 = 0,
                         catresearch_3 = 0,
@@ -839,11 +504,11 @@ $sdl->start_job('Aufgegebene Planeten an den Siedler übergeben');
                         catresearch_8 = 0,
                         catresearch_9 = 0,
                         catresearch_10 = 0,
-                    	unittrain_actual = 0,
-		    	        unittrainid_nexttime=0,
-			            building_queue=0,
+                        unittrain_actual = 0,
+                        unittrainid_nexttime=0,
+                        building_queue=0,
                         planet_surrender=0
-			WHERE ( planet_surrender < '.$ACTUAL_TICK.' AND planet_surrender > 0 )';
+            WHERE ( planet_surrender < '.$ACTUAL_TICK.' AND planet_surrender > 0 )';
 
   $sdl->log($sql);
 
@@ -851,10 +516,10 @@ $sdl->start_job('Aufgegebene Planeten an den Siedler übergeben');
 	message(DATABASE_ERROR, 'Could not delete switch user');
   }
 
-$sdl->finish_job('Alle Planeten wurden abgegeben.');
+$sdl->finish_job('All planets were delivered.');
 
 
-$sdl->start_job('Logbuch säubern');
+$sdl->start_job('Logbook cleaning');
 
 $sql = 'DELETE FROM logbook WHERE log_read=1 AND log_date<'.(time()-3600*24*14);
 $sdl->log($sql);
@@ -890,10 +555,10 @@ else {
 
 
 
-$sdl->finish_job('Logbuch säubern');
+$sdl->finish_job('Logbook cleaned');
 
 
-$sdl->start_job('Ungültige Kriegserklärungen löschen');
+$sdl->start_job('Clearing invalid war declarations');
 
 $min_points = 500;
 $min_members = 5;
@@ -909,17 +574,18 @@ else {
 		$sql = 'DELETE FROM alliance_diplomacy WHERE ad_id = '.$ap['ad_id'];
 		
 		if(!$db->query($sql)) {
-            message(DATABASE_ERROR, 'Could not delete illegal pacts');
-        }
+			message(DATABASE_ERROR, 'Could not delete illegal pacts');
+		}
 	}
 }
 
-$sdl->finish_job('Diplomatie gesäubert');
+$sdl->finish_job('Diplomacy cleared');
 
 // ########################################################################################
 // ########################################################################################
-// Beenden und Log schlieï¿½n
+// Quit and close log
 
+$db->close();
 $sdl->log('<b>Finished FixAll-Script in <font color=#009900>'.round((microtime()+time())-$starttime, 4).' secs</font>'."\n".'Executed Queries: <font color=#ff0000>'.$db->i_query.'</font></b>');
 
 ?>
