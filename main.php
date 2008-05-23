@@ -565,11 +565,7 @@ $sdl->finish_job('Resourcetrade Scheduler');
 // ########################################################################################
 //BOT
 ini_set('memory_limit', '500M');
-define('FILE_PATH_hg',$game_path.'game/');
-define('FILE_PATH_s',$script_path.'stfc-scheduler/'); 
-define('TICK_LOG_FILE_NPC', FILE_PATH_hg.'logs/NPC_BOT_tick_'.date('d-m-Y', time()).'.log');
-//define('TICK_LOG_FILE_ERROR', FILE_PATH_hg.'logs/NPC_BOT_tick_'.date('d-m-Y', time()).'.log');
-//define('TODO', FILE_PATH_hg.'logs/TODO_'.date('d-m-Y', time()).'.log');
+define('TICK_LOG_FILE_NPC', $game_path.'game/logs/NPC_BOT_tick_'.date('d-m-Y', time()).'.log');
 include('NPC_BOT.php');
 include('ferengi.php');
 include('borg.php');
