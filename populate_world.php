@@ -19,12 +19,16 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-$PLANETS_PER_QUADRANT = 200;
 
-include('|script_dir|/game/include/sql.php');
-include('|script_dir|/game/include/global.php');
-include('|script_dir|/game/include/functions.php');
-include('|script_dir|/game/include/libs/world.php');
+// include game definitions, path url and so on
+include('config.script.php');
+
+$PLANETS_PER_QUADRANT = 25; // 09/05/08 AC: Increased number of generated planets
+
+include($game_path . 'game/include/sql.php');
+include($game_path . 'game/include/global.php');
+include($game_path . 'game/include/functions.php');
+include($game_path . 'game/include/libs/world.php');
 
 $game = new game();
 $db = new sql($config['server'].":".$config['port'], $config['game_database'], $config['user'], $config['password']); // create sql-object for db-connection

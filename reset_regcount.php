@@ -21,13 +21,15 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+// include game definitions, path url and so on
+include('config.script.php');
 
 //Reset New Registration Count
 
-include('|script_dir|/game/include/sql.php');
-include('|script_dir|/game/include/global.php');
-include('|script_dir|/game/include/functions.php');
-include('|script_dir|/game/include/libs/world.php');
+include($game_path . 'game/include/sql.php');
+include($game_path . 'game/include/global.php');
+include($game_path . 'game/include/functions.php');
+include($game_path . 'game/include/libs/world.php');
 
 $game = new game();
 $db = new sql($config['server'].":".$config['port'], $config['game_database'], $config['user'], $config['password']); // create sql-object for db-connection

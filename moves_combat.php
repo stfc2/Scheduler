@@ -20,6 +20,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+// include game definitions, path url and so on
+include('config.script.php');
+
 
 // Combat Functions
 
@@ -409,20 +412,20 @@ newlog('Moves [NewCombat]', 'Run to shipconfigure-2 done within '.((time() + mic
 
 
 // Schiffsauflistung erstellen:
-$text.='<u>Angreifende Schiffe:</u><br>';
+$text.='<u>Attacking ships:</u><br>';
 foreach ($attacking_overview as $key => $overview)
 {
-$text.=$key.' (Rumpf: '.($overview[1]+1).'): <b>'.$overview[0].'x</b><br>';
+$text.=$key.' (Hull: '.($overview[1]+1).'): <b>'.$overview[0].'x</b><br>';
 }
 
-$text.='<br><u>Verteidigende Schiffe:</u><br>';
+$text.='<br><u>Defending ships:</u><br>';
 
-if ($num_orbitaldefense>0) $text.='Orbitalgesch�tz (station�r): <b>'.round($num_orbitaldefense).'x</b><br>';
-if ($num_smallorbitaldefense>0) $text.='L. Orbitalgesch�tz (station�r): <b>'.round($num_smallorbitaldefense).'x</b><br>';
+if ($num_orbitaldefense>0) $text.='Orbital cannon (station): <b>'.round($num_orbitaldefense).'x</b><br>';
+if ($num_smallorbitaldefense>0) $text.='L. Orbital cannon (station): <b>'.round($num_smallorbitaldefense).'x</b><br>';
 
 foreach ($defending_overview as $key => $overview)
 {
-$text.=$key.' (Rumpf: '.($overview[1]+1).'): <b>'.$overview[0].'x</b><br>';
+$text.=$key.' (Hull: '.($overview[1]+1).'): <b>'.$overview[0].'x</b><br>';
 }
 
 
@@ -496,7 +499,7 @@ newlog('Moves [NewCombat]', 'shuffle data time: '.((time() + microtime()) - $ran
 $savetime = (time() + microtime());
 
 
-$file=fopen('/home/stgc/stgc-fightmodule/combat.data','w');
+$file=fopen($script_path.'stgc-fightmodule/combat.data','w');
 //$file2=fopen('fight_'.$move_id.'.data','w');
 foreach ($ships as $key => $ship)
 {
@@ -527,7 +530,7 @@ newlog('Moves [NewCombat]', 'transmit data time: '.((time() + microtime()) - $sa
 $cppstarttime = (time() + microtime());
 
 
-exec('/home/stgc-os/stgc-fightmodule/newfight',$data);
+exec($script_path.'stgc-fightmodule/newfight',$data);
 newlog('Moves [NewCombat]', 'C++ calculation time: '.((time() + microtime()) - $cppstarttime), $move_id);
 newlog('Moves [NewCombat]', $data[1].' has won!', $move_id);
 
@@ -545,7 +548,7 @@ $winner=$data[1];
 $new_data=explode(':',$data[2]);
 
 //!! Last new data is no real element!!! because c++ puts : at end of string
-newlog('Moves [NewCombat]', 'N�tige Schiffsupdates (nur f�r Statistik): '.((count($new_data)-1)/4), $move_id);
+newlog('Moves [NewCombat]', 'Ship necessary updates (for Statistics): '.((count($new_data)-1)/4), $move_id);
 
 
 $num_damaged=0;
@@ -576,8 +579,8 @@ if ($new_data[$t+1]<90000) $new_data[$t+1]--;
 
 		if ($new_data[$t+1]<90000)
 		{
-			if ($new_data[$t+2]==$data[1]) $winner_victims++;		
-			
+			if ($new_data[$t+2]==$data[1]) $winner_victims++;
+
 			$victims[]=$shipidlist[$new_data[$t+1]];
 			$victimtextlist.='ID'.$shipidlist[$new_data[$t+1]].',';
 		}
@@ -631,8 +634,8 @@ $update_ships[]=array($key,$updt[1],limit($updt[0],10000));
 }
 
 
-newlog('Moves [NewCombat]','Wir haben '.count($updates_temp).' updates; '.$gained_exp.' gained exp; '.$num_damaged.' damaged and '.$total_victims.' victims (incl. planetary)',$move_id);
-newlog('Moves [NewCombat]','Verluste (ids mit vorangestelltem ID): '.$victimtextlist,$move_id);
+newlog('Moves [NewCombat]','We have '.count($updates_temp).' updates; '.$gained_exp.' gained exp; '.$num_damaged.' damaged and '.$total_victims.' victims (incl. planetary)',$move_id);
+newlog('Moves [NewCombat]','Losses (ids with placed in front ID): '.$victimtextlist,$move_id);
 
 $overview['attacker_alive']=0;
 $overview['defender_alive']=0;
@@ -650,16 +653,16 @@ newlog('Moves [NewCombat]', 'evaluation time: '.((time() + microtime()) - $revie
 
 
 
-if ($winner==0) $text.='<br>Die angreifenden Schiffe haben den Kampf gewonnen.<br><br>';
-else $text.='<br>Die verteidigenden Schiffe haben den Kampf gewonnen.<br><br>';
-$text.='Von den siegreichen Schiffen wurden...<br>';
-$text.='... <b>'.$winner_victims.'</b> zerst�rt<br>';
-$text.='... <b>'.$num_damaged.'</b> besch�digt<br>';
-$text.='&nbsp;&nbsp;&nbsp;&nbsp;davon <b>'.$num_damaged_1.'</b> stark<br>';
-$text.='&nbsp;&nbsp;&nbsp;&nbsp;und <b>'.$num_damaged_2.'</b> sehr stark<br><br>';
+if ($winner==0) $text.='<br>The attacking ships have won the fight.<br><br>';
+else $text.='<br>The defending ships have won the fight.<br><br>';
+$text.='From the victorious ships became...<br>';
+$text.='... <b>'.$winner_victims.'</b> destroyed<br>';
+$text.='... <b>'.$num_damaged.'</b> damaged<br>';
+$text.='&nbsp;&nbsp;&nbsp;&nbsp;Which <b>'.$num_damaged_1.'</b> strong<br>';
+$text.='&nbsp;&nbsp;&nbsp;&nbsp;and <b>'.$num_damaged_2.'</b> very strong<br><br>';
 
-if ($lost_planetary!=0) $text.='Es wurden '.$lost_planetary.' Orbitalgesch�tze zerst�rt.<br>';
-if ($lost_splanetary!=0) $text.='Es wurden '.$lost_splanetary.' kleine Orbitalgesch�tze zerst�rt.<br>';
+if ($lost_planetary!=0) $text.='There were '.$lost_planetary.' Orbital Cannon destroyed.<br>';
+if ($lost_splanetary!=0) $text.='There were '.$lost_splanetary.' Light Orbital Cannon destroyed.<br>';
 
 $text.='<br>';
 
