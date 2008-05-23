@@ -571,9 +571,16 @@ define('TICK_LOG_FILE_NPC', FILE_PATH_hg.'logs/NPC_BOT_tick_'.date('d-m-Y', time
 //define('TICK_LOG_FILE_ERROR', FILE_PATH_hg.'logs/NPC_BOT_tick_'.date('d-m-Y', time()).'.log');
 //define('TODO', FILE_PATH_hg.'logs/TODO_'.date('d-m-Y', time()).'.log');
 include('NPC_BOT.php');
+include('ferengi.php');
+include('borg.php');
 $sdl->start_job('Ramona comes over - oh women are so wonderful');
-$test01 = new NPC(1,"Normal operation in the test round",0,"#DEEB24");
+$quark = new Ferengi($db,$sdl);
+$quark->Execute(1,"Normal operation in the test round",0,"#DEEB24");
 $sdl->finish_job('Ramona comes over - oh women are so wonderful');
+$sdl->start_job('SevenOfNine is coming - oh borg are not so beautiful');
+$borg = new Borg($db,$sdl);
+$borg->Execute(1);
+$sdl->finish_job('SevenOfNine is gone - we survive one more time');
 define('TICK_LOG_FILE_NPC','');
 
 // ########################################################################################
