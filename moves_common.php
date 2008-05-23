@@ -1,11 +1,11 @@
 <?php
 /*    
-	This file is part of STFC.
-	Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
-		
-	STFC is based on STGC,
-	Copyright 2003-2007 by Florian Brede (florian_brede@hotmail.com) and Philipp Schmidt
-	
+    This file is part of STFC.
+    Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
+
+    STFC is based on STGC,
+    Copyright 2003-2007 by Florian Brede (florian_brede@hotmail.com) and Philipp Schmidt
+
     STFC is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
@@ -20,6 +20,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+// include game definitions, path url and so on
+include('config.script.php');
 
 // status codes for _action_main() and _main()
 define('MV_EXEC_OK', 1);
@@ -44,7 +46,7 @@ define('MV_COMBAT_LEVEL_PLANETARY', 1); // Angriff des Planeten (= Kolonisation)
 define('MV_COMBAT_LEVEL_ORBITAL', 2); // Angriff auf Besitzer des Planeten, aber nur Schiffe
 define('MV_COMBAT_LEVEL_OUTER', 3); // Kampf jenseits des Planeten zwischen fremden Spieler (oder Angriff des Besitzers)
 
-define('MV_COMBAT_BIN_PATH', '|scheduler_dir|/stfc-moves-combat/bin/moves_combat');
+define('MV_COMBAT_BIN_PATH', $script_path . 'stfc-moves-combat/bin/moves_combat');
 
 
 function commonlog($message,$message2,$foo=0)
@@ -52,7 +54,7 @@ function commonlog($message,$message2,$foo=0)
     $fp = fopen(TICK_LOG_FILE, 'a');
         fwrite($fp, $message." )<b>".$foo."</b> ".$message2."\n");
         echo str_replace('\n','<br>',$message." ".$message2."\n");
-        fclose($fp);	
+        fclose($fp);
 }
 
 class moves_common {
@@ -69,6 +71,7 @@ class moves_common {
     var $n_fleets = 0;
     var $fleet_ids = array();
     var $fleet_names = array();
+    var $n_ships = array();
     var $fleet_ids_str = '';
 
     var $flags = array(
@@ -95,6 +98,16 @@ class moves_common {
         $this->mid = $this->move['move_id'];
 
         $this->CURRENT_TICK = $CURRENT_TICK;
+
+        /* 02/04/08 - AC: Load user language */
+        $sql = 'SELECT language FROM user WHERE user_id = '.$this->move['user_id'];
+        if(!($lang = $this->db->queryrow($sql))) {
+            $this->log(MV_M_DATABASE, 'Could not retrieve player '.$this->move['user_id'].' (move) language! SET to ENG');
+            $this->move['language'] = 'ENG';
+        }
+        else
+            $this->move['language'] = $lang['language'];
+        /* */
     }
 
     function log($level, $message) {
@@ -173,44 +186,44 @@ class moves_common {
     }
 
     function do_ship_combat(&$atk_fleet_ids_str, &$dfd_fleet_ids_str, $combat_level) {
-    	if(empty($atk_fleet_ids_str)) $atk_fleet_ids_str = '-1';
-    	if(empty($dfd_fleet_ids_str)) $dfd_fleet_ids_str = '-1';
-    	
-    	// Bei $combat_level == MV_COMBAT_LEVEL_PLANETARY wird immer der Besitzer angegriffen
-    	//			--> alle orbitals kämpfen mit
-    	
-    	if($combat_level == MV_COMBAT_LEVEL_OUTER) {
-    		$n_large_orbital_defense = $n_small_orbital_defense = 0;
-	    }	
-	    else {
-	    	$n_large_orbital_defense = (int)$this->dest['building_10'];
-	    	$n_small_orbital_defense = (int)$this->dest['building_13'];
-	    	    	
-	    	if($combat_level == MV_COMBAT_LEVEL_ORBITAL) {
-	    		if ($n_large_orbital_defense < 20) $n_large_orbital_defense = (($n_large_orbital_defense < 10) ? $n_large_orbital_defense : 10);
-	    		else $n_large_orbital_defense /= 2;
-    		
-	    		if ($n_small_orbital_defense < 20) $n_small_orbital_defense = (($n_small_orbital_defense < 10) ? $n_small_orbital_defense : 10);
-	    		else $n_small_orbital_defense /= 2;
-	    		
-	    		settype($n_large_orbital_defense, 'int');
-	    		settype($n_small_orbital_defense, 'int');
-		    }
-    	}
-    	
-    	$bin_output = array();
-    	
-    	$cmd_line = MV_COMBAT_BIN_PATH.' '.$atk_fleet_ids_str.' '.$dfd_fleet_ids_str.' '.$this->move['dest'].' '.$n_large_orbital_defense.' '.$n_small_orbital_defense;
-    	exec($cmd_line, $bin_output);
-    	
-    	if($bin_output[0][0] == '0') {
-    		return $this->log(MV_M_ERROR, 'Combat Binary exited with an error ('.substr($bin_output[0], 1).' - '.$cmd_line.')');
-    	}
-    	
-    	$this->cmb[MV_CMB_WINNER] = $bin_output[1];
-    	$this->cmb[MV_CMB_KILLS_PLANETARY] = (int)$bin_output[2];
-    	$this->cmb[MV_CMB_KILLS_SPLANETARY] = (int)$bin_output[3];
-    	$this->cmb[MV_CMB_KILLS_EXT] = &$bin_output[4];
+        if(empty($atk_fleet_ids_str)) $atk_fleet_ids_str = '-1';
+        if(empty($dfd_fleet_ids_str)) $dfd_fleet_ids_str = '-1';
+
+        // Bei $combat_level == MV_COMBAT_LEVEL_PLANETARY wird immer der Besitzer angegriffen
+        //			--> alle orbitals kämpfen mit
+
+        if($combat_level == MV_COMBAT_LEVEL_OUTER) {
+            $n_large_orbital_defense = $n_small_orbital_defense = 0;
+        }
+        else {
+            $n_large_orbital_defense = (int)$this->dest['building_10'];
+            $n_small_orbital_defense = (int)$this->dest['building_13'];
+
+            if($combat_level == MV_COMBAT_LEVEL_ORBITAL) {
+                if ($n_large_orbital_defense < 20) $n_large_orbital_defense = (($n_large_orbital_defense < 10) ? $n_large_orbital_defense : 10);
+                else $n_large_orbital_defense /= 2;
+            
+                if ($n_small_orbital_defense < 20) $n_small_orbital_defense = (($n_small_orbital_defense < 10) ? $n_small_orbital_defense : 10);
+                else $n_small_orbital_defense /= 2;
+                
+                settype($n_large_orbital_defense, 'int');
+                settype($n_small_orbital_defense, 'int');
+            }
+        }
+
+        $bin_output = array();
+
+        $cmd_line = MV_COMBAT_BIN_PATH.' '.$atk_fleet_ids_str.' '.$dfd_fleet_ids_str.' '.$this->move['dest'].' '.$n_large_orbital_defense.' '.$n_small_orbital_defense;
+        exec($cmd_line, $bin_output);
+
+        if($bin_output[0][0] == '0') {
+            return $this->log(MV_M_ERROR, 'Combat Binary exited with an error ('.substr($bin_output[0], 1).' - '.$cmd_line.')');
+        }
+
+        $this->cmb[MV_CMB_WINNER] = $bin_output[1];
+        $this->cmb[MV_CMB_KILLS_PLANETARY] = (int)$bin_output[2];
+        $this->cmb[MV_CMB_KILLS_SPLANETARY] = (int)$bin_output[3];
+        $this->cmb[MV_CMB_KILLS_EXT] = &$bin_output[4];
 
         if($this->cmb[MV_CMB_KILLS_PLANETARY] != 0) {
             $this->dest['building_10'] -= $this->cmb[MV_CMB_KILLS_PLANETARY];
@@ -219,9 +232,9 @@ class moves_common {
         if($this->cmb[MV_CMB_KILLS_SPLANETARY] != 0) {
             $this->dest['building_13'] -= $this->cmb[MV_CMB_KILLS_SPLANETARY];
         }
-		
-		return MV_EXEC_OK;
-	}
+
+        return MV_EXEC_OK;
+    }
 
     function _main() {
         $start_processing_time = time() + microtime();
@@ -273,7 +286,7 @@ class moves_common {
         // #############################################################################
         // Daten der beteiligten Flotten
 
-        $sql = 'SELECT fleet_id, fleet_name
+        $sql = 'SELECT fleet_id, fleet_name, n_ships
                 FROM ship_fleets
                 WHERE move_id = '.$this->mid;
 
@@ -284,6 +297,7 @@ class moves_common {
         while($_fl = $this->db->fetchrow($q_fleets)) {
             $this->fleet_ids[] = $_fl['fleet_id'];
             $this->fleet_names[] = $_fl['fleet_name'];
+            $this->n_ships[] = $_fl['n_ships'];
         }
 
         $this->n_fleets = count($this->fleet_ids);
@@ -323,6 +337,10 @@ class moves_common {
 
         if($this->flags['is_orbital_move']) {
             $this->dest = &$this->start;
+            /* 03/04/08 - AC: Hmmm, we need language settings here?
+             * However set it to english.
+             */
+            $this->dest['language'] = 'ENG';
         }
         else {
             $sql = 'SELECT p.*,
@@ -335,8 +353,20 @@ class moves_common {
                 return $this->log(MV_M_DATABASE, 'Could not query dest planets! SKIP');
             }
 
-	        settype($this->dest['user_id'], 'int');
-        
+            settype($this->dest['user_id'], 'int');
+
+
+            // #############################################################################
+            /* 03/04/08 - AC: Load user language */
+            $sql = 'SELECT language FROM user WHERE user_id = '.$this->dest['user_id'];
+            if(!($lang = $this->db->queryrow($sql))) {
+                $this->log(MV_M_DATABASE, 'Could not retrieve player '.$this->dest['user_id'].' (dest) language! SET to ENG');
+                $this->dest['language'] = 'ENG';
+            }
+            else
+                $this->dest['language'] = $lang['language'];
+
+
             // #############################################################################
             // Nach stationierten Flotten auf AR suchen
 
@@ -351,7 +381,8 @@ class moves_common {
                     WHERE f.planet_id = '.$this->move['dest'].' AND
                           f.user_id <> '.$this->move['user_id'].' AND
                           f.alert_phase = '.ALERT_PHASE_RED;
-$this->log(MV_M_NOTICE,'AR-Flotten:<br>"'.$sql.'"<br>');
+
+$this->log(MV_M_NOTICE,'AR-Fleet:<br>"'.$sql.'"<br>');
 
             if(!$q_ar_uid = $this->db->query($sql)) {
                 return $this->log(MV_M_DATABASE, 'Could not query alert phase red user! SKIP');
@@ -377,69 +408,121 @@ $this->log(MV_M_NOTICE,'AR-Flotten:<br>"'.$sql.'"<br>');
                 echo 'AR-User ID war '.$ar_uid['user_id'];
             }
 
-            $this->db->free_result($q_ar_uid);         
-$this->log(MV_M_NOTICE,'AR-user: '.count($ar_user).'<br>');
+            $this->db->free_result($q_ar_uid);
+$this->log(MV_M_NOTICE,'AR-user(s): '.count($ar_user).'<br>');
 
-            for($i = 0; $i < count($ar_user); ++$i) {            
-            	$this->log(MV_M_NOTICE, 'Entering AR-loop #'.$i);
-            	
-                $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
-                        FROM (ship_fleets f)
-                        INNER JOIN user u ON u.user_id = f.user_id
-                        WHERE f.planet_id = '.$this->move['dest'].' AND
-                              f.user_id = '.$ar_user[$i].' AND
-                              f.alert_phase = '.ALERT_PHASE_RED;
+            // 160408 DC ---- Scouts does not trigger AR Fleets attack
+            $scout_counter = 0;
+            foreach($this->n_ships as $n_ships) {
+                $scout_counter += $n_ships;
+            }
+            foreach($this->fleet_ids as $fleet_id) {
+                $sql = 'SELECT count(st.ship_torso) AS num_scout FROM (ships s, ship_templates st)
+                        WHERE s.fleet_id = '.$fleet_id.' AND st.id = s.template_id AND st.ship_torso = 0';
+                $check_scout = $this->db->queryrow($sql);
+                $scout_counter -= $check_scout['num_scout'];
+            }
+            if ($scout_counter != 0) {
+            //160408 DC -----
+                for($i = 0; $i < count($ar_user); ++$i) {
+                    $this->log(MV_M_NOTICE, 'Entering AR-loop #'.$i);
+
+                    $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
+                            FROM (ship_fleets f)
+                            INNER JOIN user u ON u.user_id = f.user_id
+                            WHERE f.planet_id = '.$this->move['dest'].' AND
+                                  f.user_id = '.$ar_user[$i].' AND
+                                  f.alert_phase = '.ALERT_PHASE_RED;
 
 $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
 
-                if(($atk_fleets = $this->db->queryrowset($sql)) === false) {
-                    return $this->log(MV_M_DATABASE, 'Could not query attacker fleets in AR! SKIP');
+                    if(($atk_fleets = $this->db->queryrowset($sql)) === false) {
+                        return $this->log(MV_M_DATABASE, 'Could not query attacker fleets in AR! SKIP');
+                    }
+
+                    $atk_fleet_ids = array();
+
+                    foreach($atk_fleets as $ihh => $cur_fleet) {
+                        $atk_fleet_ids[] = $cur_fleet['fleet_id'];
+                    }
+
+                    $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
+                            FROM (ship_fleets f)
+                            INNER JOIN user u ON u.user_id = f.user_id
+                            WHERE f.fleet_id IN ('.$this->fleet_ids_str.')';
+
+                    if(($dfd_fleets = $this->db->queryrowset($sql)) === false) {
+                        return $this->log(MV_M_DATABASE, 'Could not query defender fleets in AR! SKIP');
+                    }
+
+                    $this->log(MV_M_NOTICE, 'Doing combat in AR-loop #'.$i);
+
+                    if($this->do_ship_combat(implode(',', $atk_fleet_ids), $this->fleet_ids_str, MV_COMBAT_LEVEL_OUTER) == MV_EXEC_ERROR) {
+                        $this->log(MV_M_DATABASE, 'Move Direct: Something went wrong with this fight!');
+                        return MV_EXEC_ERROR;
+                    }
+
+                    $this->log(MV_M_NOTICE, 'Combat done in AR-loop #'.$i);
+
+                    // Wenn der Angreifer gewonnen hat (die Flotte auf AR)
+                    // dann kann der Move gleich beendet werden
+
+                    if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
+                        $this->flags['skip_action'] = true;
+                    }
+
+                    $log1_data = array(40, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], MV_CMB_ATTACKER, ($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER), 0,0, $atk_fleets, $dfd_fleets, null, $ar_user[$i]);
+                    $log2_data = array(40, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], MV_CMB_DEFENDER, ($this->cmb[MV_CMB_WINNER] == MV_CMB_DEFENDER), 0,0, $atk_fleets, $dfd_fleets, null, $ar_user[$i]);
+
+                    $log1_data[10] = $this->cmb[MV_CMB_KILLS_EXT];
+                    $log2_data[10] = $this->cmb[MV_CMB_KILLS_EXT];
+
+                    // #############################################################################
+                    // 03/04/08 - AC: Retrieve player language
+                    //  !! ACTUALLY WE ARE USING THE SAME LANGUAGE ALSO FOR ALLIES LOGBOOK ENTRY !!
+                    switch($this->move['language'])
+                    {
+                        case 'GER':
+                            $log_title1 = 'AR-Flottenverband hat Schiffe bei '.$this->dest['planet_name'].' angegriffen';
+                            $log_title2 = 'Flottenverband wurde bei '.$this->dest['planet_name'].' angegriffen';
+                        break;
+                        case 'ITA':
+                            $log_title1 = 'Flotta in AR ha attaccato navi presso '.$this->dest['planet_name'];
+                            $log_title2 = 'Associazione flotta attaccata presso '.$this->dest['planet_name'];
+                        break;
+                        default:
+                            $log_title1 = 'AR fleet has attacked ships at '.$this->dest['planet_name'];
+                            $log_title2 = 'Fleet association was attacked at '.$this->dest['planet_name'];
+                        break;
+                    }
+
+                    add_logbook_entry($ar_user[$i], LOGBOOK_TACTICAL_2, $log_title1, $log1_data);
+                    add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $log_title2, $log2_data);
+
+                    $this->flags['combat_happened'] = true;
+
+                    $this->log(MV_M_NOTICE, 'Leaving AR-loop #'.$i);
                 }
-                
-                $atk_fleet_ids = array();
-                
-                foreach($atk_fleets as $ihh => $cur_fleet) {
-                	$atk_fleet_ids[] = $cur_fleet['fleet_id'];
-                }
-
-                $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
-                        FROM (ship_fleets f)
-                        INNER JOIN user u ON u.user_id = f.user_id
-                        WHERE f.fleet_id IN ('.$this->fleet_ids_str.')';
-
-                if(($dfd_fleets = $this->db->queryrowset($sql)) === false) {
-                    return $this->log(MV_M_DATABASE, 'Could not query defender fleets in AR! SKIP');
-                }  
-                
-            	$this->log(MV_M_NOTICE, 'Doing combat in AR-loop #'.$i);                           
-                
-                if($this->do_ship_combat(implode(',', $atk_fleet_ids), $this->fleet_ids_str, MV_COMBAT_LEVEL_OUTER) == MV_EXEC_ERROR) {
-                	$this->log(MV_M_DATABASE, 'Move Direct: Something went wrong with this fight!');
-                	return MV_EXEC_ERROR;
-                }
-                
-            	$this->log(MV_M_NOTICE, 'Combat done in AR-loop #'.$i);                
-
-                // Wenn der Angreifer gewonnen hat (die Flotte auf AR)
-                // dann kann der Move gleich beendet werden
-
-                if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
-                    $this->flags['skip_action'] = true;
-                }
-
-                $log1_data = array(40, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], MV_CMB_ATTACKER, ($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER), 0,0, $atk_fleets, $dfd_fleets, null, $ar_user[$i]);
-                $log2_data = array(40, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], MV_CMB_DEFENDER, ($this->cmb[MV_CMB_WINNER] == MV_CMB_DEFENDER), 0,0, $atk_fleets, $dfd_fleets, null, $ar_user[$i]);
-                
-                $log1_data[10] = $this->cmb[MV_CMB_KILLS_EXT];
-                $log2_data[10] = $this->cmb[MV_CMB_KILLS_EXT];
-                                
-                add_logbook_entry($ar_user[$i], LOGBOOK_TACTICAL_2, 'AR-Flottenverband hat Schiffe bei '.$this->dest['planet_name'].' angegriffen', $log1_data);
-                add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, 'Flottenverband wurde bei '.$this->dest['planet_name'].' angegriffen', $log2_data);
-                
-                $this->flags['combat_happened'] = true;
-                
-            	$this->log(MV_M_NOTICE, 'Leaving AR-loop #'.$i);                
             }
+            // 170408 DC ---- Report AR fleets evaded
+            else
+            {
+                if (count($ar_user) > 0) {
+                    $this->log(MV_M_NOTICE,'Scouts evaded AR-Fleet, attack avoided');
+                    $log1_data = array($this->move['action_code'], $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id']);
+                    switch($this->move['language'])
+                    {
+                        case 'ITA':
+                            $log_title1 = 'Scout in arrivo presso '.$this->dest['planet_name'].' hanno eluso forze ostili';
+                        break;
+                        default:
+                            $log_title1 = 'Scout arrived at '.$this->dest['planet_name'].' avoided hostile forces';
+                        break;
+                    }
+                    add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $log_title1, $log1_data);
+                }
+            }
+            //170408 DC ----
         }
 
         // #############################################################################
