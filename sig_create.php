@@ -20,6 +20,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+// include game definitions, path url and so on
+include('config.script.php');
+
 
 
 error_reporting(E_ALL);
@@ -27,19 +30,19 @@ ini_set('memory_limit', '30M');
 set_time_limit(180); // 3 minutes
 
 if(!empty($_SERVER['SERVER_SOFTWARE'])) {
-    echo 'Der Scheduler kann nur per CLI aufgerufen werden!'; exit;
+	echo 'The scheduler can only be called by CLI!'; exit;
 
-    }
+}
 
 
 // include global definitions + functions + game-class + player-class
-include_once('|script_dir|/game/include/global.php');
-include_once('|script_dir|/game/include/sql.php');
+include($game_path . 'game/include/global.php');
+include($game_path . 'game/include/sql.php');
 // create sql-object for db-connection
 $db = new sql($config['server'].":".$config['port'], $config['game_database'], $config['user'], $config['password']); // create sql-object for db-connection
 
 
-exec('cd |script_dir|/game/sig_tmp/; rm *.jpg');
+exec('cd '.$game_path.'game/sig_tmp/; rm *.jpg');
 
 $rank_honor = array();
 $rank_honor[0]=0;
@@ -54,99 +57,193 @@ $rank_honor[8]=2000;
 $rank_honor[9]=5000;
 
 
-$userqry=$db->query('SELECT u.user_name, u.user_planets, u.user_points,u.user_honor, u.user_race,u.user_rank_points,a.alliance_name FROM (user u) LEFT JOIN (alliance a) ON  a.alliance_id=u.user_alliance WHERE u.user_enable_sig=1 AND user_points>0');
+$userqry=$db->query('SELECT u.user_name, u.user_planets, u.user_points,u.user_honor, u.user_race,u.user_rank_points,a.alliance_name, u.language FROM (user u) LEFT JOIN (alliance a) ON  a.alliance_id=u.user_alliance WHERE u.user_enable_sig=1 AND user_points>0');
 
 $passed=$total=0;
 while (($player_data=$db->fetchrow($userqry))==true)
 {
-if(!isset($player_data['alliance_name'])) {$player_data['alliance_name']='-';}
+	if(!isset($player_data['alliance_name'])) {$player_data['alliance_name']='-';}
 
-$rank_nr=1;
-if ($player_data['user_honor']>=$rank_honor[0]) $rank_nr=1;
-if ($player_data['user_honor']>=$rank_honor[1]) $rank_nr=2;
-if ($player_data['user_honor']>=$rank_honor[2]) $rank_nr=3;
-if ($player_data['user_honor']>=$rank_honor[3]) $rank_nr=4;
-if ($player_data['user_honor']>=$rank_honor[4]) $rank_nr=5;
-if ($player_data['user_honor']>=$rank_honor[5]) $rank_nr=6;
-if ($player_data['user_honor']>=$rank_honor[6]) $rank_nr=7;
-if ($player_data['user_honor']>=$rank_honor[7]) $rank_nr=8;
-if ($player_data['user_honor']>=$rank_honor[8]) $rank_nr=9;
-if ($player_data['user_honor']>=$rank_honor[9]) $rank_nr=10;
+	$rank_nr=1;
+	if ($player_data['user_honor']>=$rank_honor[0]) $rank_nr=1;
+	if ($player_data['user_honor']>=$rank_honor[1]) $rank_nr=2;
+	if ($player_data['user_honor']>=$rank_honor[2]) $rank_nr=3;
+	if ($player_data['user_honor']>=$rank_honor[3]) $rank_nr=4;
+	if ($player_data['user_honor']>=$rank_honor[4]) $rank_nr=5;
+	if ($player_data['user_honor']>=$rank_honor[5]) $rank_nr=6;
+	if ($player_data['user_honor']>=$rank_honor[6]) $rank_nr=7;
+	if ($player_data['user_honor']>=$rank_honor[7]) $rank_nr=8;
+	if ($player_data['user_honor']>=$rank_honor[8]) $rank_nr=9;
+	if ($player_data['user_honor']>=$rank_honor[9]) $rank_nr=10;
 
-$image = ImageCreateFromJPEG("|script_dir|/game/sig_gfx/sig_tpl.jpg");
+	$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/sig_tpl.jpg");
 
-if ($player_data['user_race']==0)
-{
-  $user_race='Föderation';
-  $image = ImageCreateFromJPEG("|script_dir|/game/sig_gfx/foederation.jpg");
-}
-if ($player_data['user_race']==1)
-{
-  $user_race='Romulaner';
-  $image = ImageCreateFromJPEG("|script_dir|/game/sig_gfx/romulaner.jpg");
-}
-if ($player_data['user_race']==2)
-{
-  $user_race='Klingone';
-  $image = ImageCreateFromJPEG("|script_dir|/game/sig_gfx/klingonen.jpg");
-}
-if ($player_data['user_race']==3)
-{
-  $user_race='Cardassianer';
-  $image = ImageCreateFromJPEG("|script_dir|/game/sig_gfx/cardassia.jpg");
-}
-if ($player_data['user_race']==4)
-{
-  $user_race='Dominion';
-  $image = ImageCreateFromJPEG("|script_dir|/game/sig_gfx/dominion.jpg");
-}
-if ($player_data['user_race']==5)
-{
-  $user_race='Ferengi';
-  $image = ImageCreateFromJPEG("|script_dir|/game/sig_gfx/ferengi.jpg");
-}
-if ($player_data['user_race']==8)
-{
-  $user_race='Breen';
-  $image = ImageCreateFromJPEG("|script_dir|/game/sig_gfx/breen.jpg");
-}
-if ($player_data['user_race']==9)
-{
-  $user_race='Hirogen';
-  $image = ImageCreateFromJPEG("|script_dir|/game/sig_gfx/hirogen.jpg");
-}
-if ($player_data['user_race']==10)
-{
-  $user_race='Krenim';
-  $image = ImageCreateFromJPEG("|script_dir|/game/sig_gfx/krenim.jpg");
-}
-if ($player_data['user_race']==11)
-{
-  $user_race='Kazon';
-  $image = ImageCreateFromJPEG("|script_dir|/game/sig_gfx/kazon.jpg");
-}
+	if ($player_data['user_race']==0)
+	{
+		switch($player_data['language'])
+		{
+			case 'GER':
+				$user_race='Föderation';
+			break;
+			case 'ENG':
+				$user_race='Federation';
+			break;
+			case 'ITA':
+				$user_race='Federazione';
+			break;
+		}
+		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/foederation.jpg");
+	}
+	if ($player_data['user_race']==1)
+	{
+		switch($player_data['language'])
+		{
+			case 'GER':
+				$user_race='Romulaner';
+			break;
+			case 'ENG':
+				$user_race='Romulan';
+			break;
+			case 'ITA':
+				$user_race='Romulani';
+			break;
+		}
+		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/romulaner.jpg");
+	}
+	if ($player_data['user_race']==2)
+	{
+		switch($player_data['language'])
+		{
+			case 'GER':
+				$user_race='Klingone';
+			break;
+			case 'ENG':
+				$user_race='Klingon';
+			break;
+			case 'ITA':
+				$user_race='Klingon';
+			break;
+		}
+		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/klingonen.jpg");
+	}
+	if ($player_data['user_race']==3)
+	{
+		switch($player_data['language'])
+		{
+			case 'GER':
+				$user_race='Cardassianer';
+			break;
+			case 'ENG':
+				$user_race='Cardassian';
+			break;
+			case 'ITA':
+				$user_race='Cardassiani';
+			break;
+		}
+		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/cardassia.jpg");
+	}
+	if ($player_data['user_race']==4)
+	{
+		switch($player_data['language'])
+		{
+			case 'GER':
+				$user_race='Dominion';
+			break;
+			case 'ENG':
+				$user_race='Dominium';
+			break;
+			case 'ITA':
+				$user_race='Dominio';
+			break;
+		}
+		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/dominion.jpg");
+	}
+	if ($player_data['user_race']==5)
+	{
+		$user_race='Ferengi';
+		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/ferengi.jpg");
+	}
+	if ($player_data['user_race']==8)
+	{
+		$user_race='Breen';
+		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/breen.jpg");
+	}
+	if ($player_data['user_race']==9)
+	{
+		switch($player_data['language'])
+		{
+			case 'GER':
+				$user_race='Hirogen';
+			break;
+			case 'ENG':
+				$user_race='Hirogen';
+			break;
+			case 'ITA':
+				$user_race='Hirogeni';
+			break;
+		}
+		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/hirogen.jpg");
+	}
+	if ($player_data['user_race']==10)
+	{
+		$user_race='Krenim';
+		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/krenim.jpg");
+	}
+	if ($player_data['user_race']==11)
+	{
+		$user_race='Kazon';
+		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/kazon.jpg");
+	}
 
-//$image = ImageCreateFromJPEG("|script_dir|/game/sig_gfx/sig_tpl.jpg");
-//$image_rank = ImageCreateFromJPEG('|script_dir|/game/sig_gfx/rank_'.$rank_nr.'.jpg');
-$color_1=imagecolorallocate($image,255,240,70);
-$color_2=imagecolorallocate($image,150,140,30);
-$color_3=imagecolorallocate($image,255,255,255);
-$color_4=imagecolorallocate($image,255,0,0);
-//imagestring ($image, 4,2,2,'Herrscher:', $color_1);
-//imagestring ($image, 5,2,1,$player_data['user_name'].' ('.$player_data['user_rank_points'].'.)', $color_2);
-imagestring ($image, 5,3,2,$player_data['user_name'].' ('.$player_data['user_rank_points'].'.)', $color_1);
-//imagestring ($image, 5,120,1,'Präsident', $color_1);
-imageline($image,0,19,195,19,$color_1);
-imagestring ($image, 3,2,25,'Allianz: '.$player_data['alliance_name'], $color_1);
-imagestring ($image, 3,2,35,'Punkte: '.$player_data['user_points'], $color_1);
-imagestring ($image, 3,2,45,'Planeten: '.$player_data['user_planets'], $color_1);
-//ImageCopyResized($image,$image_rank,300,30,0,0,110,24,ImageSX($image_rank),ImageSY($image_rank));
-imagestring ($image, 3,120,35,'Verdienst: '.$player_data['user_honor'], $color_1);
-imagestring ($image, 3,120,45,'Rasse: '.$user_race, $color_1);
-//imagestring ($image, 3,270,45,'Präsident', $color_1);
-imagestring ($image, 2,405,46,'|game_url|', $color_1);
 
-imagejpeg($image,'|script_dir|/game/sig_tmp/'.strtolower($player_data['user_name']).'.jpg',60);
+	switch($player_data['language'])
+	{
+		case 'GER':
+			$str_ally = 'Allianz: ';
+			$str_points = 'Punkte: ';
+			$str_planets = 'Planeten: ';
+			$str_honor = 'Verdienst: ';
+			$str_race = 'Rasse: ';
+		break;
+		case 'ENG':
+			$str_ally = 'Alliance: ';
+			$str_points = 'Points: ';
+			$str_planets = 'Planets: ';
+			$str_honor = 'Honor: ';
+			$str_race = 'Race: ';
+		break;
+		case 'ITA':
+			$str_ally = 'Alleanza: ';
+			$str_points = 'Punti: ';
+			$str_planets = 'Pianeti: ';
+			$str_honor = 'Onore: ';
+			$str_race = 'Specie: ';
+		break;
+	}
+
+
+	//$image = ImageCreateFromJPEG($game_path."game/sig_gfx/sig_tpl.jpg");
+	//$image_rank = ImageCreateFromJPEG($game_path . 'game/sig_gfx/rank_'.$rank_nr.'.jpg');
+	$color_1=imagecolorallocate($image,255,240,70);
+	$color_2=imagecolorallocate($image,150,140,30);
+	$color_3=imagecolorallocate($image,255,255,255);
+	$color_4=imagecolorallocate($image,255,0,0);
+	//imagestring ($image, 4,2,2,'Herrscher:', $color_1);
+	//imagestring ($image, 5,2,1,$player_data['user_name'].' ('.$player_data['user_rank_points'].'.)', $color_2);
+	imagestring ($image, 5,3,2,$player_data['user_name'].' ('.$player_data['user_rank_points'].'.)', $color_1);
+	//imagestring ($image, 5,120,1,'Präsident', $color_1);
+	imageline($image,0,19,195,19,$color_1);
+	imagestring ($image, 3,2,25,$str_ally.$player_data['alliance_name'], $color_1);
+	imagestring ($image, 3,2,35,$str_points.$player_data['user_points'], $color_1);
+	imagestring ($image, 3,2,45,$str_planets.$player_data['user_planets'], $color_1);
+	//ImageCopyResized($image,$image_rank,300,30,0,0,110,24,ImageSX($image_rank),ImageSY($image_rank));
+	imagestring ($image, 3,120,35,$str_honor.$player_data['user_honor'], $color_1);
+	imagestring ($image, 3,120,45,$str_race.$user_race, $color_1);
+	//imagestring ($image, 3,270,45,'Präsident', $color_1);
+	//imagestring ($image, 2,405,46,$game_url, $color_1);
+	imagestring ($image, 2,320,46,$game_url, $color_1);
+	//imagejpeg($image,$game_path . 'game/sig_tmp/'.strtolower($player_data['user_name']).'.jpg',60);
+	imagejpeg($image,$game_path . 'game/sig_tmp/'.strtolower($player_data['user_name']).'.jpg',75); // Increase a bit the quality
 }
 
 
