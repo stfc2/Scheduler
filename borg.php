@@ -61,7 +61,7 @@ class Borg extends NPC
 		$ACTUAL_TICK = $Environment['tick_id'];
 		$STARDATE = $Environment['stardate'];
 
-		$this->sdl->start_job('SevenOfNine basic system is checking if something is missing', TICK_LOG_FILE_NPC);
+		$this->sdl->start_job('SevenOfNine basic system', TICK_LOG_FILE_NPC);
 
 		//Only with adoption Bot has an existence
 		if($Environment)
@@ -334,7 +334,7 @@ class Borg extends NPC
 			$this->sdl->log('<b>Error:</b> No access to environment table!', TICK_LOG_FILE_NPC);
 			exit;
 		}
-		$this->sdl->finish_job('Basic System', TICK_LOG_FILE_NPC);
+		$this->sdl->finish_job('SevenOfNine basic system', TICK_LOG_FILE_NPC);
 		// ########################################################################################
 		// ########################################################################################
 		//PW des Bot änderns - nix angreifen

@@ -68,7 +68,7 @@ class Ferengi extends NPC
 		$Umwelt = $this->db->queryrow('SELECT * FROM config LIMIT 0 , 1');
 		$ACTUAL_TICK = $Umwelt['tick_id'];
 		$STARDATE = $Umwelt['stardate'];
-		$this->sdl->start_job('Ramona basic system is checking if something is missing', TICK_LOG_FILE_NPC);
+		$this->sdl->start_job('Ramona basic system', TICK_LOG_FILE_NPC);
 		//Erst feststellung ob der Bot schon ein exitenz besitzt
 		if($Umwelt)
 		{
@@ -193,7 +193,7 @@ class Ferengi extends NPC
 			$this->sdl->log('<b>Error:</b> No access to the bot table=>'.$Bot_exe, TICK_LOG_FILE_NPC);
 			exit;
 		}
-		$this->sdl->finish_job('Basic System', TICK_LOG_FILE_NPC);
+		$this->sdl->finish_job('Ramona basic system', TICK_LOG_FILE_NPC);
 		// ########################################################################################
 		// ########################################################################################
 		//PW des Bot änderns - nix angreifen

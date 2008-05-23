@@ -580,7 +580,7 @@ $sdl->finish_job('Ramona comes over - oh women are so wonderful');
 $sdl->start_job('SevenOfNine is coming - oh borg are not so beautiful');
 $borg = new Borg($db,$sdl);
 $borg->Execute(1);
-$sdl->finish_job('SevenOfNine is gone - we survive one more time');
+$sdl->finish_job('SevenOfNine is coming - oh borg are not so beautiful');
 define('TICK_LOG_FILE_NPC','');
 
 // ########################################################################################
