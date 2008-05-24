@@ -82,7 +82,7 @@ class Ferengi extends NPC
 				if(!$this->db->query($sql))
 				{
 					$this->sdl->log('<b>Error:</b> Abort the program because of errors when creating the user', TICK_LOG_FILE_NPC);
-					exit;
+					return;
 				}
 			}
 			//So now we give the bot some data so that it is also Registered
@@ -122,7 +122,7 @@ class Ferengi extends NPC
 					if($this->bot['planet_id'] == 0)
 					{
 						$this->sdl->log('<b>Error:</b> Bot Planet id doesn\'t go', TICK_LOG_FILE_NPC);
-						exit;
+						return;
 					}
 					$sql = 'UPDATE user SET user_points = "400",user_planets = "1",last_active = "5555555555", user_attack_protection = "'.($ACTUAL_TICK + 1500).'",user_capital = "'.$this->bot['planet_id'].'",active_planet = "'.$this->bot['planet_id'].'" WHERE user_id = "'.$this->bot['user_id'].'"';
 					if(!$this->db->query($sql)) {
@@ -191,7 +191,7 @@ class Ferengi extends NPC
 			}
 		}else{
 			$this->sdl->log('<b>Error:</b> No access to the bot table=>'.$Bot_exe, TICK_LOG_FILE_NPC);
-			exit;
+			return;
 		}
 		$this->sdl->finish_job('Ramona basic system', TICK_LOG_FILE_NPC);
 		// ########################################################################################
