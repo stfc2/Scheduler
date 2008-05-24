@@ -565,6 +565,7 @@ $sdl->finish_job('Resourcetrade Scheduler');
 // ########################################################################################
 //BOT
 ini_set('memory_limit', '500M');
+define('FILE_PATH_hg',$game_path.'game/');
 define('TICK_LOG_FILE_NPC', $game_path.'game/logs/NPC_BOT_tick_'.date('d-m-Y', time()).'.log');
 include('NPC_BOT.php');
 include('ferengi.php');
