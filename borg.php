@@ -69,6 +69,27 @@ class Borg extends NPC
 			$this->sdl->log("The conversation with SevenOfNine begins, oh, but I think that there is no possibility to talk with her",
 				TICK_LOG_FILE_NPC);
 			$Bot_exe=$this->db->query('SELECT * FROM borg_bot LIMIT 0,1');
+
+			// Create BOT table if it doesn't exist
+			if($Bot_exe === false)
+			{
+				$sql = 'CREATE TABLE `'.$this->db->login['database'].'`.`borg_bot` (
+				            `id` INT( 2 ) NOT NULL AUTO_INCREMENT ,
+						    `user_id` MEDIUMINT( 8 ) UNSIGNED NOT NULL DEFAULT \'0\',
+				            `planet_id` SMALLINT( 5 ) UNSIGNED NOT NULL DEFAULT  \'0\',
+				            `ship_template1` INT( 10 ) UNSIGNED NOT NULL DEFAULT  \'0\',
+				            `ship_template2` INT( 10 ) UNSIGNED NOT NULL DEFAULT  \'0\',
+				            `user_tick` INT( 10 ) NOT NULL ,
+				            PRIMARY KEY (  `id` )
+				        ) ENGINE = MYISAM';
+
+				if(!$this->db->query($sql))
+				{
+					$this->sdl->log('<b>Error:</b> cannot create borg_bot table - ABORTED', TICK_LOG_FILE_NPC);
+					return;
+				}
+			}
+
 			$num_bot=$this->db->num_rows($Bot_exe);
 			if($num_bot < 1)
 			{
@@ -77,7 +98,7 @@ class Borg extends NPC
 				if(!$this->db->query($sql))
 				{
 					$this->sdl->log('<b>Error:</b> Abort the program because of errors when creating the user', TICK_LOG_FILE_NPC);
-					exit;
+					return;
 				}
 			}
 
@@ -135,11 +156,11 @@ class Borg extends NPC
 					if($this->bot['planet_id'] == 0)
 					{
 						$this->sdl->log('<b>Error:</b> Bot Planet id doesn\'t go', TICK_LOG_FILE_NPC);
-						exit;
+						return;
 					}
 
 					$sql = 'UPDATE user SET user_points = "400",user_planets = "1",last_active = "5555555555",
-					                        user_attack_protection = "'.($ACTUAL_TICK + 9000).'",
+					                        user_attack_protection = "'.($ACTUAL_TICK + 14400).'",
 					                        user_capital = "'.$this->bot['planet_id'].'",
 					                        active_planet = "'.$this->bot['planet_id'].'"
 					        WHERE user_id = '.$this->bot['user_id'];
@@ -332,7 +353,7 @@ class Borg extends NPC
 			}
 		}else{
 			$this->sdl->log('<b>Error:</b> No access to environment table!', TICK_LOG_FILE_NPC);
-			exit;
+			return;
 		}
 		$this->sdl->finish_job('SevenOfNine basic system', TICK_LOG_FILE_NPC);
 		// ########################################################################################
@@ -342,17 +363,17 @@ class Borg extends NPC
 		// ########################################################################################
 		// ########################################################################################
 		// Messages answer
-		$messages=array('Resistance is futile.','Resistance is futile.','Resistance is futile.');
-		$titles=array('We are Borg','We are Borg','We are Borg');
+		$messages=array('Resistance is futile.','Resistance is futile.','La resistenza &egrave; inutile.');
+		$titles=array('<b>We are Borg</b>','<b>We are Borg</b>','<b>Noi siamo i Borg</b>');
 
-		$this->ReplyToUser($messages,$titles);
+		$this->ReplyToUser($titles,$messages);
 		// ########################################################################################
 		// ########################################################################################
 		//Sensors monitoring and user warning
-		$messages=array('Resistance is futile.','Resistance is futile.','Resistance is futile.');
-		$titles=array('We are Borg','We are Borg','We are Borg');
+		$messages=array('Resistance is futile.','Resistance is futile.','La resistenza &egrave; inutile.');
+		$titles=array('<b>We are Borg</b>','<b>We are Borg</b>','<b>Noi siamo i Borg</b>');
 
-		$this->CheckSensors($ACTUAL_TICK,$messages,$titles);
+		$this->CheckSensors($ACTUAL_TICK,$titles,$messages);
 		// ########################################################################################
 		// ########################################################################################
 		//Ships creation
