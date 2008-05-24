@@ -43,13 +43,11 @@ class NPC
 
 	function MessageUser($sender,$receiver, $header, $message)
 	{
-		$game = new game();
-
 		$header = addslashes($header);
 		$message = addslashes($message);
 
 		$sql = 'INSERT INTO message (sender, receiver, subject, text, rread, time)
-		        VALUES ('.$sender.','.$receiver.',"'.$header.'","'.$message.'",0,'.$game->TIME.')';
+		        VALUES ('.$sender.','.$receiver.',"'.$header.'","'.$message.'",0,'.time().')';
 
 		if ($this->db->query($sql)==false)
 		{
@@ -93,7 +91,7 @@ class NPC
 		$this->sdl->finish_job('PW change', TICK_LOG_FILE_NPC);
 	}
 
-	function ReplyToUser($messageArray,$titleArray)
+	function ReplyToUser($titles,$messages)
 	{
 		$this->sdl->start_job('Messages answer', TICK_LOG_FILE_NPC);
 		$msgs_number=0;
@@ -116,16 +114,16 @@ class NPC
 				switch($language['language'])
 				{
 					case 'GER':
-						$text=$messageArray[1];
-						$title=$titleArray[1];
+						$text=$messages[1];
+						$title=$titles[1];
 					break;
 					case 'ITA':
-						$text=$messageArray[2];
-						$title=$titleArray[2];
+						$text=$messages[2];
+						$title=$titles[2];
 					break;
 					default:
-						$text=$messageArray[0];
-						$title=$titleArray[0];
+						$text=$messages[0];
+						$title=$titles[0];
 					break;
 				}
 
@@ -141,7 +139,7 @@ class NPC
 		$this->sdl->finish_job('Messages answer', TICK_LOG_FILE_NPC);
 	}
 
-	function CheckSensors($ACTUAL_TICK,$messageArray,$titleArray)
+	function CheckSensors($ACTUAL_TICK,$titles,$messages)
 	{
 		$this->sdl->start_job('Sensors monitor', TICK_LOG_FILE_NPC);
 		$msgs_number=0;
@@ -165,16 +163,16 @@ class NPC
 			switch($language['language'])
 			{
 				case 'GER':
-					$text=$messageArray[1];
-					$title=$titleArray[1];
+					$text=$messages[1];
+					$title=$titles[1];
 				break;
 				case 'ITA':
-					$text=$messageArray[2];
-					$title=$titleArray[2];
+					$text=$messages[2];
+					$title=$titles[2];
 				break;
 				default:
-					$text=$messageArray[0];
-					$title=$titleArray[0];
+					$text=$messages[0];
+					$title=$titles[0];
 				break;
 			}
 
@@ -183,6 +181,39 @@ class NPC
 		}
 		$this->sdl->log('Number of messages:'.$msgs_number, TICK_LOG_FILE_NPC);
 		$this->sdl->finish_job('Sensors monitor', TICK_LOG_FILE_NPC);
+	}
+
+	function RestoreFleetLosses($name,$template,$num)
+	{
+		$query='SELECT * FROM `ship_fleets` WHERE fleet_name="'.$name.'" and user_id='.$this->bot['user_id'].' LIMIT 0, 1';
+		$fleet=$this->db->queryrow($query);
+		if($fleet['n_ships'] < $num)
+		{
+			$this->sdl->log('Fleet "'.$name.'" has only '.$fleet['n_ships'].' ships - we need restore', TICK_LOG_FILE_NPC);
+			$needed = $num - $fleet['n_ships'];
+
+			$sql = 'UPDATE ship_fleets SET n_ships = n_ships + '.$needed.' WHERE fleet_id = '.$fleet['fleet_id'];
+			if(!$this->db->query($sql))
+				$this->sdl->log('<b>Error:</b> Could not update new fleets data', TICK_LOG_FILE_NPC);
+
+			$sql = 'SELECT * FROM ship_templates WHERE id = '.$template;
+			if(($stpl = $this->db->queryrow($sql)) === false)
+				$this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql_b, TICK_LOG_FILE_NPC);
+
+			$units_str = $stpl['min_unit_1'].', '.$stpl['min_unit_2'].', '.$stpl['min_unit_3'].', '.$stpl['min_unit_4'];
+			$sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience,
+			                           hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
+			        VALUES ('.$fleet['fleet_id'].', '.$this->bot['user_id'].', '.$template.', '.$stpl['value_9'].',
+			                '.$stpl['value_5'].', '.time().', '.$units_str.')';
+
+			for($i = 0; $i < $needed; ++$i)
+			{
+				if(!$this->db->query($sql)) {
+					$this->sdl->log('<b>Error:</b> Could not insert new ships #'.$i.' data', TICK_LOG_FILE_NPC);
+				}
+			}
+			$this->sdl->log('Fleet: '.$fleet['fleet_id'].' - updated to '.$needed.' ships', TICK_LOG_FILE_NPC);
+		}
 	}
 
 	public function NPC(&$db, &$sdl)
