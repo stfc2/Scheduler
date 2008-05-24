@@ -21,8 +21,8 @@
 */
 
 
-//########################################################################################
-//########################################################################################
+//#######################################################################################
+//#######################################################################################
 //Changelog sonst kapier ich bei Ramona bald nix mehr - Frauen eben
 
 /* 14. Juni 2007
@@ -30,8 +30,8 @@
   @Action: geändert  bzw verbessert
 */
 
-/* ######################################################################################## */
-/* ######################################################################################## */
+//#######################################################################################
+//#######################################################################################
 // Startconfig of Ferengi
 class Ferengi extends NPC
 {
@@ -201,53 +201,52 @@ class Ferengi extends NPC
 		// ########################################################################################
 		// ########################################################################################
 		// Messages answer
-		$messages = array('<center><b>Good morning</b></center><br><br>
-							Your message to us has no effect. We handle everything properly and immediately at same.<br>
-							If you think we need to blackmail us or put pressure or violence or other thoughts
-							against us - forget it immediately.<br>
-							Since we are what military defence is concerned, not something to admit, our weapons are loaded
-							and our ships combat-ready.<br>If agression should take place, we will strike back with still stronger
-							hardness.<br><br>
-							If you wanted to say just hello, take that above as a warning. If you realize that our delivery
-							system has problem, please report to the Galactic Administration
-							(Administrators of the game to understand).
-							<br><br>-----------------------------------<br>
-							The Ferengi Trade Guild wish you a nice day<br>
-							I.A. writer does not receive salary',
-							'<center><b>Guten Tag</b></center><br><br>
-							Ihre Nachricht an uns wird keine Wirkung erzielen. Wir bearbeiten alles Sachgem&auml;&beta; und gleich.<br>
-							Wenn Sie meinen uns erpressen zu m&uuml;ssen, uns unter Druck zu setzen oder sonstige Gewaltgedanken
-							gegen uns haben - vergessen Sie diese sofort wieder.<br>
-							Da wir uns, was milit&auml;rische Verteidigung angeht, nicht auf irgendwas einlassen, sind unsere Waffen
-							geladen und unsere Schiffe kampfbereit. Sollte Agression erfolgen, werden wir mit noch st&auml;rkerer
-							H&auml;rte zur&uuml;ckschlagen.<br><br>
-							Wenn Sie nur mal Hallo sagen wollten, nehmen Sie das oben als Warnung. Sollten Sie merken, dass
-							unser Liefersystem Problem hat, melden Sie das bitte an die Galaktische Administration
-							(Administratoren des Spiels f&uuml;r die die es nicht verstehen).
-							<br><br>-----------------------------------<br>
-							Noch einen schönen Tag w&uuml;nscht Ihnen die Ferengi Handelsgesselschaft<br>
-							I.A. Schreiber der kein Gehalt bekommt',
-							'<center><b>Buongiorno</b></center><br><br>
-							il vostro messaggio non ha alcun effetto con noi. Trattiamo tutto appropriatamente ed
-							immediatamente allo stesso modo.<br>
-							Se pensate di metterci nella blackmail o di fare pressione o violenza o altre azioni
-							contro di noi - scordatevelo immediatamente.<br>
-							Dato che siamo ci&ograve; che concerne la difesa militare, e non &egrave; qualcosa da
-							ammettere, le nostre armi sono caricate e le nostre navi da combattimento pronte.<br>Se
-							dovesse avvenire un aggressione, ci sar&agrave; una forte ritorsione con maggiore
-							durezza.<br><br>
-							Se volevate solo dire ciao, prendete questo come un avviso. Se avete realizzato che il
-							nostro sistema di consegne ha dei problemi, per favore riportatelo all&#146;Amministrazione
-							Galattica (gli amministratori del gioco per intenderci).
-							<br><br>-----------------------------------<br>
-							La Gilda del Commercio Ferengi vi augura una buona giornata<br>
-							Gli scrittori dell&#146;I.A. non sono pagati');
+		$messages = array(
+			'<center><b>Good morning</b></center><br><br>
+			Your message to us has no effect. We handle everything properly and immediately at same.<br>
+			If you think we need to blackmail us or put pressure or violence or other thoughts
+			against us - forget it immediately.<br>
+			Since we are what military defence is concerned, not something to admit, our weapons are loaded
+			and our ships combat-ready.<br>If agression should take place, we will strike back with still stronger
+			hardness.<br><br>
+			If you wanted to say just hello, take that above as a warning. If you realize that our delivery
+			system has problem, please report to the Galactic Administration
+			(Administrators of the game to understand).
+			<br><br>-----------------------------------<br>
+			The Ferengi Trade Guild wish you a nice day<br>
+			I.A. writer does not receive salary',
+			'<center><b>Guten Tag</b></center><br><br>
+			Ihre Nachricht an uns wird keine Wirkung erzielen. Wir bearbeiten alles Sachgem&auml;&beta; und gleich.<br>
+			Wenn Sie meinen uns erpressen zu m&uuml;ssen, uns unter Druck zu setzen oder sonstige Gewaltgedanken
+			gegen uns haben - vergessen Sie diese sofort wieder.<br>
+			Da wir uns, was milit&auml;rische Verteidigung angeht, nicht auf irgendwas einlassen, sind unsere Waffen
+			geladen und unsere Schiffe kampfbereit. Sollte Agression erfolgen, werden wir mit noch st&auml;rkerer
+			H&auml;rte zur&uuml;ckschlagen.<br><br>
+			Wenn Sie nur mal Hallo sagen wollten, nehmen Sie das oben als Warnung. Sollten Sie merken, dass
+			unser Liefersystem Problem hat, melden Sie das bitte an die Galaktische Administration
+			(Administratoren des Spiels f&uuml;r die die es nicht verstehen).
+			<br><br>-----------------------------------<br>
+			Noch einen schönen Tag w&uuml;nscht Ihnen die Ferengi Handelsgesselschaft<br>
+			I.A. Schreiber der kein Gehalt bekommt',
+			'<center><b>Buongiorno</b></center><br><br>
+			il vostro messaggio non ha alcun effetto con noi. Trattiamo tutto appropriatamente ed
+			immediatamente allo stesso modo.<br>
+			Se pensate di ricattarci o di fare pressione o violenza o altre azioni contro di noi - scordatevelo immediatamente.<br>
+			Dato che siamo ci&ograve; che concerne la difesa militare, e non &egrave; qualcosa da
+			ammettere, le nostre armi sono caricate e le nostre navi da combattimento pronte.<br>
+			Se dovesse avvenire un aggressione, ci sar&agrave; una forte ritorsione con maggiore durezza.<br><br>
+			Se volevate solo dire ciao, prendete questo come un avviso. Se avete riscontrato problemi con
+			il nostro sistema di consegne, per favore riportatelo all&#146;Amministrazione
+			Galattica (gli amministratori del gioco per intenderci).
+			<br><br>-----------------------------------<br>
+			La Gilda del Commercio Ferengi vi augura una buona giornata<br>
+			Gli scrittori dell&#146;I.A. non sono pagati');
 
 		$titles = array('<b>In reply to your letter</b>',
 						'<b>Antwort auf ihr Schreiben</b>',
 						'<b>Risposta alla sua lettera</b>');
 
-		$this->ReplyToUser($messages,$titles);
+		$this->ReplyToUser($titles,$messages);
 
 		// ########################################################################################
 		// ########################################################################################
@@ -1390,38 +1389,38 @@ class Ferengi extends NPC
 						'<b>Sie sind auf unseren Sensoren</b>',
 						'<b>Siete sui nostri sensori</b>');
 
-		$this->CheckSensors($ACTUAL_TICK,$messages,$titles);
+		$this->CheckSensors($ACTUAL_TICK,$titles,$messages);
 		// ########################################################################################
 		// ########################################################################################
 		//Ships creation
 		$this->sdl->start_job('Creating ships', TICK_LOG_FILE_NPC);
-		$abfragen=$this->db->query('SELECT * FROM `ship_fleets` WHERE fleet_name="Alpha-Fleet IVX" and user_id='.$this->bot['user_id'].' LIMIT 0, 1');
 
+		$this->sdl->log('Check fleet "Alpha-Fleet IVX" composition', TICK_LOG_FILE_NPC);
+		$query='SELECT * FROM `ship_fleets` WHERE fleet_name="Alpha-Fleet IVX" and user_id='.$this->bot['user_id'].' LIMIT 0, 1';
+		$this->db->query($query);
 		if($this->db->num_rows()<=0)
 		{
 			$sql = 'INSERT INTO ship_fleets (fleet_name, user_id, planet_id, move_id, n_ships)
 				VALUES ("Alpha-Fleet IVX", '.$this->bot['user_id'].', '.$this->bot['planet_id'].', 0, 4000)';
-			if(!$this->db->query($sql)) $this->sdl->log('<b>Error:</b> Could not insert new fleets data', TICK_LOG_FILE_NPC);
+			if(!$this->db->query($sql))
+				$this->sdl->log('<b>Error:</b> Could not insert new fleets data', TICK_LOG_FILE_NPC);
 			$fleet_id = $this->db->insert_id();
-			$sql_x5= 'INSERT INTO ship_fleets (fleet_name, user_id, planet_id, move_id, n_ships)
-				VALUES ("Interception -Fleet-Omega", '.$this->bot['user_id'].', '.$this->bot['planet_id'].', 0, 1000)';
 
-			if(!$this->db->query($sql_x5)) $this->sdl->log('<b>Error:</b> Could not insert new fleets data', TICK_LOG_FILE_NPC);
-			$fleet_id_x5= $this->db->insert_id();
 			if(!$fleet_id) $this->sdl->log('Error - '.$fleet_id.' = empty', TICK_LOG_FILE_NPC);
-			if(!$fleet_id_x5) $this->sdl->log('Error - '.$fleet_id.' = empty', TICK_LOG_FILE_NPC);
+
 			$sql_a= 'SELECT * FROM ship_templates WHERE id = '.$this->bot['ship_t_1'];
 			$sql_b= 'SELECT * FROM ship_templates WHERE id = '.$this->bot['ship_t_2'];
-			if(($stpl_a = $this->db->queryrow($sql_a)) === false) $this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql_a, TICK_LOG_FILE_NPC);
-			if(($stpl_b = $this->db->queryrow($sql_b)) === false) $this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql_b, TICK_LOG_FILE_NPC);
+			if(($stpl_a = $this->db->queryrow($sql_a)) === false)
+				$this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql_a, TICK_LOG_FILE_NPC);
+			if(($stpl_b = $this->db->queryrow($sql_b)) === false)
+				$this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql_b, TICK_LOG_FILE_NPC);
+
 			$units_str_1 = $stpl_a['min_unit_1'].', '.$stpl_a['min_unit_2'].', '.$stpl_a['min_unit_3'].', '.$stpl_a['min_unit_4'];
 			$units_str_2 = $stpl_b['min_unit_1'].', '.$stpl_b['min_unit_2'].', '.$stpl_b['min_unit_3'].', '.$stpl_b['min_unit_4'];
 			$sql_c= 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
 				VALUES ('.$fleet_id.', '.$this->bot['user_id'].', '.$this->bot['ship_t_1'].', '.$stpl_a['value_9'].', '.$stpl_a['value_5'].', '.$game->TIME.', '.$units_str_1.')';
 			$sql_d= 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
 				VALUES ('.$fleet_id.', '.$this->bot['user_id'].', '.$this->bot['ship_t_2'].', '.$stpl_b['value_9'].', '.$stpl_b['value_5'].', '.$game->TIME.', '.$units_str_2.')';
-			$sql_x55= 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
-				VALUES ('.$fleet_id_x5.', '.$this->bot['user_id'].', '.$this->bot['ship_t_2'].', '.$stpl_b['value_9'].', '.$stpl_b['value_5'].', '.$game->TIME.', '.$units_str_2.')';
 			for($i = 0; $i < 4000; ++$i)
 			{
 				if($i<400){
@@ -1434,33 +1433,43 @@ class Ferengi extends NPC
 					}
 				}
 			}
+			$this->sdl->log('Fleet: '.$fleet_id.' - 4000 ships created', TICK_LOG_FILE_NPC);
+		}
+		// Check whether someone has destroyed some Quark's ships
+		$this->RestoreFleetLosses("Alpha-Fleet IVX",$this->bot['ship_t_2'],4000);
+
+		$this->sdl->log('Check fleet "Interception Omega" composition', TICK_LOG_FILE_NPC);
+		$query='SELECT * FROM `ship_fleets` WHERE fleet_name="Interception Omega" and user_id='.$this->bot['user_id'].' LIMIT 0, 1';
+		$this->db->query($query);
+		if($this->db->num_rows()<=0)
+		{
+			$sql= 'INSERT INTO ship_fleets (fleet_name, user_id, planet_id, move_id, n_ships)
+				VALUES ("Interception Omega", '.$this->bot['user_id'].', '.$this->bot['planet_id'].', 0, 1000)';
+			if(!$this->db->query($sql))
+				$this->sdl->log('<b>Error:</b> Could not insert new fleets data', TICK_LOG_FILE_NPC);
+			$fleet_id= $this->db->insert_id();
+
+			if(!$fleet_id) $this->sdl->log('Error - '.$fleet_id.' = empty', TICK_LOG_FILE_NPC);
+
+			$sql_b= 'SELECT * FROM ship_templates WHERE id = '.$this->bot['ship_t_2'];
+			if(($stpl_b = $this->db->queryrow($sql_b)) === false)
+				$this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql_b, TICK_LOG_FILE_NPC);
+
+			$units_str_2 = $stpl_b['min_unit_1'].', '.$stpl_b['min_unit_2'].', '.$stpl_b['min_unit_3'].', '.$stpl_b['min_unit_4'];
+			$sql= 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
+				VALUES ('.$fleet_id.', '.$this->bot['user_id'].', '.$this->bot['ship_t_2'].', '.$stpl_b['value_9'].', '.$stpl_b['value_5'].', '.$game->TIME.', '.$units_str_2.')';
+
 			for($i = 0; $i < 1000; ++$i)
 			{
-				if(!$this->db->query($sql_x55)) {
+				if(!$this->db->query($sql)) {
 					$this->sdl->log('<b>Error:</b> Could not insert new ships #'.$i.' data', TICK_LOG_FILE_NPC);
 				}
 			}
-			$this->sdl->log('Fleet: '.$fleet_id.' - 2000 ships created', TICK_LOG_FILE_NPC);
+			$this->sdl->log('Fleet: '.$fleet_id.' - 1000 ships created', TICK_LOG_FILE_NPC);
 		}
-		$flotte=$this->db->fetchrow($abfragen);
-		if($flotte['n_ships']<4000)
-		{
-			$gebraucht=4000-$flotte['n_ships'];
-			$sql = 'UPDATE ship_fleets SET n_ships = n_ships + '.$gebraucht.' WHERE fleet_id = '.$flotte['fleet_id'];
-			if(!$this->db->query($sql)) $this->sdl->log('<b>Error:</b> Could not update new fleets data', TICK_LOG_FILE_NPC);
-			$sql_b= 'SELECT * FROM ship_templates WHERE id = '.$this->bot['ship_t_2'];
-			if(($stpl = $this->db->queryrow($sql_b)) === false) $this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql_b, TICK_LOG_FILE_NPC);
-			$units_str = $stpl['min_unit_1'].', '.$stpl['min_unit_2'].', '.$stpl['min_unit_3'].', '.$stpl['min_unit_4'];
-			$sql_d= 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
-				VALUES ('.$flotte['fleet_id'].', '.$this->bot['user_id'].', '.$this->bot['ship_t_2'].', '.$stpl['value_9'].', '.$stpl['value_5'].', '.$game->TIME.', '.$units_str.')';
-			for($i = 0; $i < $gebraucht; ++$i)
-			{
-					if(!$this->db->query($sql_d)) {
-						$this->sdl->log('<b>Error:</b> Could not insert new ships #'.$i.' data', TICK_LOG_FILE_NPC);
-					}
-			}
-			$this->sdl->log('Fleet: '.$flotte['fleet_id'].' -to '.$gebraucht.' ships updated', TICK_LOG_FILE_NPC);
-		}
+		// Check whether someone has destroyed some Quark's ships
+		$this->RestoreFleetLosses("Interception Omega",$this->bot['ship_t_2'],1000);
+
 		$this->sdl->finish_job('Creating ships', TICK_LOG_FILE_NPC);
 
 		// ########################################################################################
