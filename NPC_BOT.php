@@ -21,17 +21,17 @@
 */
 
 
-//########################################################################################
-//########################################################################################
-//Changelog sonst kapier ich bei Ramona bald nix mehr - Frauen eben
+//#######################################################################################
+//#######################################################################################
+//Changelog:
 
 /* 14. Juni 2007
   @Thema: Truppenverkaufszahlen Graphenbrechnung
   @Action: geändert  bzw verbessert
 */
 
-/* ######################################################################################## */
-/* ######################################################################################## */
+//#######################################################################################
+//#######################################################################################
 // Startconfig of NPCs
 class NPC
 {
@@ -44,14 +44,27 @@ class NPC
 	function MessageUser($sender,$receiver, $header, $message)
 	{
 		$game = new game();
-		if ($this->db->query('INSERT INTO message (sender, receiver, subject, text, rread,time) VALUES ('.$sender.',"'.$receiver.'","'.addslashes($header).'","'.addslashes($message).'",0,'.$game->TIME.')')==false)
+
+		$header = addslashes($header);
+		$message = addslashes($message);
+
+		$sql = 'INSERT INTO message (sender, receiver, subject, text, rread, time)
+		        VALUES ('.$sender.','.$receiver.',"'.$header.'","'.$message.'",0,'.$game->TIME.')';
+
+		if ($this->db->query($sql)==false)
 		{
-			$this->sdl->log('systemmessage_query: Could not call INSERT INTO in message :-:INSERT INTO message (sender, receiver, subject, text, rread,time)
-				VALUES ('.$sender.',"'.$receiver.'","'.addslashes($header).'","'.addslashes($message).'",0, '.$game->TIME.')', TICK_LOG_FILE_NPC);
+			$this->sdl->log('<b>Error:</b> Cannot send message to user '.$receiver.'!',
+				TICK_LOG_FILE_NPC);
 		}
-		$this->sdl->log("Senderid:".$sender." // Receiverid:".$receiver, TICK_LOG_FILE_NPC);
-		$num=$this->db->queryrow('SELECT COUNT(id) as unread FROM message WHERE (receiver="'.$receiver.'") AND (rread=0)');
-		if($num['unread']>0) $this->db->query('UPDATE user SET unread_messages="'.$num['unread'].'" WHERE user_id="'.$receiver.'"');
+		$this->sdl->log("Senderid:".$sender." // Receiverid:".$receiver,
+			TICK_LOG_FILE_NPC);
+
+		$num=$this->db->queryrow('SELECT COUNT(id) as unread FROM message
+		                          WHERE (receiver="'.$receiver.'") AND (rread=0)');
+		if($num['unread']>0)
+			$this->db->query('UPDATE user SET unread_messages="'.$num['unread'].'"
+			                  WHERE user_id="'.$receiver);
+
 		$this->sdl->log("Num:".$num['unread'], TICK_LOG_FILE_NPC);
 
 		return true;
@@ -60,20 +73,22 @@ class NPC
 	function ChangePassword()
 	{
 		$this->sdl->start_job('PW change', TICK_LOG_FILE_NPC);
-		$wert_new=rand(1,9);
-		$zufall="vv";
-		if($wert_new==2) $wert_new='v'.$zufall.'h';
-		if($wert_new==3) $wert_new='a'.$zufall.'h';
-		if($wert_new==4) $wert_new='b'.$zufall.'h';
-		if($wert_new==5) $wert_new='c'.$zufall.'h';
-		if($wert_new==6) $wert_new='d'.$zufall.'h';
-		if($wert_new==7) $wert_new='e'.$zufall.'h';
-		if($wert_new==1) $wert_new='f'.$zufall.'h';
-		if($wert_new==8) $wert_new='g'.$zufall.'h';
-		if($wert_new==9) $wert_new='h'.$zufall.'h';
-		if($this->db->query('UPDATE `user` SET `user_password`=MD5("'.$wert_new.'") WHERE `user_id` ='.$this->bot['user_id'].''))
+		$new=rand(1,9);
+		$random="vv";
+		if($new==2) $new='v'.$random.'h';
+		if($new==3) $new='a'.$random.'h';
+		if($new==4) $new='b'.$random.'h';
+		if($new==5) $new='c'.$random.'h';
+		if($new==6) $new='d'.$random.'h';
+		if($new==7) $new='e'.$random.'h';
+		if($new==1) $new='f'.$random.'h';
+		if($new==8) $new='g'.$random.'h';
+		if($new==9) $new='h'.$random.'h';
+		if($this->db->query('UPDATE `user` SET `user_password`=MD5("'.$new.'")
+		                     WHERE `user_id` ='.$this->bot['user_id']))
 		{
-			$this->sdl->log('Now there are only One-Night-Stands, no longer relations', TICK_LOG_FILE_NPC);
+			$this->sdl->log('Now there are only One-Night-Stands, no longer relations',
+				TICK_LOG_FILE_NPC);
 		}
 		$this->sdl->finish_job('PW change', TICK_LOG_FILE_NPC);
 	}
@@ -82,17 +97,21 @@ class NPC
 	{
 		$this->sdl->start_job('Messages answer', TICK_LOG_FILE_NPC);
 		$msgs_number=0;
-		$sql = 'SELECT * FROM message WHERE receiver='.$this->bot['user_id'].' AND rread=0';
+		$sql = 'SELECT * FROM message
+		        WHERE receiver='.$this->bot['user_id'].' AND rread=0';
+
 		if(!$q_message = $this->db->query($sql))
 		{
-			$this->sdl->log('<b>Error:</b> IGM: Could not query messages', TICK_LOG_FILE_NPC);
+			$this->sdl->log('<b>Error:</b> IGM: Could not query messages',
+				TICK_LOG_FILE_NPC);
 		}else{
 			while($message = $this->db->fetchrow($q_message))
 			{
 				// Recover language of the sender
 				$sql = 'SELECT language FROM user WHERE user_id='.$message['sender'];
 				if(!($language = $this->db->queryrow($sql)))
-					$this->sdl->log('<b>Error:</b> Cannot read user language!', TICK_LOG_FILE_NPC);
+					$this->sdl->log('<b>Error:</b> Cannot read user language!',
+						TICK_LOG_FILE_NPC);
 
 				switch($language['language'])
 				{
@@ -115,7 +134,9 @@ class NPC
 			}
 		}
 		$sql = 'UPDATE message SET rread=1 WHERE receiver='.$this->bot['user_id'];
-		if(!$this->db->query($sql))$this->sdl->log('<b>Error:</b> Message could not set to read', TICK_LOG_FILE_NPC);
+		if(!$this->db->query($sql))
+			$this->sdl->log('<b>Error:</b> Message could not set to read',
+				TICK_LOG_FILE_NPC);
 		$this->sdl->log('Number of messages:'.$msgs_number, TICK_LOG_FILE_NPC);
 		$this->sdl->finish_job('Messages answer', TICK_LOG_FILE_NPC);
 	}
@@ -131,13 +152,15 @@ class NPC
 		{
 			$this->sdl->log('The User '.$attacker['user_id'].' is trying to attack bot planet', TICK_LOG_FILE_NPC);
 			$msgs_number++;
-			$sql='SELECT planet_owner,planet_name FROM `planets` WHERE planet_owner ='.$attacker['user_id'].' LIMIT 0 , 1';
+			$sql='SELECT planet_owner,planet_name FROM `planets`
+			      WHERE planet_owner ='.$attacker['user_id'].' LIMIT 0 , 1';
 			$target_planet=$this->db->queryrow($sql);
 
 			// Recover language of the sender
 			$sql = 'SELECT language FROM user WHERE user_id='.$attacker['user_id'];
 			if(!($language = $this->db->queryrow($sql)))
-				$this->sdl->log('<b>Error:</b> Cannot read user language!', TICK_LOG_FILE_NPC);
+				$this->sdl->log('<b>Error:</b> Cannot read user language!',
+					TICK_LOG_FILE_NPC);
 
 			switch($language['language'])
 			{
