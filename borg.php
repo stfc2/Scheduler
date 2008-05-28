@@ -93,7 +93,7 @@ class Borg extends NPC
 			$num_bot=$this->db->num_rows($Bot_exe);
 			if($num_bot < 1)
 			{
-				$sql = 'INSERT INTO borg_bot (user_id,user_tick,planet_id,ship_template1,ship_template2)
+				$sql = 'INSERT INTO borg_bot (user_id,planet_id,ship_template1,ship_template2,user_tick)
 				        VALUES ("0","0","0","0","0")';
 				if(!$this->db->query($sql))
 				{
