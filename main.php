@@ -445,8 +445,8 @@ else {
                continue;
            }
 
-           $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4, last_refit_time)
-                   VALUES (-'.$shipbuild['planet_id'].', '.$shipbuild['user_id'].', '.$shipbuild['ship_type'].', '.$shipbuild['template_value_9'].', '.$shipbuild['template_value_5'].', '.$game->TIME.', '.$shipbuild['unit_1'].', '.$shipbuild['unit_2'].', '.$shipbuild['unit_3'].', '.$shipbuild['unit_4'].', '.$game->TIME.')';
+           $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
+                   VALUES (-'.$shipbuild['planet_id'].', '.$shipbuild['user_id'].', '.$shipbuild['ship_type'].', '.$shipbuild['template_value_9'].', '.$shipbuild['template_value_5'].', '.$game->TIME.', '.$shipbuild['unit_1'].', '.$shipbuild['unit_2'].', '.$shipbuild['unit_3'].', '.$shipbuild['unit_4'].')';
 
            if(!$db->query($sql)) {
             $sdl->log(' - <b>Warning:</b> Could not insert new ship data! CONTINUED AND JUMP TO NEXT');
