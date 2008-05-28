@@ -61,7 +61,7 @@ class NPC
 		                          WHERE (receiver="'.$receiver.'") AND (rread=0)');
 		if($num['unread']>0)
 			$this->db->query('UPDATE user SET unread_messages="'.$num['unread'].'"
-			                  WHERE user_id="'.$receiver);
+			                  WHERE user_id="'.$receiver.'"');
 
 		$this->sdl->log("Num:".$num['unread'], TICK_LOG_FILE_NPC);
 
