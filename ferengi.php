@@ -915,7 +915,7 @@ class Ferengi extends NPC
 		// ########################################################################################
 		// ########################################################################################
 		//User sperren fürs HZ
-		$this->sdl->start_job('User lock', TICK_LOG_FILE_NPC);
+		$this->sdl->start_job('User locks', TICK_LOG_FILE_NPC);
 		$sql = "SELECT count(*) as anzahl,user_id FROM FHB_sperr_list GROUP By user_id";
 		if(!$temps=$this->db->query($sql)) $this->sdl->log('<b>Error:</b> User query went wrong -- '.$sql, TICK_LOG_FILE_NPC);
 		$anzahl_sperren=0; 
