@@ -311,7 +311,7 @@ else
 	while($ship = $db->fetchrow($q_ship)) {
 		// DC ---- Ships in Refitting does not get repaired
 		if ($ship['ship_untouchable'] == SHIP_IN_REFIT)
-			$sql = 'UPDATE ships SET ship_repair=0, ship_untouchable=0, WHERE ship_id='.$ship['ship_id'];
+			$sql = 'UPDATE ships SET ship_repair=0, ship_untouchable=0 WHERE ship_id='.$ship['ship_id'];
 		else
 			$sql = 'UPDATE ships SET hitpoints='.$ship['value_5'].', ship_repair=0, ship_untouchable=0 WHERE ship_id='.$ship['ship_id'];
 		// DC ----
