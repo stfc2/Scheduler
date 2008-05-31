@@ -35,6 +35,8 @@ define (BORG_SPHERE, 'Borg Sphere');
 
 define (BORG_CUBE, 'Borg Cube');
 
+define (BORG_RACE,'6'); // Well, this one should be defined in global.php among the other races */
+
 /* ######################################################################################## */
 /* ######################################################################################## */
 // Startconfig of Borg
@@ -75,7 +77,7 @@ class Borg extends NPC
 			{
 				$sql = 'CREATE TABLE `'.$this->db->login['database'].'`.`borg_bot` (
 				            `id` INT( 2 ) NOT NULL AUTO_INCREMENT ,
-						    `user_id` MEDIUMINT( 8 ) UNSIGNED NOT NULL DEFAULT \'0\',
+				            `user_id` MEDIUMINT( 8 ) UNSIGNED NOT NULL DEFAULT \'0\',
 				            `planet_id` SMALLINT( 5 ) UNSIGNED NOT NULL DEFAULT  \'0\',
 				            `ship_template1` INT( 10 ) UNSIGNED NOT NULL DEFAULT  \'0\',
 				            `ship_template2` INT( 10 ) UNSIGNED NOT NULL DEFAULT  \'0\',
@@ -93,7 +95,7 @@ class Borg extends NPC
 			$num_bot=$this->db->num_rows($Bot_exe);
 			if($num_bot < 1)
 			{
-				$sql = 'INSERT INTO borg_bot (user_id,planet_id,ship_template1,ship_template2,user_tick)
+				$sql = 'INSERT INTO borg_bot (user_id,user_tick,planet_id,ship_template1,ship_template2)
 				        VALUES ("0","0","0","0","0")';
 				if(!$this->db->query($sql))
 				{
@@ -114,12 +116,12 @@ class Borg extends NPC
 				                          user_auth_level, user_race, user_gfxpath, user_skinpath, user_registration_time,
 				                          user_registration_ip, user_birthday, user_gender, plz, country,
 				                          user_enable_sig,user_message_sig,
-						                  user_signature)
+				                         user_signature)
 				         VALUES (1, "Borg(NPG)", "BorgBot", "'.md5("borgcube").'", "borg@nonsolotaku.it",
-				                 1, 6, "", "skin1/", '.time().',
-						         "127.0.0.1", "23.05.2008", "", 16162 , "Italia",
-						         1, "<br><br><p><b>We are the Borg, resistance is futile</b></p>",
-						         "'.BORG_SIGNATURE.'")';
+				                 1, '.BORG_RACE.', "", "skin1/", '.time().',
+				                 "127.0.0.1", "23.05.2008", "", 16162 , "Italia",
+				                 1, "<br><br><p><b>We are the Borg, resistance is futile</b></p>",
+				                 "'.BORG_SIGNATURE.'")';
 
 				if(!$this->db->query($sql))
 				{
@@ -246,11 +248,11 @@ class Borg extends NPC
 				                                    value_6, value_7, value_8, value_9, value_10,
 				                                    value_11, value_12, value_13, value_14, value_15,
 				                                    resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
-			    	                                min_unit_1, min_unit_2, min_unit_3, min_unit_4,
-			        	                            max_unit_1, max_unit_2, max_unit_3, max_unit_4,
+				                                    min_unit_1, min_unit_2, min_unit_3, min_unit_4,
+				                                    max_unit_1, max_unit_2, max_unit_3, max_unit_4,
 				                                    buildtime)
-				         VALUES ("'.$this->bot['user_id'].'","'.time().'","'.BORG_SPHERE.'","Exploration ship","'.$this->bot['user_race'].'",1,0,
-						         -1,-1,-1,-1,-1,
+				         VALUES ("'.$this->bot['user_id'].'","'.time().'","'.BORG_SPHERE.'","Exploration ship","'.BORG_RACE.'",1,0,
+				                 -1,-1,-1,-1,-1,
 				                 -1,-1,-1,-1,-1,
 				                 "500","500","50","600","600",
 				                 "30","30","30","20","10",
@@ -319,7 +321,7 @@ class Borg extends NPC
 				                                    min_unit_1, min_unit_2, min_unit_3, min_unit_4,
 				                                    max_unit_1, max_unit_2, max_unit_3, max_unit_4,
 				                                    buildtime)
-				        VALUES ("'.$this->bot['user_id'].'","'.time().'","'.BORG_CUBE.'","Assimilation ship","'.$this->bot['user_race'].'",3,0,
+				        VALUES ("'.$this->bot['user_id'].'","'.time().'","'.BORG_CUBE.'","Assimilation ship","'.BORG_RACE.'",3,0,
 				                -1,-1,-1,-1,-1,
 				                -1,-1,-1,-1,-1,
 				                "4000","4000","100","6000","6000",
@@ -329,7 +331,7 @@ class Borg extends NPC
 				                "10000","2500","2500","500",
 				                "30000","7000","5000","1000",
 				                0)';
-	
+
 				if(!$this->db->query($sql))
 					$this->sdl->log('<b>Error:</b> Bot ShipsTemps: template 2 was not saved', TICK_LOG_FILE_NPC);
 			}
