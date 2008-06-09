@@ -323,7 +323,7 @@ function UnitTimeTicksScheduler($unit,$planet_research,$user_race)
 function ResourcesPerTickMetal(&$planet) {
 	$rid=0;
 	global $RACE_DATA,$PLANETS_DATA, $addres;
-	$result = 0.25*(3*((pow(((3*$PLANETS_DATA[$planet['planet_type']][$rid])*(1+$planet['building_'.($rid+2)])),1.35))/100*(50+ (50*(1/($planet['building_'.($rid+2)]*100+100))*($planet['workermine_'.($rid+1)]+100))))*($RACE_DATA[$planet['user_race']][9+$rid]*($addres[$planet['research_5']]*$RACE_DATA[$planet['user_race']][20])));
+	$result = 0.25*(3*((pow(((3*$planet['rateo_1'])*(1+$planet['building_'.($rid+2)])),1.35))/100*(50+ (50*(1/($planet['building_'.($rid+2)]*100+100))*($planet['workermine_'.($rid+1)]+100))))*($RACE_DATA[$planet['user_race']][9+$rid]*($addres[$planet['research_5']]*$RACE_DATA[$planet['user_race']][20])));
 	if($result < 10) $round = 1;
 	else $round = 0;
 	return round($result, $round);
@@ -332,7 +332,7 @@ function ResourcesPerTickMetal(&$planet) {
 function ResourcesPerTickMineral(&$planet) {
 	$rid=1;
 	global $RACE_DATA,$PLANETS_DATA, $addres;
-	$result = 0.25*(3*((pow(((3*$PLANETS_DATA[$planet['planet_type']][$rid])*(1+$planet['building_'.($rid+2)])),1.35))/100*(50+ (50*(1/($planet['building_'.($rid+2)]*100+100))*($planet['workermine_'.($rid+1)]+100))))*($RACE_DATA[$planet['user_race']][9+$rid]*($addres[$planet['research_5']]*$RACE_DATA[$planet['user_race']][20])));
+	$result = 0.25*(3*((pow(((3*$planet['rateo_2'])*(1+$planet['building_'.($rid+2)])),1.35))/100*(50+ (50*(1/($planet['building_'.($rid+2)]*100+100))*($planet['workermine_'.($rid+1)]+100))))*($RACE_DATA[$planet['user_race']][9+$rid]*($addres[$planet['research_5']]*$RACE_DATA[$planet['user_race']][20])));
 	if($result < 10) $round = 1;
 	else $round = 0;
 	return round($result, $round);
@@ -341,7 +341,7 @@ function ResourcesPerTickMineral(&$planet) {
 function ResourcesPerTickLatinum(&$planet) {
 	$rid=2;
 	global $RACE_DATA,$PLANETS_DATA, $addres;
-	$result = 0.2*(3*((pow(((3*$PLANETS_DATA[$planet['planet_type']][$rid])*(1+$planet['building_'.($rid+2)])),1.35))/100*(50+ (50*(1/($planet['building_'.($rid+2)]*100+100))*($planet['workermine_'.($rid+1)]+100))))*($RACE_DATA[$planet['user_race']][9+$rid]*($addres[$planet['research_5']]*$RACE_DATA[$planet['user_race']][20])));
+	$result = 0.2*(3*((pow(((3*$planet['rateo_3'])*(1+$planet['building_'.($rid+2)])),1.35))/100*(50+ (50*(1/($planet['building_'.($rid+2)]*100+100))*($planet['workermine_'.($rid+1)]+100))))*($RACE_DATA[$planet['user_race']][9+$rid]*($addres[$planet['research_5']]*$RACE_DATA[$planet['user_race']][20])));
 	if($result < 10) $round = 1;
 	else $round = 0;
 	return round($result, $round);

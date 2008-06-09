@@ -882,7 +882,7 @@ else {
 		$add_2 = ResourcesPerTickMineral($planet);
 		$add_3 = ResourcesPerTickLatinum($planet);
 
-		$add_4 = ($PLANETS_DATA[$planet['planet_type']][3]*$RACE_DATA[$planet['user_race']][12]
+		$add_4 = ($planet['rateo_4']*$RACE_DATA[$planet['user_race']][12]
 		         +($planet['research_1']*$RACE_DATA[$planet['user_race']][20])*0.1
 				 +($planet['research_2']*$RACE_DATA[$planet['user_race']][20])*0.2);
 
