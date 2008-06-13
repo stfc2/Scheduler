@@ -37,7 +37,7 @@ if(!empty($_SERVER['SERVER_SOFTWARE'])) {
 }
 
 define('TICK_LOG_FILE', $game_path . 'game/logs/fixall/tick_'.date('d-m-Y', time()).'.log');
-define('IN_SCHEDULER', true); // wir sind im scheduler...
+define('IN_SCHEDULER', true); // we are in the scheduler...
 
 // include commons classes and functions
 include('commons.php');
@@ -235,234 +235,6 @@ $sdl->finish_job('Buildings / Research level fix');
 
 
 
-/*
-
-
-$sdl->start_job('Geisterflotten beheben');
-
-
-
-$sql = 'SELECT f.*,
-
-               COUNT(s.ship_id) AS real_n_ships,
-
-               u.user_id AS real_user_id, u.user_capital,
-
-               p.planet_id,
-
-               ss.move_id, ss.move_status, ss.start, ss.dest, ss.action_code
-
-        FROM (ship_fleets f)
-
-        LEFT JOIN (ships s) ON s.fleet_id = f.fleet_id
-
-        LEFT JOIN (user u) ON u.user_id = f.user_id
-
-        LEFT JOIN (planets p) ON p.planet_id = f.planet_id
-
-        LEFT JOIN (scheduler_shipmovement ss) ON ss.move_id = f.move_id
-
-        GROUP BY f.fleet_id';
-
-        
-
-if(!$q_fleets = $db->query($sql)) {
-
-    message(DATABASE_ERROR, 'Could not query fleets main data');
-
-}
-
-
-
-$sdl->log('<b>'.$db->num_rows($q_fleets).'</b> Flotten mit Schiffen gefunden.');
-
-
-
-while($fleet = $db->fetchrow($q_fleets)) {
-
-    $fleet_id = (int)$fleet['fleet_id'];
-
-    
-
-    if($fleet['real_n_ships'] == 0) {
-
-        $sql = 'DELETE FROM ship_fleets
-
-                WHERE fleet_id = '.$fleet_id;
-
-                
-
-        if(!$db->query($sql)) {
-
-            message(DATABASE_ERROR, 'Could not delete empty fleets data');
-
-        }
-
-        
-
-        $sdl->log('Flotte: <b>'.$fleet_id.'</b>; (Nicht-sichere MoveID: '.$fleet['move_id'].' [Typ: '.$fleet['action_code'].']) Flotte ist leer. Gelöscht');
-
-    }
-
-    
-
-    if(empty($fleet['real_user_id'])) {
-
-        $sql = 'DELETE FROM ships
-
-                WHERE fleet_id = '.$fleet_id;
-
-                
-
-        if(!$db->query($sql)) {
-
-            message(DATABASE_ERROR, 'Could not delete ships data');
-
-        }
-
-        
-
-        $sql = 'DELETE FROM ship_fleets
-                WHERE fleet_id = '.$fleet_id;
-
-                
-
-        if(!$db->query($sql)) {
-
-            message(DATABASE_ERROR, 'Could not delete fleets data');
-
-        }
-
-        
-
-        $sdl->log('Flotte: <b>'.$fleet_id.'</b>; Spieler existiert nicht mehr. Schiffe und Flotten gelöscht');
-
-    }
-
-        
-
-    
-
-    if($fleet['real_n_ships'] != $fleet['n_ships']) {
-
-        $sql = 'UPDATE ship_fleets
-
-                SET n_ships = '.(int)$fleet['real_n_ships'].'
-
-                WHERE fleet_id = '.$fleet_id;
-
-                
-
-        if(!$db->query($sql)) {
-
-            message(DATABASE_ERROR, 'Could not update fleet n_ships data');
-
-        }
-
-        
-
-        $sdl->log('Flotte: <b>'.$fleet_id.' (Nicht-sichere MoveID: '.$fleet['move_id'].' [Typ: '.$fleet['action_code'].'])</b>; Falsche Schiffszahlen. Behoben');
-
-    }
-
-    
-
-    $RESET_FLEET = 0;
-
-    
-
-    if( (empty($fleet['planet_id'])) && (empty($fleet['move_id'])) ) {
-
-        $sdl->log('Geisterflotte: <b>'.$fleet_id.'</b>; Keine Positionsdaten. Versuche Repositionierung');
-
-        
-
-        $RESET_FLEET = $fleet['user_capital'];
-
-    }
-
-    elseif( (!empty($fleet['planet_id'])) && (!empty($fleet['move_id'])) ) {
-
-        $sdl->log('Geisterflotte: <b>'.$fleet_id.'</b>; Korrupte Positionsdaten; Versuche Repositionierung');
-        $RESET_FLEET = $fleet['planet_id'];
-
-    }
-
-    elseif(!empty($fleet['move_id'])) {
-
-        $move_status = (int)$fleet['move_status'];
-
-        
-
-        if( ($move_status > 10) && ($move_status < 40) ) {
-
-            $sdl->log('Geisterflotte: <b>'.$fleet_id.'</b>; Vollständiger Move: <b>[Typ: '.$fleet['action_code'].'] [Typ: '.$fleet['action_code'].']</b>. Versuche Repositionierung');
-
-            
-
-            $RESET_FLEET = $fleet['dest'];
-
-        }
-
-        elseif( ($move_status > 30) && ($move_status < 40) ) {
-
-            $sdl->log('Geisterflotte: <b>'.$fleet_id.'</b>; Unvollständiger Move: <b>'.$fleet['move_id'].' [Typ: '.$fleet['action_code'].']</b>. Versuche Repositionierung');
-
-            
-
-            $RESET_FLEET = $fleet['start'];
-
-        }
-        elseif( ($move_status == 4) ) { // Rueckruf einer Koloflotte oder Rueckruf im ersten Tick
-
-            $sdl->log('Geisterflotte: <b>'.$fleet_id.'</b>; Unvollständiger Move -> status 4: <b>'.$fleet['move_id'].' [Typ: '.$fleet['action_code'].']</b>. Versuche Repositionierung');
-            $RESET_FLEET = $fleet['start'];
-
-        }
-        
-
-    }
-
-    
-
-    if($RESET_FLEET > 0) {
-
-        $sql = 'UPDATE ship_fleets
-
-                SET planet_id = '.$RESET_FLEET.',
-
-                    move_id = 0
-
-                WHERE fleet_id = '.$fleet_id;
-
-
-
-        if(!$db->query($sql)) {
-
-            message(DATABASE_ERROR, 'Could not reset fleets location data');
-
-        }
-
-        $sdl->log('Flotte <b>'.$fleet_id.'</b> wird zu Planet <b>'.$RESET_FLEET.'</b> zurückgesetzt');
-
-
-
-    }
-
-}
-
-$sql = 'DELETE FROM ship_fleets
-        WHERE n_ships = 0';
-
-if(!$db->query($sql)) {
-    message(DATABASE_ERROR, 'Could not delete empty fleets');
-}
-
-
-
-$sdl->finish_job('Geisterflotten beheben');
-
-*/
 
 $sdl->start_job('Rioters planets take over by the settlers');
 
@@ -516,7 +288,7 @@ $sdl->start_job('Rioters planets take over by the settlers');
 	message(DATABASE_ERROR, 'Could not delete switch user');
   }
 
-$sdl->finish_job('All planets were delivered.');
+$sdl->finish_job('Rioters planets take over by the settlers');
 
 
 $sdl->start_job('Logbook cleaning');
@@ -533,7 +305,7 @@ if(!$db->query($sql)) {
 }
 
 
-// Ungelesene Logbucheinträge updaten
+// Update unread logbook entries
 $sql = 'SELECT u.user_id, COUNT(l.log_id) AS n_logs  FROM (user u)
 			 LEFT JOIN (logbook l) ON l.user_id=u.user_id AND l.log_read=0
 			GROUP BY u.user_id';
@@ -555,7 +327,7 @@ else {
 
 
 
-$sdl->finish_job('Logbook cleaned');
+$sdl->finish_job('Logbook cleaning');
 
 
 $sdl->start_job('Clearing invalid war declarations');
@@ -579,7 +351,7 @@ else {
 	}
 }
 
-$sdl->finish_job('Diplomacy cleared');
+$sdl->finish_job('Clearing invalid war declarations');
 
 // ########################################################################################
 // ########################################################################################
