@@ -24,7 +24,7 @@ class moves_action_55 extends moves_common {
     function _action_main() {
 
 // #############################################################################
-// Daten der Angreifer
+// Data from the attacker
 
 $sql = 'SELECT '.$this->get_combat_query_fleet_columns().', f.resource_4, f.unit_1, f.unit_2, f.unit_3, f.unit_4
         FROM (ship_fleets f)
@@ -37,13 +37,13 @@ if(($atk_fleets = $this->db->queryrowset($sql)) === false) {
 
 
 // #############################################################################
-// Daten der Verteidiger
+// Data from the defender
 
 $user_id = $this->dest['user_id'];
 $planetary_attack = true;
 
-// Das k�nte man natrlich optimieren, doch es soll m�lichst
-// viel Kompatibilit� zur Vorlage action_51.php erhalten bleiben
+// The course could be optimized, but it should be possible 
+// compatibility to provide much action_51.php maintained
 $cur_user = array(
     'user_id' => $user_id,
     'user_name' => $this->dest['user_name'],
@@ -130,7 +130,7 @@ if($this->do_ship_combat($this->fleet_ids_str, implode(',', $dfd_fleet_ids), MV_
 
 
 // #############################################################################
-// Wenn der Angreifer gewonnen hat, �ernahmeversuch starten
+// If the attacker has won attempt to start takeover
 
 // #############################################################################
 // 03/04/08 - AC: Retrieve player language
@@ -156,8 +156,8 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
     $ship_id = (int)$this->action_data[0];
 
-    // Wir machen es ganz sicher hier, um zu sehen, ob das
-    // Schiff dabei ist
+    // We make it quite safe here, to see whether the
+    // ship is
 
     $sql = 'SELECT s.ship_id, s.user_id, s.unit_1, s.unit_2, s.unit_3, s.unit_4,
                    st.ship_torso, st.race, st.min_unit_1, st.min_unit_2, st.min_unit_3, st.min_unit_4,
@@ -224,12 +224,12 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             $n_atk_alive = array_sum($ucmb[0]);
         }
         else
-        $n_atk_alive=1;
+            $n_atk_alive=1;
         
-        // Wenn keine Angreifer mehr da sind, hat der Verteidigende
-        // immer gewonnen au�r der verteidigende hatte keine Einheiten
+        // If there are no more attackers, the defender
+        // always won even if the defending had no units
         if($n_atk_alive == 0) {
-            // Um die Truppen des Angreifers zu beseitigen, einfach alle Transporter resetten
+            // In order to eliminate the troops of the aggressor, simply reset all transporters
 
             $sql = 'UPDATE ship_fleets
                     SET unit_1 = 0,
@@ -243,7 +243,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                 return $this->log(MV_M_DATABASE, 'Could not update ship fleets unit transport data! SKIP');
             }
 
-            // Truppen des Verteidigenden einfach updaten
+            // Simply update the defender troops
 
             $sql = 'UPDATE planets
                     SET unit_1 = '.$ucmb[1][0].',
@@ -260,9 +260,9 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             // 090408 DC:  ------ Finally the fucking soldiers have done their job!!!! 
             foreach ($atk_fleets as $atk_fleets_item) {
                 $sql = 'UPDATE ships ss, ship_templates st
-                        SET ss.unit_1 = st.min_unit_1
-                            ss.unit_2 = st.min_unit_2
-                            ss.unit_3 = st.min_unit_3
+                        SET ss.unit_1 = st.min_unit_1,
+                            ss.unit_2 = st.min_unit_2,
+                            ss.unit_3 = st.min_unit_3,
                             ss.unit_4 = st.min_unit_4
                         WHERE ss.template_id = st.id
                         AND ss.fleet_id = '.$atk_fleets_item['fleet_id'];
@@ -292,10 +292,10 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
         else {
             account_log($this->move['user_id'], $this->dest['user_id'], 4);
 
-            // Ein Herrscher-Switch ausfhren
+            // Export a ruler switch
 
-            // Wir brauchen die Anzahl der Planeten, die der kolonisierende besitzt
-            // (wir wollen planet_owner_enum sicher bestimmen)
+            // We need the number of planets, which owns the colonizing
+            // (we want planet_owner_enum degree of certainty)
 
             $sql = 'SELECT COUNT(planet_id) AS n_planets
                     FROM planets
@@ -313,7 +313,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             $atk_alive = $ucmb[0];
 
             /*
-            // Fehler bei bernahme, deshalb wieder deaktivert - Mojo1987
+            // Fehler bei ubernahme, deshalb wieder deaktivert - Mojo1987
             // Wir bringen soviel Truppen, wie auf dem Kolonieschiff waren, auf dem Planeten unter
             $planet_units = array();
 
@@ -425,14 +425,14 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             
             global $NUM_BUILDING, $MAX_BUILDING_LVL;
 
-            // Da ja jemand anzahl == max_index setzt
+            // As someone yes number == max_index sets
             $n_buildings = $NUM_BUILDING + 1;
 
             $building_levels = array();
 
             $building_damage = 0.01 * mt_rand(40, 60);
 
-            // Heimatwelt neu setzen
+            // Set new home world
             if($this->move['dest'] == $this->dest['user_capital']) {
                 for($i = 0; $i < $n_buildings; ++$i) {
                     $j = $i + 1;
@@ -447,7 +447,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                     {
                         case 'GER':
                             $msg_title = 'Verlust aller deiner Planeten';
-                            $msg_body = 'Da du alle deine Planeten verloren hast, wurde f&uuml;r dich ein neuer Planet an einer zuf�ligen Stelle der Galaxie erstellt.';
+                            $msg_body = 'Da du alle deine Planeten verloren hast, wurde f&uuml;r dich ein neuer Planet an einer zuf&uuml;ligen Stelle der Galaxie erstellt.';
                         break;
                         case 'ITA':
                             $msg_title = 'Perdita di tutti i pianeti';
@@ -628,8 +628,8 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
         $this->log('Update Planetdata', 'Limited resources');
 
-        //Concept of vessels destroyed by hostile bernahme.
-        //Version 0.2b by Mojo1987 - Berechnung angepasst
+        //Concept of vessels destroyed by hostile takeover.
+        //Version 0.2b by Mojo1987 - Calculation adjusted
 
         $this->log('Ship destruction', 'Begin ships deletion');
 
@@ -769,11 +769,11 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                 {
                     case 'GER':
                         $msg_title = 'Verdienst im Kampf gegen die Borg';
-                        $msg_text = 'F�e gerade erbrachten Verdienst gegen die neue Invasion des Borg-Kollektives befinden sich im Anflug auf euren Heimatplaneten ein speziell f�sen Kampf entwickeltes Schiff. Versucht nicht die enthaltene Technologie zu verstehen, sie wurde wirkungsvoll gegen euch abgeschirmt - nutzt sie stattdessen in eurem weiteren Kampf!';
+                        $msg_text = 'F&uuml;e gerade erbrachten Verdienst gegen die neue Invasion des Borg-Kollektives befinden sich im Anflug auf euren Heimatplaneten ein speziell f&ouml;sen Kampf entwickeltes Schiff. Versucht nicht die enthaltene Technologie zu verstehen, sie wurde wirkungsvoll gegen euch abgeschirmt - nutzt sie stattdessen in eurem weiteren Kampf!';
                     break;
                     case 'ITA':
                         $msg_title = 'Merito in battaglia contro i Borg';
-                        $msg_text = 'Proprio per rendere merito contro la nuova invasione del collettivo Borg si trova in approccio al tuo pianeta madre una nave appositamente progettata per combatterli. Non provare a capire la tecnologia inclusa, è stata efficacemente schermata contro di te - utilizzala invece ulteriormente nella tua lotta!';
+                        $msg_text = 'Proprio per rendere merito contro la nuova invasione del collettivo Borg si trova in approccio al tuo pianeta madre una nave appositamente progettata per combatterli. Non provare a capire la tecnologia inclusa, &egrave; stata efficacemente schermata contro di te - utilizzala invece ulteriormente nella tua lotta!';
                     break;
                     default:
                         $msg_title = 'Merit in the battle against the Borg';
@@ -858,7 +858,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             WHERE fleet_id IN ('.$this->fleet_ids_str.')';
 
     if(!$this->db->query($sql)) {
-        // Hier k�nte man auch reporten und dann weitermachen
+        // Here one could also report and then go on
         return $this->log(MV_M_DATABASE, 'Could not update fleets location data! SKIP');
     }
 }
@@ -881,7 +881,7 @@ else {
 
 
 // #############################################################################
-// Logbuch schreiben
+// Write logbook
 
 $log1_data = array(55, $this->move['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], 0, 0, 0, MV_CMB_ATTACKER, ( ($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) ? 1 : 0 ), 0,0, $atk_fleets, $dfd_fleets);
 $log2_data = array(55, $this->move['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], 0, 0, 0, MV_CMB_DEFENDER, ( ($this->cmb[MV_CMB_WINNER] == MV_CMB_DEFENDER) ? 1 : 0 ), 0,0, $atk_fleets, $dfd_fleets);
