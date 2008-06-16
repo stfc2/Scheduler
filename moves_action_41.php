@@ -27,7 +27,7 @@ class moves_action_41 extends moves_common {
     function _action_main() {
 
 // #############################################################################
-// Daten der Angreifer
+// Data from the attacker
 /*
 $sql = 'SELECT fleet_id
         FROM ship_fleets
@@ -56,7 +56,7 @@ if(($atk_fleets = $this->db->queryrowset($sql)) === false) {
 //move_finish
 $sql_user='SELECT user_alliance,user_id FROM user WHERE user_id='.$this->move['user_id'].'';
 if(($user_attacker = $this->db->queryrow($sql_user)) === false) {
-	return $this->log(MV_M_DATABASE, 'Could not dates from angreifer aus user hohlen - mein englisch ich weis! SKIP');
+	return $this->log(MV_M_DATABASE, 'Could not obtain attacker alliance data! SKIP');
 }
 $sql_3 = 'SELECT DISTINCT f.user_id,f.fleet_id,ssm.dest,
                u.user_alliance,
@@ -74,7 +74,7 @@ f.move_id!=0 AND
 ssm.dest='.$this->move['dest'].' AND
               f.user_id <> '.$this->move['user_id'].' AND
               f.alert_phase >= '.ALERT_PHASE_YELLOW;
-$this->log(MV_M_DATABASE, $sql_3);
+$this->log(MV_M_NOTICE, $sql_3);
 if(!$l_st_uid = $this->db->query($sql_3)) {
     return $this->log(MV_M_DATABASE, 'Could not query stationated fleets user data! SKIP');
 }
@@ -101,7 +101,7 @@ while($at_uid = $this->db->fetchrow($l_st_uid)) {
 
 
 $a_st_user = count($at_user);
-$this->log(MV_M_DATABASE,$a_st_user .'Gemeinsamer Angriff:::'.$zahl);
+$this->log(MV_M_NOTICE,$a_st_user .'Common assault:::'.$zahl);
 if($a_st_user > 0) {
     $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
              FROM (ship_fleets f)
@@ -136,7 +136,7 @@ $atk_fleets_ids = array();
 $zahl=0;
 foreach($atk_fleets as $i => $cur_fleet) {
 $zahl++;
-$this->log(MV_M_DATABASE,'Flotte::'.$cur_fleet['fleet_id'].'::||:Alert:::'.$cur_fleet['alert_phase'].':::||:Name:::'.$cur_fleet['fleet_name']);
+$this->log(MV_M_NOTICE,'Fleet::'.$cur_fleet['fleet_id'].'::||:Alert:::'.$cur_fleet['alert_phase'].':::||:Name:::'.$cur_fleet['fleet_name']);
 	$atk_fleets_ids[] = $cur_fleet['fleet_id'];
 }
 if($zahl<1)
@@ -145,7 +145,7 @@ if($zahl<1)
 }
 
 // #############################################################################
-// Daten der Verteidiger
+// Data from the defender
 
 $sql = 'SELECT DISTINCT f.user_id,
                u.user_alliance,
@@ -161,7 +161,7 @@ $sql = 'SELECT DISTINCT f.user_id,
               f.alert_phase >= '.ALERT_PHASE_YELLOW;
 
 if(!$q_st_uid = $this->db->query($sql)) {
-    return $this->log('MySQL', 'Could not query stationated fleets user data! SKIP');
+    return $this->log(MV_M_DATABASE, 'Could not query stationated fleets user data! SKIP');
 }
 
 $st_user = array();
@@ -226,7 +226,7 @@ if($this->do_ship_combat(implode(',', $atk_fleets_ids), implode(',', $dfd_fleet_
 
 
 // #############################################################################
-// Evtl. die übriggeblienen Schiffe des Angreifers in den Orbit
+// Possibly ubriggeblienen the ships of the attacker left in orbit
 
 if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
     $sql = 'UPDATE ship_fleets
@@ -298,7 +298,7 @@ else {
 
 
 // #############################################################################
-// Logbuch schreiben
+// Write logbook
 
 $log1_data = array(41, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], MV_CMB_ATTACKER, ( ($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) ? 1 : 0 ), 0,0, $atk_fleets, $dfd_fleets);
 $log2_data = array(41, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], MV_CMB_DEFENDER, ( ($this->cmb[MV_CMB_WINNER] == MV_CMB_DEFENDER) ? 1 : 0 ), 0,0, $atk_fleets, $dfd_fleets, $this->cmb[MV_CMB_KILLS_PLANETARY]);
@@ -333,7 +333,7 @@ if($a_st_user > 0) {
             switch($lang['language'])
             {
                 case 'GER':
-                    $log_title = 'Mit Verbündeten bei '.$this->dest['planet_name'].' angegriffen';
+                    $log_title = 'Mit Verb&uuml;ndeten bei '.$this->dest['planet_name'].' angegriffen';
                 break;
                 case 'ITA':
                     $log_title = 'Attacco alleato presso '.$this->dest['planet_name'];
@@ -366,7 +366,7 @@ if($n_st_user > 0) {
             switch($lang['language'])
             {
                 case 'GER':
-                    $log_title = 'Verbündeten bei '.$this->dest['planet_name'].' verteidigt';
+                    $log_title = 'Verb&uuml;ndeten bei '.$this->dest['planet_name'].' verteidigt';
                 break;
                 case 'ITA':
                     $log_title = 'Difesa alleata presso '.$this->dest['planet_name'];
@@ -385,7 +385,7 @@ if(!$aad = $this->db->query($sql_3)) {
 
 while($aa_uid = $this->db->fetchrow($aad))
 {
-$this->log(MV_M_DATABASE, '::::'.$aa_uid['move_id'].'Now we delete:'.$this->move['user_id'].'<br>');
+$this->log(MV_M_NOTICE, '::::'.$aa_uid['move_id'].'Now we delete:'.$this->move['user_id'].'<br>');
 if($aa_uid['move_id']!=$this->move['user_id'])
 {
       /*  $sql = 'UPDATE scheduler_shipmovement
