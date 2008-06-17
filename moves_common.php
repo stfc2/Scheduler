@@ -42,9 +42,9 @@ define('MV_CMB_KILLS_EXT', 3);
 define('MV_CMB_ATTACKER', 0);
 define('MV_CMB_DEFENDER', 1);
 
-define('MV_COMBAT_LEVEL_PLANETARY', 1); // Angriff des Planeten (= Kolonisation)
-define('MV_COMBAT_LEVEL_ORBITAL', 2); // Angriff auf Besitzer des Planeten, aber nur Schiffe
-define('MV_COMBAT_LEVEL_OUTER', 3); // Kampf jenseits des Planeten zwischen fremden Spieler (oder Angriff des Besitzers)
+define('MV_COMBAT_LEVEL_PLANETARY', 1); // Attack of the planet (= Colonization)
+define('MV_COMBAT_LEVEL_ORBITAL', 2); // Attack on owned planet, but only ships
+define('MV_COMBAT_LEVEL_OUTER', 3); // Fight beyond the planet between foreign players (or attack by the owner)
 
 define('MV_COMBAT_BIN_PATH', $script_path . 'stfc-moves-combat/bin/moves_combat');
 
@@ -132,7 +132,7 @@ class moves_common {
             default:
                 $sdl->log($level.': (move_id: '.$this->mid.') '.$message);
             break;
-            
+
         }
 
         return MV_EXEC_ERROR;
@@ -189,8 +189,8 @@ class moves_common {
         if(empty($atk_fleet_ids_str)) $atk_fleet_ids_str = '-1';
         if(empty($dfd_fleet_ids_str)) $dfd_fleet_ids_str = '-1';
 
-        // Bei $combat_level == MV_COMBAT_LEVEL_PLANETARY wird immer der Besitzer angegriffen
-        //			--> alle orbitals kämpfen mit
+        // When $combat_level == MV_COMBAT_LEVEL_PLANETARY the owner is always attacked
+        //			--> fight with all orbitals
 
         if($combat_level == MV_COMBAT_LEVEL_OUTER) {
             $n_large_orbital_defense = $n_small_orbital_defense = 0;
@@ -202,10 +202,10 @@ class moves_common {
             if($combat_level == MV_COMBAT_LEVEL_ORBITAL) {
                 if ($n_large_orbital_defense < 20) $n_large_orbital_defense = (($n_large_orbital_defense < 10) ? $n_large_orbital_defense : 10);
                 else $n_large_orbital_defense /= 2;
-            
+
                 if ($n_small_orbital_defense < 20) $n_small_orbital_defense = (($n_small_orbital_defense < 10) ? $n_small_orbital_defense : 10);
                 else $n_small_orbital_defense /= 2;
-                
+
                 settype($n_large_orbital_defense, 'int');
                 settype($n_small_orbital_defense, 'int');
             }
@@ -240,13 +240,13 @@ class moves_common {
         $start_processing_time = time() + microtime();
 
         // #############################################################################
-        // Auf...
+        // On...
 
         $this->flags['is_orbital_move'] = ($this->move['start'] == $this->move['dest']);
         $this->flags['is_friendly_action'] = in_array($this->move['action_code'], array(23, 31, 33));
 
         // #############################################################################
-        // Sicherheitschecks
+        // Security checks
 
         if(empty($this->mid)) {
             $this->deactivate(31);
@@ -263,7 +263,7 @@ class moves_common {
         }
 
         // #############################################################################
-        // Falls der Move schon 3mal versucht wurde, abbrechen
+        // If the move was already tried 3 times, cancel
 
         if($this->move['move_exec_started'] >= 3) {
             $this->deactivate(33);
@@ -273,7 +273,7 @@ class moves_common {
         }
 
         // #############################################################################
-        // Exec-Counter hochsetzen
+        // Exec-Counter setup
 
         $sql = 'UPDATE scheduler_shipmovement
                 SET move_exec_started = move_exec_started + 1
@@ -284,7 +284,7 @@ class moves_common {
         }
 
         // #############################################################################
-        // Daten der beteiligten Flotten
+        // Data from the participating fleets
 
         $sql = 'SELECT fleet_id, fleet_name, n_ships
                 FROM ship_fleets
@@ -312,14 +312,14 @@ class moves_common {
         $this->fleet_ids_str = implode(',', $this->fleet_ids);
 
         // #############################################################################
-        // action_data decodieren, falls vorhanden
+        // action_data decode, if available
 
         if(!empty($this->move['action_data'])) {
             $this->action_data = (array)unserialize($this->move['action_data']);
         }
 
         // #############################################################################
-        // Daten des Startplaneten
+        // Data of start planet
 
         $sql = 'SELECT p.*,
                        u.user_id, u.user_active, u.user_name, u.user_race, u.user_planets, u.user_alliance, u.user_capital
@@ -333,7 +333,7 @@ class moves_common {
         settype($this->start['user_id'], 'int');
 
         // #############################################################################
-        // Daten des Zielplaneten
+        // Data of target planet
 
         if($this->flags['is_orbital_move']) {
             $this->dest = &$this->start;
@@ -357,18 +357,23 @@ class moves_common {
 
 
             // #############################################################################
-            /* 03/04/08 - AC: Load user language */
-            $sql = 'SELECT language FROM user WHERE user_id = '.$this->dest['user_id'];
-            if(!($lang = $this->db->queryrow($sql))) {
-                $this->log(MV_M_DATABASE, 'Could not retrieve player '.$this->dest['user_id'].' (dest) language! SET to ENG');
-                $this->dest['language'] = 'ENG';
+            /* 17/06/08 - AC: Load user language only if a player is present*/
+            if($this->dest['user_id'] != 0)
+            {
+                $sql = 'SELECT language FROM user WHERE user_id = '.$this->dest['user_id'];
+                if(!($lang = $this->db->queryrow($sql))) {
+                    $this->log(MV_M_DATABASE, 'Could not retrieve player '.$this->dest['user_id'].' (dest) language! SET to ENG');
+                    $this->dest['language'] = 'ENG';
+                }
+                else
+                    $this->dest['language'] = $lang['language'];
             }
             else
-                $this->dest['language'] = $lang['language'];
+                $this->dest['language'] = 'ENG';
 
 
             // #############################################################################
-            // Nach stationierten Flotten auf AR suchen
+            // Look for stationed fleets in AR
 
             $sql = 'SELECT DISTINCT f.user_id,
                            u.user_alliance,
@@ -404,7 +409,7 @@ $this->log(MV_M_NOTICE,'AR-Fleet:<br>"'.$sql.'"<br>');
                 }
 
                 $ar_user[] = $ar_uid['user_id'];
-                
+
                 echo 'AR-User ID war '.$ar_uid['user_id'];
             }
 
@@ -464,8 +469,8 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
 
                     $this->log(MV_M_NOTICE, 'Combat done in AR-loop #'.$i);
 
-                    // Wenn der Angreifer gewonnen hat (die Flotte auf AR)
-                    // dann kann der Move gleich beendet werden
+                    // If the attacker has won (the fleet AR)
+                    // the move can then be terminated immediately
 
                     if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                         $this->flags['skip_action'] = true;
@@ -526,7 +531,7 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
         }
 
         // #############################################################################
-        // Durchgekommen ohne Fehler?
+        // Come through without mistakes?
 
         $this->flags['free_dest_planet'] = (empty($this->dest['user_id'])) ? true : false;
 
