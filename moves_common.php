@@ -49,10 +49,10 @@ define('MV_COMBAT_LEVEL_OUTER', 3); // Fight beyond the planet between foreign p
 define('MV_COMBAT_BIN_PATH', $script_path . 'stfc-moves-combat/bin/moves_combat');
 
 
-function commonlog($message,$message2,$foo=0)
+function commonlog($message,$message2,$move_id=0)
 {
     $fp = fopen(TICK_LOG_FILE, 'a');
-        fwrite($fp, $message." )<b>".$foo."</b> ".$message2."\n");
+        fwrite($fp, $message." (move_id: <b>".$move_id."</b>) ".$message2."\n");
         echo str_replace('\n','<br>',$message." ".$message2."\n");
         fclose($fp);
 }
