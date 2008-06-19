@@ -32,15 +32,6 @@ function mlog($foo1=0,$foo2=0) {}
 
 
 
-function newlog($message,$message2,$foo=0)
-{
-    $fp = fopen(TICK_LOG_FILE, 'a');
-        fwrite($fp, $message." )<b>".$foo."</b> ".$message2."\n");
-        echo str_replace('\n','<br>',$message." ".$message2."\n");
-        fclose($fp);	
-}
-
-
 define('CWIN_ATTACKER', 0);
 
 define('CWIN_DEFENDER', 1);
@@ -333,7 +324,7 @@ if ($defending_ships[$t]['experience']<10) $defending_ships[$t]['experience']=10
 
 if ((time() + microtime())-$start_time>10)
 {
-newlog('Moves [NewCombat]', 'Run to shipconfigure-1 done within '.((time() + microtime())-$start_time).' seconds', $move_id);
+commonlog('Moves [NewCombat]', 'Run to shipconfigure-1 done within '.((time() + microtime())-$start_time).' seconds', $move_id);
 }
 
 
@@ -406,7 +397,7 @@ $ships[$tmpship['ship_id']]=$tmpship;
 
 if ((time() + microtime())-$start_time>10)
 {
-newlog('Moves [NewCombat]', 'Run to shipconfigure-2 done within '.((time() + microtime())-$start_time).' seconds', $move_id);
+commonlog('Moves [NewCombat]', 'Run to shipconfigure-2 done within '.((time() + microtime())-$start_time).' seconds', $move_id);
 }
 
 
@@ -483,10 +474,10 @@ unset($defending_ships);
 
 
 
-newlog('Moves [NewCombat]', 'Prepared '.count($ships).' ships including '.$num_orbitaldefense.'+'.$num_smallorbitaldefense.' orbital platforms', $move_id);
+commonlog('Moves [NewCombat]', 'Prepared '.count($ships).' ships including '.$num_orbitaldefense.'+'.$num_smallorbitaldefense.' orbital platforms', $move_id);
 if ((time() + microtime())-$start_time>10)
 {
-newlog('Moves [NewCombat]', 'Prepared '.count($ships).' ships including '.$num_orbitaldefense.'+'.$num_smallorbitaldefense.' orbital platforms in '.((time() + microtime())-$start_time).' seconds', $move_id);
+commonlog('Moves [NewCombat]', 'Prepared '.count($ships).' ships including '.$num_orbitaldefense.'+'.$num_smallorbitaldefense.' orbital platforms in '.((time() + microtime())-$start_time).' seconds', $move_id);
 $stime = (time() + microtime());
 }
 
@@ -494,7 +485,7 @@ $randtime = (time() + microtime());
 
 // In besseren Zeiten war geplant, die Schiffe zu sortieren, nicht zu mischen :/
 shuffle($ships);
-newlog('Moves [NewCombat]', 'shuffle data time: '.((time() + microtime()) - $randtime), $move_id);
+commonlog('Moves [NewCombat]', 'shuffle data time: '.((time() + microtime()) - $randtime), $move_id);
 
 $savetime = (time() + microtime());
 
@@ -523,7 +514,7 @@ fwrite($file,$imploded);
 
 fclose($file);
 //fclose($file2);
-newlog('Moves [NewCombat]', 'transmit data time: '.((time() + microtime()) - $savetime), $move_id);
+commonlog('Moves [NewCombat]', 'transmit data time: '.((time() + microtime()) - $savetime), $move_id);
 
 
 
@@ -531,8 +522,8 @@ $cppstarttime = (time() + microtime());
 
 
 exec($script_path.'stgc-fightmodule/newfight',$data);
-newlog('Moves [NewCombat]', 'C++ calculation time: '.((time() + microtime()) - $cppstarttime), $move_id);
-newlog('Moves [NewCombat]', $data[1].' has won!', $move_id);
+commonlog('Moves [NewCombat]', 'C++ calculation time: '.((time() + microtime()) - $cppstarttime), $move_id);
+commonlog('Moves [NewCombat]', $data[1].' has won!', $move_id);
 
 
 
@@ -548,7 +539,7 @@ $winner=$data[1];
 $new_data=explode(':',$data[2]);
 
 //!! Last new data is no real element!!! because c++ puts : at end of string
-newlog('Moves [NewCombat]', 'Ship necessary updates (for Statistics): '.((count($new_data)-1)/4), $move_id);
+commonlog('Moves [NewCombat]', 'Ship necessary updates (for Statistics): '.((count($new_data)-1)/4), $move_id);
 
 
 $num_damaged=0;
@@ -599,7 +590,7 @@ if ($new_data[$t+1]<90000) $new_data[$t+1]--;
 		{
 			$updates_temp[$shipidlist[$new_data[$t+1]]][0]=$new_data[$t+3];
 			if (!isset($updates_temp[$shipidlist[$new_data[$t+1]]][1]))  $updates_temp[$shipidlist[$new_data[$t+1]]][1]=$shiphplist[$new_data[$t+1]];
-			newlog('Moves [NewCombat]', 'Experience: '.$shipexperiencelist[$new_data[$t+1]].' --> '.$new_data[$t+3].' (id='.$shipidlist[$new_data[$t+1]].')',$move_id);
+			commonlog('Moves [NewCombat]', 'Experience: '.$shipexperiencelist[$new_data[$t+1]].' --> '.$new_data[$t+3].' (id='.$shipidlist[$new_data[$t+1]].')',$move_id);
 
 		}
 
@@ -628,14 +619,14 @@ if ($new_data[$t+1]<90000) $new_data[$t+1]--;
 
 foreach ($updates_temp as $key => $updt)
 {
-if (!isset($updt[0])) {newlog('Moves [NewCombat]', 'Error: NO Experience found!!',$move_id); $updt[0]=1;}
-if (!isset($updt[1])) {newlog('Moves [NewCombat]', 'Error: NO Hitpoints found!!',$move_id); $updt[1]=1;}
+if (!isset($updt[0])) {commonlog('Moves [NewCombat]', 'Error: NO Experience found!!',$move_id); $updt[0]=1;}
+if (!isset($updt[1])) {commonlog('Moves [NewCombat]', 'Error: NO Hitpoints found!!',$move_id); $updt[1]=1;}
 $update_ships[]=array($key,$updt[1],limit($updt[0],10000));
 }
 
 
-newlog('Moves [NewCombat]','We have '.count($updates_temp).' updates; '.$gained_exp.' gained exp; '.$num_damaged.' damaged and '.$total_victims.' victims (incl. planetary)',$move_id);
-newlog('Moves [NewCombat]','Losses (ids with placed in front ID): '.$victimtextlist,$move_id);
+commonlog('Moves [NewCombat]','We have '.count($updates_temp).' updates; '.$gained_exp.' gained exp; '.$num_damaged.' damaged and '.$total_victims.' victims (incl. planetary)',$move_id);
+commonlog('Moves [NewCombat]','Losses (ids with placed in front ID): '.$victimtextlist,$move_id);
 
 $overview['attacker_alive']=0;
 $overview['defender_alive']=0;
@@ -647,7 +638,7 @@ if ($winner==1) $overview['defender_alive']=$overview['defender']-$winner_victim
 
 
 
-newlog('Moves [NewCombat]', 'evaluation time: '.((time() + microtime()) - $reviewstarttime), $move_id);
+commonlog('Moves [NewCombat]', 'evaluation time: '.((time() + microtime()) - $reviewstarttime), $move_id);
 
 
 
@@ -670,7 +661,7 @@ $text.='<br>';
 
 $total_time = (time() + microtime()) - $start_time;
 
-newlog('Moves [NewCombat]', 'Time elapsed '.$total_time, $move_id);
+commonlog('Moves [NewCombat]', 'Time elapsed '.$total_time, $move_id);
 
 
 
@@ -776,11 +767,11 @@ return (array(0=>$atk_alive,1=>$dfd_alive));
 
 
 
-function PlanetaryAttack($num_planetary,$planet,$focus=0,$destr_multiply=1)
+function PlanetaryAttack($move_id,$num_planetary,$planet,$focus=0,$destr_multiply=1)
 
 {
 $destr_multiply=1;
-newlog('Moves [Combat]', 'Planetary Attack strength: '.$num_planetary.';  multiply: '.$destr_multiply, $move_id);
+commonlog('Moves [Combat]', 'Planetary Attack strength: '.$num_planetary.';  multiply: '.$destr_multiply, $move_id);
 
 if ($num_planetary<=0) return $planet;
 
@@ -789,7 +780,7 @@ if ($num_planetary<=0) return $planet;
 $num_destroy=$num_planetary/100*(1/$destr_multiply);
 //Das Truppenbomben laut Tap nicht Truppenbomben nennen - sonst meint jeder das man das extra könnte - als das ein Problem 
 //wäre....
-newlog('Moves [Combat]', 'Planetary Attack num_destroy: '.$num_destroy, $move_id);
+commonlog('Moves [Combat]', 'Planetary Attack num_destroy: '.$num_destroy, $move_id);
 
 if ($num_destroy<1 && $num_destroy>0) if (rand(0,100)>$num_planetary) return $planet;
 
@@ -815,12 +806,12 @@ if ($num_pla > 5000){
  if($planet['unit_5']>$dead_lv5) { $planet['unit_5']-=$dead_lv5; } else { $planet['unit_5']=0; $dead_lv5=0; }
  if($planet['unit_6']>$dead_lv6) { $planet['unit_6']-=$dead_lv6; } else { $planet['unit_6']=0; $dead_lv6=0; }
 
- newlog('Moves [Combat]', 'Planetary Attack dead Units: LV1:'.$dead_lv1.'>>'.$planet['unit_1'], $move_id);
- newlog('Moves [Combat]', 'Planetary Attack dead Units: LV2:'.$dead_lv2.'>>'.$planet['unit_2'], $move_id);
- newlog('Moves [Combat]', 'Planetary Attack dead Units: LV3:'.$dead_lv3.'>>'.$planet['unit_3'], $move_id);
- newlog('Moves [Combat]', 'Planetary Attack dead Units: LV4:'.$dead_lv4.'>>'.$planet['unit_4'], $move_id);
- newlog('Moves [Combat]', 'Planetary Attack dead Units: LV5:'.$dead_lv5.'>>'.$planet['unit_5'], $move_id);
- newlog('Moves [Combat]', 'Planetary Attack dead Units: LV6:'.$dead_lv6.'>>'.$planet['unit_6'], $move_id);
+ commonlog('Moves [Combat]', 'Planetary Attack dead Units: LV1:'.$dead_lv1.'>>'.$planet['unit_1'], $move_id);
+ commonlog('Moves [Combat]', 'Planetary Attack dead Units: LV2:'.$dead_lv2.'>>'.$planet['unit_2'], $move_id);
+ commonlog('Moves [Combat]', 'Planetary Attack dead Units: LV3:'.$dead_lv3.'>>'.$planet['unit_3'], $move_id);
+ commonlog('Moves [Combat]', 'Planetary Attack dead Units: LV4:'.$dead_lv4.'>>'.$planet['unit_4'], $move_id);
+ commonlog('Moves [Combat]', 'Planetary Attack dead Units: LV5:'.$dead_lv5.'>>'.$planet['unit_5'], $move_id);
+ commonlog('Moves [Combat]', 'Planetary Attack dead Units: LV6:'.$dead_lv6.'>>'.$planet['unit_6'], $move_id);
 
 
 (int)$dead_worker=round($num_planetary/(10+rand(0,40)));
@@ -828,7 +819,7 @@ if ($num_pla > 5000){
 if($planet['resource_4']>$dead_worker) { $planet['resource_4']-=$dead_worker; } else { $dead_worker=0; $planet['resource_4']=0; }
 
 //$planet['dead_worker']=$dead_worker;
-newlog('Moves [Combat]', 'Planetary Attack dead_worker: '.$dead_worker.'>><<'.$planet['resource_4'], $move_id);
+commonlog('Moves [Combat]', 'Planetary Attack dead_worker: '.$dead_worker.'>><<'.$planet['resource_4'], $move_id);
 
 if ($planet['resource_4']<0) $planet['resource_4']=0;
 if ($planet['unit_1']<0) $planet['unit_1']=0;

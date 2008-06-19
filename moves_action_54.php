@@ -299,7 +299,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
 
 
-            $new_dest = PlanetaryAttack($planetary_weapons, $this->dest, $focus, $RACE_DATA[$this->dest['user_race']][17]);
+            $new_dest = PlanetaryAttack($this->mid,$planetary_weapons, $this->dest, $focus, $RACE_DATA[$this->dest['user_race']][17]);
 
             $sql = 'UPDATE planets
                     SET resource_4 = '.$new_dest['resource_4'].',
