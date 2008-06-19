@@ -837,7 +837,7 @@ class Ferengi extends NPC
 		{
 			$this->sdl->log('New graph is made.....', TICK_LOG_FILE_NPC);
 			include("simple_graph.class.php");
-			exec('cd '.FILE_PATH_hg.'kurs/; rm *.png');
+			exec('cd '.FILE_PATH_hg.'kurs/; rm -f *.png');
 
 			$this->sdl->start_job('Purchase - Unit', TICK_LOG_FILE_NPC);
 			$this->graph_zeichnen("unit_1",$ACTUAL_TICK);
