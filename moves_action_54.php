@@ -28,7 +28,7 @@ class moves_action_54 extends moves_common {
 global $NUM_BUILDING, $RACE_DATA;
 
 // #############################################################################
-// Daten der Angreifer
+// Data from the attacker
 
 $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
 		FROM (ship_fleets f)
@@ -41,13 +41,13 @@ if(($atk_fleets = $this->db->queryrowset($sql)) === false) {
 
 
 // #############################################################################
-// Daten der Verteidiger
+// Data from the defender
 
 $user_id = $this->dest['user_id'];
 $planetary_attack = true;
 
-// Das k�nte man natrlich optimieren, doch es soll m�lichst
-// viel Kompatibilit� zur Vorlage action_51.php erhalten bleiben
+// The course could be optimized, but it should be possible 
+// compatibility to provide much action_51.php maintained
 $cur_user = array(
     'user_id' => $user_id,
     'user_name' => $this->dest['user_name'],
@@ -55,6 +55,23 @@ $cur_user = array(
     'user_planets' => $this->dest['user_planets'],
     'user_alliance' => $this->dest['user_alliance']
 );
+
+// 21/06/08 - AC: Check if attacker and defender are NOT the same player!
+if($this->move['user_id'] == $this->dest['user_id']) {
+    $this->log(MV_M_NOTICE, 'Player #'.$this->move['user_id'].' has tried to bomb himself! SKIP');
+
+    // Put ships in safe place
+    $sql = 'UPDATE ship_fleets
+            SET planet_id = '.$this->move['dest'].',
+                move_id = 0
+            WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+
+    if(!$this->db->query($sql)) {
+        return $this->log(MV_M_DATABASE, 'Could not update fleets location data! SKIP');
+    }
+
+    return MV_EXEC_OK;
+}
 
 $sql = 'SELECT DISTINCT f.user_id,
                u.user_alliance,
@@ -135,7 +152,7 @@ if($this->do_ship_combat($this->fleet_ids_str, implode(',', $dfd_fleet_ids), MV_
 
 
 // #############################################################################
-// Wenn der Angreifer gewonnen hat, Weiterbombardieren oder ist Schlu�
+// If the attacker has won more bomb or is final
 
 // #############################################################################
 // 03/04/08 - AC: Retrieve player language
@@ -170,7 +187,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
     $this->log(MV_M_NOTICE, 'I read building_lvls = '.$n_building_lvls.' and bomb_i = '.$bomb_i);
 
 
-	//Spezial "Antiborg" Schiffe
+	//Special "Antiborg" ship
 	$queryadd='';
    if ($this->dest['user_id']==BORG_USERID)
    {
@@ -403,7 +420,7 @@ else {
 
 
 // #############################################################################
-// Logbuch schreiben
+// Write logbook
 
 $log1_data = array(54, $this->move['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], 0, 0, 0, MV_CMB_ATTACKER, ( ($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) ? 1 : 0 ), 0,0, $atk_fleets, $dfd_fleets);
 $log2_data = array(54, $this->move['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], 0, 0, 0, MV_CMB_DEFENDER, ( ($this->cmb[MV_CMB_WINNER] == MV_CMB_DEFENDER) ? 1 : 0 ), 0,0, $atk_fleets, $dfd_fleets);
