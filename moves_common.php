@@ -423,7 +423,7 @@ $this->log(MV_M_NOTICE,'AR-user(s): '.count($ar_user).'<br>');
             }
             foreach($this->fleet_ids as $fleet_id) {
                 $sql = 'SELECT count(st.ship_torso) AS num_scout FROM (ships s, ship_templates st)
-                        WHERE s.fleet_id = '.$fleet_id.' AND st.id = s.template_id AND st.ship_torso = 0';
+                        WHERE s.fleet_id = '.$fleet_id.' AND st.id = s.template_id AND st.ship_torso = '.SHIP_TYPE_SCOUT;
                 $check_scout = $this->db->queryrow($sql);
                 $scout_counter -= $check_scout['num_scout'];
             }
