@@ -654,7 +654,14 @@ $this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_u
                 return $this->log(MV_M_DATABASE, 'Could not update planets data! SKIP');
             }
 
-
+// DC ---- Historycal record in planet_details, with label '26'
+	    $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code, defeat_uid, defeat_aid)'
+		.'VALUES ('.$this->move['dest'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.time().', 26,'.$this->dest['user_id'].', '.$this->dest['user_alliance'].')';
+	
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update planet details data! SKIP');
+            }
+// DC ----
 
         $this->log('Update Planetdata', 'Limited resources');
 
