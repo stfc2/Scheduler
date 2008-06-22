@@ -807,7 +807,19 @@ while($planet = $db->fetchrow($q_planets)) {
         if(!$db->query($sql)) {
             $sdl->log('<b>Error:</b> Could not perform revolution on planet <b>'.$planet['planet_id'].'</b>! CONTINUED');
         }
+// DC ---- History record in planet_details, with label '27'
+	$sql = 'SELECT user_alliance from user WHERE user_id = '.$planet['planet_owner'];
+	
+	$_temp = $db->queryrow($sql);
+	
+	$sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
+		.'VALUES ('.$planet['planet_id'].', '.$planet['planet_owner'].', '.( (isset($_temp['user_alliance'])) ? $_temp['user_alliance'] : 0).', '.$planet['planet_owner'].', '.( (isset($_temp['user_alliance'])) ? $_temp['user_alliance'] : 0).', '.time().', 27)';
 
+        if(!$db->query($sql)) {
+            $sdl->log('<b>Error:</b> Could not update planet details <b>'.$planet['planet_id'].'</b>! CONTINUED');	
+        }
+// DC ----
+	
         $log_data=array(
             'planet_name' => $planet['planet_name'],
             'planet_id' => $planet['planet_id'],
@@ -1890,7 +1902,7 @@ else {
                         building_8 = '.mt_rand(0, 9).',
                         building_10 = '.mt_rand(5, 15).',
                         building_11 = '.mt_rand(0, 9).',
-						building_13 = '.mt_rand(0, 10).',
+		    	building_13 = '.mt_rand(0, 10).',
                         unit_1 = '.mt_rand(500, 1500).',
                         unit_2 = '.mt_rand(500, 1000).',
                         unit_3 = '.mt_rand(0, 500).',
