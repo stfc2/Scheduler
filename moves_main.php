@@ -40,6 +40,7 @@ include('moves_action_22.php');
 include('moves_action_23.php');
 include('moves_action_24.php');
 include('moves_action_25.php');
+include('moves_action_26.php');
 
 
 include('moves_action_31.php');
