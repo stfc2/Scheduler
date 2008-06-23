@@ -92,7 +92,7 @@ $sdl->finish_job('Mine Job'); // terminates the timer
 
 $sdl->start_job('Recalculate resources');
 $db->query('UPDATE planets SET recompute_static=1');
-$sdl->finish_job('Recalculate tesources');
+$sdl->finish_job('Recalculate resources');
 
 
 
