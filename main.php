@@ -1780,7 +1780,7 @@ if(!$q_user = $db->query($sql)) {
 }
 else {
     while($user = $db->fetchrow($q_user)) {
-        if($user['user_auth_level'] != STGC_PLAYER || $user['user_id']<12) continue;
+        if($user['user_auth_level'] != STGC_PLAYER || $user['user_id']<11) continue;
 
         if(!empty($user['alliance_id'])) {
             $sql = 'UPDATE alliance
@@ -1882,7 +1882,19 @@ else {
         $sql = 'DELETE FROM alliance_application
 				WHERE application_user = '.$user['user_id'];
 				
-		$db->query($sql);
+	$db->query($sql);
+	
+//DC ---- Historycal record for faction vanishing from universe, log_code '28'
+	$sql = 'SELECT planet_id FROM planets WHERE planet_owner = '.$user['user_id'];
+	if($vanishing = $db->query($sql)) {
+		while($_temp = $db->fetchrow($vanishing)) {
+//DC ---- we record no data for identification of vanished player... he/she is gone and forgot
+			$sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
+			.'VALUES ('.$_temp['planet_id'].', 0, 0, 0, 0, '.time().', 28)';
+			$db->query($sql);
+		}	
+	}
+//DC ----
 		
 		$sql = 'UPDATE planets
                     SET planet_owner='.INDEPENDENT_USERID.',
