@@ -250,9 +250,9 @@ class moves_action_24 extends moves_common {
                     building_queue=0,
                   	planet_surrender=0
                 WHERE planet_id = '.$this->move['dest'];
-     
+
             $this->log('SQL Debug', ''.$sql.'');
-       
+
         if(!$this->db->query($sql)) {
             return $this->log(MV_M_DATABASE, 'Could not update planets data! SKIP');
         }
@@ -273,7 +273,7 @@ class moves_action_24 extends moves_common {
           $zufall = mt_rand(6,18);
 
           if($zufall>=8) {
-          
+
             $sql = 'DELETE FROM ships WHERE ship_id = '.$ship_wahl['ship_id'].'';
 
             if(!$this->db->query($sql)) {
@@ -281,7 +281,7 @@ class moves_action_24 extends moves_common {
             }
             else { $this->log('Ships deleted', 'Ship_ID: '.$ship_wahl['ship_id'].' Random number: '.$zufall.' <b> SUCCESS!</b>'); }
           }
-        
+
         }
         $this->log('Ship handover protection', 'Delete terminated');
 
@@ -289,7 +289,7 @@ class moves_action_24 extends moves_common {
         $sql = 'DELETE FROM ships
                 WHERE fleet_id = -'.$this->move['dest'].' OR
                       ship_id = '.$ship_id;
-                      
+
         if(!$this->db->query($sql)) {
             return $this->log(MV_M_DATABASE, 'Could not delete ships data! SKIP');
         }
@@ -330,15 +330,15 @@ class moves_action_24 extends moves_common {
         $log_data[10] = $cship['race'];
 
         add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $col_title.$this->dest['planet_name'].$col_success, $log_data);
-		
-		// #############################################################################
-		// Add History Record in planet details; log_code = 25 
-		
-		$sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code) '
-			. ' VALUES ('.$this->move['dest'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.time().', 25)';
-			
-		if(!$this->db->query($sql)) {
-			$this->log(MV_M_DATABASE, 'Could not update planet details data!');
+
+        // #############################################################################
+        // Add History Record in planet details; log_code = 25 
+
+        $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
+                VALUES ('.$this->move['dest'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.time().', 25)';
+
+        if(!$this->db->query($sql)) {
+            $this->log(MV_M_DATABASE, 'Could not update planet details data!');
         }
 
 
