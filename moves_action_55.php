@@ -196,6 +196,8 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             $atk_units[2] += $atk_fleets[$i]['unit_3'];
             $atk_units[3] += $atk_fleets[$i]['unit_4'];
             //$atk_units[4] += $atk_fleets[$i]['resource_4']; <-- What the hell is this field?? No workers in the battle!
+            // 23/06/08 - AC: Store the space occupied by workers
+            $worker_per_fleets[$atk_fleets[$i]['fleet_id']] = $atk_fleets[$i]['resource_4'];
         }
 
         // 090408 DC:  ------ Let those fucking soldiers on ships do their job!!!! 
@@ -229,7 +231,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
         }
         else
             $n_atk_alive=1;
-        
+
         // If there are no more attackers, the defender
         // always won even if the defending had no units
         if($n_atk_alive == 0) {
@@ -316,114 +318,97 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
             $atk_alive = $ucmb[0];
 
+$this->log(MV_M_NOTICE, 'Troops alive after the ground battle: Lev1 '.$atk_alive[0].' Lev2 '.$atk_alive[1].' Lev3 '.$atk_alive[2].' Lev4 '.$atk_alive[3]);
+
             // We accommodate as much troops, as on the colony ship were, on the planet
-            $planet_units = array();
+            $planet_units = array(0, 0, 0, 0);
 
-            for($i = 0; $i <= 3; ++$i) {
-                $j = $i + 1;
+            // 21/06/08 - AC: Check available space on target planet
+            $sql = 'SELECT max_units FROM planets WHERE planet_id = '.$this->move['dest'];
 
-                $alive = $atk_units[$i] - $atk_alive[$i];
-                $planet_units[$i] = ($alive > $cship['unit_'.$j]) ? $cship['unit_'.$j] : $alive;
-
-                $atk_alive[$i] -= $alive;
-                $n_atk_alive -= $alive;
+            if(($plspace = $this->db->queryrow($sql)) === false) {
+                $this->log(MV_M_DATABASE, 'Could not query planet max units data! CONTINUE AND USE INSTABLE VALUE');
+                $plspace['max_units'] = 1300; // Minimum size available
             }
 
-            // Now distribute the remaining berlebenden troops on the planet,
-            // which should still be there
-            if($n_atk_alive > 0) {
-                // 21/06/08 - AC: Check available space on target planet
-                $sql = 'SELECT max_units FROM planets WHERE planet_id = '.$this->move['dest'];
+            if(($atk_alive[0] * 2 + $atk_alive[1] * 3 + $atk_alive[2] * 4 + $atk_alive[3] * 4) > $plspace['max_units'])
+            {
+                $this->log(MV_M_NOTICE, 'Alive units exceed planet maximum units, we need to recall aboard the surplus');
 
-                if(($plspace = $this->db->queryrow($sql)) === false) {
-                    $this->log(MV_M_DATABASE, 'Could not query planet max units data! CONTINUED');
-                    $plspace['max_units'] = 0;
-                }
-
-                if(($atk_alive[0] * 2 + $atk_alive[1] * 3 + $atk_alive[2] * 4 + $atk_alive[3] * 4) > $plspace['max_units'])
-                {
-                    $this->log(MV_M_NOTICE, 'Alive units exceed planet maximum units, we need to recall aboard the surplus');
-
-                    // AC: Recall aboard the surplus troops 
-                    $i = 0;
-                    while($n_atk_alive) {
-                        if(($planet_units[0] * 2 + $planet_units[1] * 3 +
-                            $planet_units[2] * 4 + $planet_units[3] * 4) > $plspace['max_units'])
-                            break;
-                        if($atk_alive[$i] > 0)
-                        {
-                            $planets_units[$i]++;
-                            $atk_alive[$i]--;
-                            $n_atk_alive--;
-                        }
-                        else
-                            $i++;
+                // AC: Recall aboard the surplus troops
+                $i = 0;
+                while($n_atk_alive) {
+                    if(($planet_units[0] * 2 + $planet_units[1] * 3 +
+                        $planet_units[2] * 4 + $planet_units[3] * 4) > $plspace['max_units'])
+                        break;
+                    if($atk_alive[$i] > 0)
+                    {
+                        $planet_units[$i]++;
+                        $atk_alive[$i]--;
+                        $n_atk_alive--;
                     }
+                    else
+                        $i++;
+                }
 
 $this->log(MV_M_NOTICE, 'Troops that will return aboard: Lev1 '.$atk_alive[0].' Lev2 '.$atk_alive[1].' Lev3 '.$atk_alive[2].' Lev4 '.$atk_alive[3]);
 
-                    // We pick ALL transporter of the fleets and then distribute
-	
-                    $sql = 'SELECT s.ship_id, s.fleet_id
-                            FROM (ships s, ship_templates st)
-                            WHERE s.fleet_id IN ('.$fleet_ids_str.') AND
-                                  st.ship_torso = '.SHIP_TYPE_TRANSPORTER;
+                // We pick ALL transporter of the fleets and then distribute
 
-                    if(!$q_ftrans = $db->query($sql)) {
-                        return $this->log(MV_M_DATABASE, 'Could not query fleets transporter data! SKIP');
-                    }
+                $sql = 'SELECT s.ship_id, s.fleet_id
+                        FROM (ships s, ship_templates st)
+                        WHERE s.fleet_id IN ('.$this->fleet_ids_str.') AND
+                              st.ship_torso = '.SHIP_TYPE_TRANSPORTER;
 
-                    $n_space = 0;
-                    $space_per_fleets = array();
+                if(!$q_ftrans = $this->db->query($sql)) {
+                    $this->log(MV_M_DATABASE, 'Could not query fleets transporter data! CONTINUE');
+                }
 
-                    while($_ship = $db->fetchrow($q_ftrans)) {
-                        $n_space += MAX_TRANSPORT_UNITS;
+                $space_per_fleets = array();
 
-                        if(!isset($space_per_fleets[$_ship['fleet_id']])) $space_per_fleets[$_ship['fleet_id']] = $worker_per_fleets[$_ship['fleet_id']] * (-1);
+                while($_ship = $this->db->fetchrow($q_ftrans)) {
+                    if(!isset($space_per_fleets[$_ship['fleet_id']])) $space_per_fleets[$_ship['fleet_id']] = $worker_per_fleets[$_ship['fleet_id']] * (-1);
 
-                        $space_per_fleets[$_ship['fleet_id']] += MAX_TRANSPORT_UNITS;
-                    }
+                    $space_per_fleets[$_ship['fleet_id']] += MAX_TRANSPORT_UNITS;
+                }
 
-                    $n_space -= $n_worker;
+                foreach($space_per_fleets as $fleet_id => $free_space) {
+                    if($free_space == 0) continue;
 
-                    foreach($space_per_fleets as $fleet_id => $free_space) {
-                        if($free_space == 0) continue;
+                    $still_free = $free_space;
+                    $new_load = array(0, 0, 0, 0);
 
-                        $still_free = $free_space;
-                        $new_load = array(0, 0, 0, 0);
+                    for($i = 0; $i < 4; ++$i) {
+                        $j = $i + 1;
 
-                        for($i = 0; $i < 4; ++$i) {
-                            $j = $i + 1;
+                        if($atk_alive[$i] > 0) {
+                            $new_load[$i] = ($atk_alive[$i] > $still_free) ? ($still_free - $atk_alive[$i]) : $atk_alive[$i];
 
-                            if($atk_alive[$i] > 0) {
-                                $new_load[$i] = ($atk_alive[$i] > $still_free) ? ($still_free - $atk_alive[$i]) : $atk_alive[$i];
-
-                                $atk_alive[$i] -= $new_load[$i];
-                                $still_free -= $new_load[$i];
-                            }
-
-                            if($still_free == 0) break;
+                            $atk_alive[$i] -= $new_load[$i];
+                            $still_free -= $new_load[$i];
                         }
 
-                        $sql = 'UPDATE ship_fleets
-                                SET unit_1 = '.$new_load[0].',
-                                    unit_2 = '.$new_load[1].',
-                                    unit_3 = '.$new_load[2].',
-                                    unit_4 = '.$new_load[3].'
-                                WHERE fleet_id = '.$fleet_id;
-
-                        if(!$db->query($sql)) {
-                            $this->log(MV_M_DATABASE, 'Could not update fleets units data! CONTINUED');
-                        }
+                        if($still_free == 0) break;
                     }
-                } // alive troops doesn't exceed max planet units
-                else {
-                    for($i = 0; $i <= 3; ++$i)
-                        $planet_units[$i] += $atk_alive[$i];
-                } 
+
+                    $sql = 'UPDATE ship_fleets
+                            SET unit_1 = '.$new_load[0].',
+                                unit_2 = '.$new_load[1].',
+                                unit_3 = '.$new_load[2].',
+                                unit_4 = '.$new_load[3].'
+                            WHERE fleet_id = '.$fleet_id;
+
+                    if(!$this->db->query($sql)) {
+                        $this->log(MV_M_DATABASE, 'Could not update fleets units data! CONTINUE');
+                    }
+                }
+            } // alive troops doesn't exceed max planet units
+            else {
+                for($i = 0; $i <= 3; ++$i)
+                    $planet_units[$i] += $atk_alive[$i];
             }
 
-$this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_units[0].' Lev2 '.$planet_units[1].' Lev3 '.$planet_units[2].' Lev4 '.$planet_uints[3]);
+$this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_units[0].' Lev2 '.$planet_units[1].' Lev3 '.$planet_units[2].' Lev4 '.$planet_units[3]);
 
             $sql = 'DELETE FROM scheduler_instbuild
                     WHERE planet_id = '.$this->move['dest'];
@@ -452,7 +437,7 @@ $this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_u
             if(!$this->db->query($sql)) {
                 $this->log('MySQL', 'Could not delete shipbuild data! CONTINUE');
             }
-            
+
             global $NUM_BUILDING, $MAX_BUILDING_LVL;
 
             // As someone yes number == max_index sets
@@ -647,7 +632,7 @@ $this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_u
                         building_queue=0,
                         planet_surrender=0
                     WHERE planet_id = '.$this->move['dest'];
-            
+
             $this->log('SQL Debug', ''.$sql.'');
 
             if(!$this->db->query($sql)) {
@@ -655,11 +640,11 @@ $this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_u
             }
 
 // DC ---- Historycal record in planet_details, with label '26'
-	    $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code, defeat_uid, defeat_aid)'
-		.'VALUES ('.$this->move['dest'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.time().', 26,'.$this->dest['user_id'].', '.$this->dest['user_alliance'].')';
-	
+            $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code, defeat_uid, defeat_aid)
+                    VALUES ('.$this->move['dest'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.time().', 26,'.$this->dest['user_id'].', '.$this->dest['user_alliance'].')';
+
             if(!$this->db->query($sql)) {
-                return $this->log(MV_M_DATABASE, 'Could not update planet details data! SKIP');
+                $this->log(MV_M_DATABASE, 'Could not update planet details data! CONTINUE');
             }
 // DC ----
 
@@ -681,7 +666,7 @@ $this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_u
           $zufall = mt_rand(6,18);
 
           if($zufall>=8) {
-          
+
             $sql = 'DELETE FROM ships WHERE ship_id = '.$ship_wahl['ship_id'].'';
 
             if(!$this->db->query($sql)) {
@@ -689,7 +674,7 @@ $this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_u
             }
             else { $this->log('Ships removed', 'Ship_ID: '.$ship_wahl['ship_id'].' Random number: '.$zufall.' <b>SUCCESS!</b>'); }
           }
-        
+
         }
 
         $this->log('Ship destruction', 'Deletion ended');
@@ -702,7 +687,7 @@ $this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_u
                     SET planet_owner_enum = (@i := (@i + 1))-1
                     WHERE planet_owner = '.$this->move['user_id'].'
                     ORDER BY planet_owned_date ASC, planet_id ASC';
-                    
+
             if(!$this->db->query($sql)) {
                 return $this->log(MV_M_DATABASE, 'Could not update planet owner enum data (the invading player)! SKIP');
             }
@@ -814,12 +799,7 @@ $this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_u
 
     $sql = 'UPDATE ship_fleets
             SET planet_id = '.$this->move['dest'].',
-                move_id = 0,
-                unit_1 = 0,
-                unit_2 = 0,
-                unit_3 = 0,
-                unit_4 = 0,
-                resource_4 = 0
+                move_id = 0
             WHERE fleet_id IN ('.$this->fleet_ids_str.')';
 
     if(!$this->db->query($sql)) {
