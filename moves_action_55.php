@@ -211,7 +211,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                     WHERE ss.template_id = st.id
                     AND ss.fleet_id = '.$atk_fleets_item['fleet_id'].'
                     GROUP BY ss.fleet_id';
-            $this->log(MV_M_NOTICE, 'Get troops from ships: '.$sql);
+
             if(($fetchedrow = $this->db->queryrow($sql)) === false)
                 return $this->log(MV_M_DATABASE, 'Could not query attacking fleet data! SKIP');
 
@@ -318,8 +318,6 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
             $atk_alive = $ucmb[0];
 
-$this->log(MV_M_NOTICE, 'Troops alive after the ground battle: Lev1 '.$atk_alive[0].' Lev2 '.$atk_alive[1].' Lev3 '.$atk_alive[2].' Lev4 '.$atk_alive[3]);
-
             // We accommodate as much troops, as on the colony ship were, on the planet
             $planet_units = array(0, 0, 0, 0);
 
@@ -339,7 +337,7 @@ $this->log(MV_M_NOTICE, 'Troops alive after the ground battle: Lev1 '.$atk_alive
                 $i = 0;
                 while($n_atk_alive) {
                     if(($planet_units[0] * 2 + $planet_units[1] * 3 +
-                        $planet_units[2] * 4 + $planet_units[3] * 4) > $plspace['max_units'])
+                        $planet_units[2] * 4 + $planet_units[3] * 4) >= $plspace['max_units'])
                         break;
                     if($atk_alive[$i] > 0)
                     {
@@ -421,21 +419,21 @@ $this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_u
                     WHERE planet_id = '.$this->move['dest'];
 
             if(!$this->db->query($sql)) {
-                $this->log('MySQL', 'Could not delete scheduler research data! CONTINUE');
+                $this->log(MV_M_DATABASE, 'Could not delete scheduler research data! CONTINUE');
             }
 
             $sql = 'DELETE FROM scheduler_resourcetrade
                     WHERE planet = '.$this->move['dest'];
 
             if(!$this->db->query($sql)) {
-                $this->log('MySQL', 'Could not delete resource data! CONTINUE');
+                $this->log(MV_M_DATABASE, 'Could not delete resource data! CONTINUE');
             }
 
             $sql = 'DELETE FROM scheduler_shipbuild
                     WHERE planet_id = '.$this->move['dest'];
 
             if(!$this->db->query($sql)) {
-                $this->log('MySQL', 'Could not delete shipbuild data! CONTINUE');
+                $this->log(MV_M_DATABASE, 'Could not delete shipbuild data! CONTINUE');
             }
 
             global $NUM_BUILDING, $MAX_BUILDING_LVL;
@@ -862,7 +860,27 @@ if($n_st_user > 0) {
     $log2_data[16] = 1;
 
     for($i = 0; $i < $n_st_user; ++$i) {
-        add_logbook_entry($st_user[$i], LOGBOOK_TACTICAL, 'Verbndeten bei '.$this->dest['planet_name'].' verteidigt', $log2_data);
+        // #############################################################################
+        // 24/06/08 - AC: Retrieve player language
+        $log_title = 'One of your allies defended '.$this->dest['planet_name'];
+        $sql = 'SELECT language FROM user WHERE user_id = '.$st_user[$i];
+        if(!($lang = $this->db->queryrow($sql))) {
+            $this->log(MV_M_DATABASE, 'Could not retrieve player language');
+        }
+        else
+        {
+            switch($lang['language'])
+            {
+                case 'GER':
+                    $log_title = 'Verb&uuml;ndeten bei '.$this->dest['planet_name'].' verteidigt';
+                break;
+                case 'ITA':
+                    $log_title = 'Difesa alleata presso '.$this->dest['planet_name'];
+                break;
+            }
+        }
+
+        add_logbook_entry($st_user[$i], LOGBOOK_TACTICAL, $log_title, $log2_data);
     }
 }
 
