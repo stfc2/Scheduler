@@ -115,7 +115,7 @@ if($n_st_user > 0) {
              FROM (ship_fleets f)
              INNER JOIN user u ON u.user_id = f.user_id
              WHERE f.planet_id = '.$this->move['dest'].' AND
-			       (
+                   (
                      (
                        f.user_id = '.$user_id.'
                      )
@@ -135,18 +135,18 @@ else {
 }
 
 if(($dfd_fleets = $this->db->queryrowset($sql)) === false) {
-	return $this->log(MV_M_DATABASE, 'Could not query defenders fleets data! SKIP');
+    return $this->log(MV_M_DATABASE, 'Could not query defenders fleets data! SKIP');
 }
 
 $dfd_fleet_ids = array();
 
 foreach($dfd_fleets as $i => $cur_fleet) {
-	$dfd_fleet_ids[] = $cur_fleet['fleet_id'];
+    $dfd_fleet_ids[] = $cur_fleet['fleet_id'];
 }
 
 
 if($this->do_ship_combat($this->fleet_ids_str, implode(',', $dfd_fleet_ids), MV_COMBAT_LEVEL_PLANETARY) == MV_EXEC_ERROR) {
-	$this->log(MV_M_DATABASE, 'Move Action 54: Something went wrong with this fight!');
+    $this->log(MV_M_DATABASE, 'Move Action 54: Something went wrong with this fight!');
     return MV_EXEC_ERROR;
 }
 
@@ -187,30 +187,30 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
     $this->log(MV_M_NOTICE, 'I read building_lvls = '.$n_building_lvls.' and bomb_i = '.$bomb_i);
 
 
-	//Special "Antiborg" ship
-	$queryadd='';
-   if ($this->dest['user_id']==BORG_USERID)
-   {
-  		$sql = 'SELECT COUNT(ship_id) AS num FROM (ships s) WHERE s.template_id = 8 AND s.fleet_id IN ('.$this->fleet_ids_str.')';
-  		
-     	if(($borgw = $this->db->queryrow($sql)) === false) {
-    		return $this->log(MV_M_DATABASE, 'Could not query fleets planetary weapons data! SKIP');
-  		}
-     	  	
-	  	if ($borgw['num']>0)
-	  	{
-	  		$unitkill=array(min($this->dest['unit_1'],($borgw['num']*rand(200,400) ) ),
-	  								min($this->dest['unit_2'],($borgw['num']*rand(100,300) ) ),
-	  								min($this->dest['unit_3'],($borgw['num']*rand(75,200) ) ),
-	  								min($this->dest['unit_4'],($borgw['num']*rand(50,100) ) )
-	  								);
-	  		
-	  		$queryadd=' unit_1=unit_1-'.$unitkill[0].', 
-	  						unit_2=unit_2-'.$unitkill[1].', 
-	  						unit_3=unit_3-'.$unitkill[2].', 
-	  	  					unit_4=unit_4-'.$unitkill[3].', ';
-  		}
-	}
+    //Special "Antiborg" ship
+    $queryadd='';
+    if ($this->dest['user_id']==BORG_USERID)
+    {
+        $sql = 'SELECT COUNT(ship_id) AS num FROM (ships s) WHERE s.template_id = 8 AND s.fleet_id IN ('.$this->fleet_ids_str.')';
+
+        if(($borgw = $this->db->queryrow($sql)) === false) {
+            return $this->log(MV_M_DATABASE, 'Could not query fleets planetary weapons data! SKIP');
+        }
+
+        if ($borgw['num']>0)
+        {
+            $unitkill=array(min($this->dest['unit_1'],($borgw['num']*rand(200,400) ) ),
+                            min($this->dest['unit_2'],($borgw['num']*rand(100,300) ) ),
+                            min($this->dest['unit_3'],($borgw['num']*rand(75,200) ) ),
+                            min($this->dest['unit_4'],($borgw['num']*rand(50,100) ) )
+                           );
+
+            $queryadd=' unit_1=unit_1-'.$unitkill[0].', 
+                        unit_2=unit_2-'.$unitkill[1].', 
+                        unit_3=unit_3-'.$unitkill[2].', 
+                        unit_4=unit_4-'.$unitkill[3].', ';
+        }
+    }
 
 
     if($n_building_lvls == 1 && $queryadd=='') {
@@ -347,29 +347,6 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                 return $this->log(MV_M_DATABASE, 'Could not update planets data after attack! SKIP');
             }
 
-            $sql = 'UPDATE planets
-            			SET unit_1=0 WHERE unit_1<0';
-            if(!$this->db->query($sql)) {
-                return $this->log(MV_M_DATABASE, 'Could not update planets data after attack! SKIP');
-            }
-            $sql = 'UPDATE planets
-            			SET unit_2=0 WHERE unit_2<0';
-            if(!$this->db->query($sql)) {
-                return $this->log(MV_M_DATABASE, 'Could not update planets data after attack! SKIP');
-            }
-            $sql = 'UPDATE planets
-            			SET unit_3=0 WHERE unit_3<0';
-            if(!$this->db->query($sql)) {
-                return $this->log(MV_M_DATABASE, 'Could not update planets data after attack! SKIP');
-            }
-            $sql = 'UPDATE planets
-            			SET unit_4=0 WHERE unit_4<0';
-            if(!$this->db->query($sql)) {
-                return $this->log(MV_M_DATABASE, 'Could not update planets data after attack! SKIP');
-            }
-
-
-
             $sql = 'UPDATE scheduler_shipmovement
                     SET move_begin = '.$this->CURRENT_TICK.',
                         move_finish = '.($this->CURRENT_TICK + 8).',
@@ -449,13 +426,13 @@ if(!empty($new_dest)) {
         0,
         $this->dest['building_11'] - $new_dest['building_11'],
         $this->dest['building_12'] - $new_dest['building_12'],
-	$this->dest['unit_1'] - $new_dest['unit_1'],
+        $this->dest['unit_1'] - $new_dest['unit_1'],
         $this->dest['unit_2'] - $new_dest['unit_2'],
         $this->dest['unit_3'] - $new_dest['unit_3'],
         $this->dest['unit_4'] - $new_dest['unit_4'],
         $this->dest['unit_5'] - $new_dest['unit_5'],
         $this->dest['unit_6'] - $new_dest['unit_6'],
-	0
+        0
     );
 }
     $log1_data[19] = $log2_data[19] = $this->dest['user_race'];
@@ -491,7 +468,7 @@ if($n_st_user > 0) {
             switch($lang['language'])
             {
                 case 'GER':
-                    $log_title = 'Verbündeten bei '.$this->dest['planet_name'].' verteidigt';
+                    $log_title = 'Verb&uuml;ndeten bei '.$this->dest['planet_name'].' verteidigt';
                 break;
                 case 'ITA':
                     $log_title = 'Difesa alleata presso '.$this->dest['planet_name'];
