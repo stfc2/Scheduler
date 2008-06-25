@@ -216,6 +216,16 @@ class NPC
 		}
 	}
 
+	function ReadLogbook()
+	{
+		$this->sdl->start_job('Read Logbook', TICK_LOG_FILE_NPC);
+		$sql = 'UPDATE logbook SET log_read=1 WHERE user_id='.$this->bot['user_id'];
+		if(!$this->db->query($sql))
+			$this->sdl->log('<b>Error:</b> Logbook message could not be set to read',
+				TICK_LOG_FILE_NPC);
+		$this->sdl->finish_job('Read Logbook', TICK_LOG_FILE_NPC);
+	}
+
 	public function NPC(&$db, &$sdl)
 	{
 		$this->db = $db;
