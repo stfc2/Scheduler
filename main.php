@@ -570,6 +570,7 @@ define('TICK_LOG_FILE_NPC', $game_path.'game/logs/NPC_BOT_tick_'.date('d-m-Y', t
 include('NPC_BOT.php');
 include('ferengi.php');
 include('borg.php');
+include('settlers.php');
 $sdl->start_job('Ramona comes over - oh women are so wonderful');
 $quark = new Ferengi($db,$sdl);
 $quark->Execute(1,"Normal operation in the test round",0,"#DEEB24");
@@ -578,6 +579,10 @@ $sdl->start_job('SevenOfNine is coming - oh borg are not so beautiful');
 $borg = new Borg($db,$sdl);
 $borg->Execute(1);
 $sdl->finish_job('SevenOfNine is coming - oh borg are not so beautiful');
+$sdl->start_job('Mayflower is coming - settlers are the real workforce');
+$settlers = new Settlers($db,$sdl);
+$settlers->Execute(1);
+$sdl->finish_job('Mayflower is coming - settlers are the real workforce');
 define('TICK_LOG_FILE_NPC','');
 
 // ########################################################################################
@@ -1882,7 +1887,7 @@ else {
         $sql = 'DELETE FROM alliance_application
 				WHERE application_user = '.$user['user_id'];
 				
-	$db->query($sql);
+        $db->query($sql);
 	
 //DC ---- Historycal record for faction vanishing from universe, log_code '28'
 	$sql = 'SELECT planet_id FROM planets WHERE planet_owner = '.$user['user_id'];
@@ -1914,7 +1919,7 @@ else {
                         building_8 = '.mt_rand(0, 9).',
                         building_10 = '.mt_rand(5, 15).',
                         building_11 = '.mt_rand(0, 9).',
-		    	building_13 = '.mt_rand(0, 10).',
+                        building_13 = '.mt_rand(0, 10).',
                         unit_1 = '.mt_rand(500, 1500).',
                         unit_2 = '.mt_rand(500, 1000).',
                         unit_3 = '.mt_rand(0, 500).',
@@ -1943,7 +1948,14 @@ else {
         if(!$db->query($sql)) {
             $sdl->log('<b>Error:</b> Could not give deleted users\'s planets to the settlers! CONTIUED');
         }
-			
+
+		/* 25/06/08 - AC: Set logbook messages flag to read in order to be cleaned up */
+		$sql = 'UPDATE logbook SET log_read=1 WHERE user_id = '.$user['user_id'];
+
+        if(!$db->query($sql)) {
+            $sdl->log('<b>Error:</b> Could not set logbook message to read! CONTIUED');
+        }
+	
         $sql = 'DELETE FROM user
                 WHERE user_id = '.$user['user_id'];
 
