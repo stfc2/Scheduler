@@ -1174,7 +1174,7 @@ $sql = 'SELECT ss.*,
         INNER JOIN (user u1 )ON u1.user_id = p.planet_owner
         INNER JOIN (user u2) ON u2.user_id = ss.user_id
         WHERE p.planet_id = ss.dest AND
-              ss.action_code IN (40, 41, 42, 43, 44, 45, 51, 54, 55) AND
+              ss.action_code IN (40, 41, 42, 43, 44, 45, 46, 51, 54, 55) AND
               ss.move_status = 0
         ORDER BY ss.move_finish ASC';
 
@@ -1366,7 +1366,7 @@ else {
 $sql = 'UPDATE user
         SET user_points = 9,
             user_planets = 0,
-			user_honor = 0
+            user_honor = 0
         WHERE user_auth_level = '.STGC_DEVELOPER.' OR
               user_auth_level = '.STGC_BOT;
 
@@ -1410,13 +1410,13 @@ else {
             $sql = 'UPDATE alliance
                     SET alliance_points = '.(int)$alliance['points'].',
                         alliance_planets = '.(int)$alliance['planets'].',
-			alliance_member = '.(int)$alliance['member'].',
+                        alliance_member = '.(int)$alliance['member'].',
                         alliance_honor = '.(int)$alliance['uhonor'].'
                     WHERE alliance_id = '.$alliance['alliance_id'];
 
             if(!$db->query($sql)) {
                 $sdl->log('- Warning: Could not update alliance data #'.$alliance['alliance_id'].'! CONTINUE');
-					 $update_problem=1;
+                $update_problem=1;
                 continue;
             }
 
@@ -1885,10 +1885,10 @@ else {
         $db->query($sql);
 
         $sql = 'DELETE FROM alliance_application
-				WHERE application_user = '.$user['user_id'];
-				
+                WHERE application_user = '.$user['user_id'];
+
         $db->query($sql);
-	
+
 //DC ---- Historycal record for faction vanishing from universe, log_code '28'
 	$sql = 'SELECT planet_id FROM planets WHERE planet_owner = '.$user['user_id'];
 	if($vanishing = $db->query($sql)) {
@@ -1897,11 +1897,11 @@ else {
 			$sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
 			.'VALUES ('.$_temp['planet_id'].', 0, 0, 0, 0, '.time().', 28)';
 			$db->query($sql);
-		}	
+		}
 	}
 //DC ----
-		
-		$sql = 'UPDATE planets
+
+        $sql = 'UPDATE planets
                     SET planet_owner='.INDEPENDENT_USERID.',
                         planet_owned_date = '.time().',
                         resource_1 = 10000,
@@ -1944,18 +1944,18 @@ else {
                         building_queue=0,
                         planet_surrender=0
             WHERE planet_owner = '.$user['user_id'];
-			
+
         if(!$db->query($sql)) {
             $sdl->log('<b>Error:</b> Could not give deleted users\'s planets to the settlers! CONTIUED');
         }
 
-		/* 25/06/08 - AC: Set logbook messages flag to read in order to be cleaned up */
-		$sql = 'UPDATE logbook SET log_read=1 WHERE user_id = '.$user['user_id'];
+        /* 25/06/08 - AC: Set logbook messages flag to read in order to be cleaned up */
+        $sql = 'UPDATE logbook SET log_read=1 WHERE user_id = '.$user['user_id'];
 
         if(!$db->query($sql)) {
             $sdl->log('<b>Error:</b> Could not set logbook message to read! CONTIUED');
         }
-	
+
         $sql = 'DELETE FROM user
                 WHERE user_id = '.$user['user_id'];
 
