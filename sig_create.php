@@ -42,7 +42,7 @@ include($game_path . 'game/include/sql.php');
 $db = new sql($config['server'].":".$config['port'], $config['game_database'], $config['user'], $config['password']); // create sql-object for db-connection
 
 
-exec('cd '.$game_path.'game/sig_tmp/; rm *.jpg');
+exec('cd '.$game_path.'game/sig_tmp/; rm -f *.jpg');
 
 $rank_honor = array();
 $rank_honor[0]=0;
