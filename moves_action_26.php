@@ -60,12 +60,12 @@ class moves_action_26 extends moves_common {
 			return $this->log(MV_M_DATABASE, 'Could not read planet data! SKIP');
 		}
 
-		$base_rateo_1_over  = $PLANETS_DATA[$survey_data['planet_type']][0]+0.05;
-		$base_rateo_1_under = $PLANETS_DATA[$survey_data['planet_type']][0]-0.05;
-		$base_rateo_2_over  = $PLANETS_DATA[$survey_data['planet_type']][1]+0.05;
-		$base_rateo_2_under = $PLANETS_DATA[$survey_data['planet_type']][1]-0.05;
-		$base_rateo_3_over  = $PLANETS_DATA[$survey_data['planet_type']][2]+0.05;
-		$base_rateo_3_under = $PLANETS_DATA[$survey_data['planet_type']][2]-0.05;
+		$base_rateo_1_over  = $PLANETS_DATA[$survey_data['planet_type']][0]+0.12;
+		$base_rateo_1_under = $PLANETS_DATA[$survey_data['planet_type']][0]-0.12;
+		$base_rateo_2_over  = $PLANETS_DATA[$survey_data['planet_type']][1]+0.1;
+		$base_rateo_2_under = $PLANETS_DATA[$survey_data['planet_type']][1]-0.1;
+		$base_rateo_3_over  = $PLANETS_DATA[$survey_data['planet_type']][2]+0.08;
+		$base_rateo_3_under = $PLANETS_DATA[$survey_data['planet_type']][2]-0.08;
 
 		$_survey1 = 1;
 		if($survey_data['rateo_1'] > $base_rateo_1_over) {
