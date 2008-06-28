@@ -404,6 +404,18 @@ $this->log(MV_M_NOTICE, 'Troops that will return aboard: Lev1 '.$atk_alive[0].' 
             else {
                 for($i = 0; $i <= 3; ++$i)
                     $planet_units[$i] += $atk_alive[$i];
+
+                // 28/06/08 - AC: Snort! Delete landed troops!
+                $sql = 'UPDATE ship_fleets
+                        SET unit_1 = 0,
+                            unit_2 = 0,
+                            unit_3 = 0,
+                            unit_4 = 0
+                        WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+
+                if(!$this->db->query($sql)) {
+                    return $this->log(MV_M_DATABASE, 'Could not update ship fleets unit transport data! SKIP');
+                }
             }
 
 $this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_units[0].' Lev2 '.$planet_units[1].' Lev3 '.$planet_units[2].' Lev4 '.$planet_units[3]);
