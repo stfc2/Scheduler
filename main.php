@@ -1371,7 +1371,7 @@ $sql = 'UPDATE user
               user_auth_level = '.STGC_BOT;
 
 if(!$db->query($sql)) {
-    continue;
+    $sdl->log('- Warning: Could not update Admin/BOT player data! CONTINUED');
 }
 
 $sdl->finish_job('Update Players');
