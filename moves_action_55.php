@@ -35,6 +35,23 @@ if(($atk_fleets = $this->db->queryrowset($sql)) === false) {
     return $this->log(MV_M_DATABASE, 'Could not query attackers fleets data! SKIP');
 }
 
+/* 01/07/08 -AC: I need to move this query here, in order to correctly report attacker
+ *               losses in case he lost the battle.
+ */
+$sql = 'SELECT ss.fleet_id,
+               SUM(ss.unit_1 - st.min_unit_1) AS troop_1,
+               SUM(ss.unit_2 - st.min_unit_2) AS troop_2,
+               SUM(ss.unit_3 - st.min_unit_3) AS troop_3,
+               SUM(ss.unit_4 - st.min_unit_4) AS troop_4
+        FROM ships ss, ship_templates st
+        WHERE ss.template_id = st.id
+        AND ss.fleet_id IN ('.$this->fleet_ids_str.')
+        GROUP BY ss.fleet_id';
+
+if(($atk_crews = $this->db->queryrowset($sql)) === false) {
+    return $this->log(MV_M_DATABASE, 'Could not query attacking fleet data! SKIP');
+}
+
 
 // #############################################################################
 // Data from the defender
@@ -200,37 +217,38 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             $worker_per_fleets[$atk_fleets[$i]['fleet_id']] = $atk_fleets[$i]['resource_4'];
         }
 
-        // 090408 DC:  ------ Let those fucking soldiers on ships do their job!!!! 
-        foreach ($atk_fleets as $atk_fleets_item) {
-            $sql = 'SELECT ss.fleet_id,
-                           SUM(ss.unit_1 - st.min_unit_1) AS troop_1,
-                           SUM(ss.unit_2 - st.min_unit_2) AS troop_2,
-                           SUM(ss.unit_3 - st.min_unit_3) AS troop_3,
-                           SUM(ss.unit_4 - st.min_unit_4) AS troop_4
-                    FROM ships ss, ship_templates st
-                    WHERE ss.template_id = st.id
-                    AND ss.fleet_id = '.$atk_fleets_item['fleet_id'].'
-                    GROUP BY ss.fleet_id';
-
-            if(($fetchedrow = $this->db->queryrow($sql)) === false)
-                return $this->log(MV_M_DATABASE, 'Could not query attacking fleet data! SKIP');
-
-            $atk_units[0] += $fetchedrow['troop_1'];
-            $atk_units[1] += $fetchedrow['troop_2'];
-            $atk_units[2] += $fetchedrow['troop_3'];
-            $atk_units[3] += $fetchedrow['troop_4'];
+        // 090408 DC:  ------ Let those fucking soldiers on ships do their job!!!!
+        for($i = 0; $i < count($atk_crews); ++$i) {
+            $atk_units[0] += $atk_crews[$i]['troop_1'];
+            $atk_units[1] += $atk_crews[$i]['troop_2'];
+            $atk_units[2] += $atk_crews[$i]['troop_3'];
+            $atk_units[3] += $atk_crews[$i]['troop_4'];
         }
         // 090409 DC:  ------
 
         $dfd_units = array($this->dest['unit_1'], $this->dest['unit_2'], $this->dest['unit_3'], $this->dest['unit_4'],$this->dest['resource_4']);
 
+        // Are there some defenders?
         if (array_sum($dfd_units)>0)
         {
             $ucmb = UnitFight($atk_units, $this->move['user_race'], $dfd_units, $this->dest['user_race'], $this->mid);
             $n_atk_alive = array_sum($ucmb[0]);
+            $atk_alive = $ucmb[0];
+            $dfd_alive = $ucmb[1];
         }
+        // No ground troops presents!
         else
+        {
             $n_atk_alive=1;
+            $atk_alive = $atk_units;
+            $dfd_alive = array(0, 0, 0, 0, 0);
+        }
+
+        // 01/07/08 - AC: Count losses for each part
+        for($i = 0; $i < count($atk_fleets); ++$i) {
+            $atk_losses[$i] = $atk_units[$i] - $atk_alive[$i];
+            $dfd_losses[$i] = $dfd_units[$i] - $dfd_alive[$i];
+        }
 
         // If there are no more attackers, the defender
         // always won even if the defending had no units
@@ -264,18 +282,16 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             }
 
             // 090408 DC:  ------ Finally the fucking soldiers have done their job!!!! 
-            foreach ($atk_fleets as $atk_fleets_item) {
-                $sql = 'UPDATE ships ss, ship_templates st
-                        SET ss.unit_1 = st.min_unit_1,
-                            ss.unit_2 = st.min_unit_2,
-                            ss.unit_3 = st.min_unit_3,
-                            ss.unit_4 = st.min_unit_4
-                        WHERE ss.template_id = st.id
-                        AND ss.fleet_id = '.$atk_fleets_item['fleet_id'];
-                $this->log(MV_M_NOTICE, 'Update ships with the minimum troops value: '.$sql);
-                if(!$this->db->query($sql))
-                    return $this->log(MV_M_DATABASE, 'Could not update attacking ships! SKIP');
-            }
+            $sql = 'UPDATE ships ss, ship_templates st
+                    SET ss.unit_1 = st.min_unit_1,
+                        ss.unit_2 = st.min_unit_2,
+                        ss.unit_3 = st.min_unit_3,
+                        ss.unit_4 = st.min_unit_4
+                    WHERE ss.template_id = st.id
+                AND ss.fleet_id IN ('.$this->fleet_ids_str.')';
+            $this->log(MV_M_NOTICE, 'Update ships with the minimum troops value: '.$sql);
+            if(!$this->db->query($sql))
+                return $this->log(MV_M_DATABASE, 'Could not update attacking ships! SKIP');
             // 090408 DC:  ------ 
 
             $action_status = -1;
@@ -285,7 +301,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             switch($this->move['language'])
             {
                 case 'GER':
-                   $atk_title = 'Angriff auf '.$this->dest['planet_name'].' teilweise erfolgreich';
+                    $atk_title = 'Angriff auf '.$this->dest['planet_name'].' teilweise erfolgreich';
                 break;
                 case 'ITA':
                     $atk_title = 'Attacco su '.$this->dest['planet_name'].' parzialmente riuscito';
@@ -315,8 +331,6 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             else {
                 $n_planets = $pcount['n_planets'];
             }
-
-            $atk_alive = $ucmb[0];
 
             // We accommodate as much troops, as on the colony ship were, on the planet
             $planet_units = array(0, 0, 0, 0);
@@ -796,7 +810,7 @@ $this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_u
         switch($this->move['language'])
         {
             case 'GER':
-               $atk_title = 'Angriff auf '.$this->dest['planet_name'].' teilweise erfolgreich';
+                $atk_title = 'Angriff auf '.$this->dest['planet_name'].' teilweise erfolgreich';
             break;
             case 'ITA':
                 $atk_title = 'Attacco su '.$this->dest['planet_name'].' parzialmente riuscito';
@@ -832,6 +846,22 @@ else {
             $atk_title = 'Attack on '.$this->dest['planet_name'].' failed';
         break;
     }
+
+    // 01/07/08 - The attacker has lost the fleets
+    for($i = 0; $i < count($atk_fleets); ++$i) {
+        $atk_losses[0] += $atk_fleets[$i]['unit_1'];
+        $atk_losses[1] += $atk_fleets[$i]['unit_2'];
+        $atk_losses[2] += $atk_fleets[$i]['unit_3'];
+        $atk_losses[3] += $atk_fleets[$i]['unit_4'];
+        $atk_losses[4] += $atk_fleets[$i]['resource_4'];
+    }
+    for($i = 0; $i < count($atk_crews); ++$i) {
+        $atk_losses[0] += $atk_crews[$i]['troop_1'];
+        $atk_losses[1] += $atk_crews[$i]['troop_2'];
+        $atk_losses[2] += $atk_crews[$i]['troop_3'];
+        $atk_losses[3] += $atk_crews[$i]['troop_4'];
+    }
+    $dfd_losses = array(0, 0, 0, 0, 0);
 }
 
 
@@ -847,11 +877,11 @@ $log1_data[20] = $this->dest['user_race'];
 $log2_data[20] = $this->move['user_race'];
 
 for($i = 0; $i < 5; ++$i) {
-    $log1_data[18][$i] = $log2_data[19][$i] = ($atk_units[$i] - $ucmb[0][$i]);
-    $log1_data[19][$i] = $log2_data[18][$i] = ($dfd_units[$i] - $ucmb[1][$i]);
+    $log1_data[18][$i] = $log2_data[19][$i] = $atk_losses[$i];
+    $log1_data[19][$i] = $log2_data[18][$i] = $dfd_losses[$i];
 }
 
-$log1_data[19][4] = $log2_data[18][4] = ((int)$this->dest['resource_4'] - $ucmb[1][4]);
+//$log1_data[19][4] = $log2_data[18][4] = (int)$dfd_losses[4]; already done by for above...
 
 $log2_data[14] = $this->cmb[MV_CMB_KILLS_PLANETARY];
 

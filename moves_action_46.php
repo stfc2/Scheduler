@@ -190,13 +190,27 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
         $dfd_units = array($this->dest['unit_1'], $this->dest['unit_2'], $this->dest['unit_3'], $this->dest['unit_4'],$this->dest['resource_4']);
 
+        // Are there some defenders?
         if (array_sum($dfd_units)>0)
         {
             $ucmb = UnitFight($atk_units, $this->move['user_race'], $dfd_units, $this->dest['user_race'], $this->mid);
             $n_atk_alive = array_sum($ucmb[0]);
+            $atk_alive = $ucmb[0];
+            $dfd_alive = $ucmb[1];
         }
+        // No ground troops presents!
         else
+        {
             $n_atk_alive=1;
+            $atk_alive = $atk_units;
+            $dfd_alive = array(0, 0, 0, 0, 0);
+        }
+
+        // 01/07/08 - AC: Count losses for each part
+        for($i = 0; $i < count($atk_fleets); ++$i) {
+            $atk_losses[$i] = $atk_units[$i] - $atk_alive[$i];
+            $dfd_losses[$i] = $dfd_units[$i] - $dfd_alive[$i];
+        }
 
         // If there are no more attackers, the defender
         // always won even if the defending had no units
@@ -267,8 +281,6 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                 $n_planets = $pcount['n_planets'];
             }
 
-            $atk_alive = $ucmb[0];
-
             // We accommodate as much troops, as on the colony ship were, on the planet
             $planet_units = array(0, 0, 0, 0);
 
@@ -316,6 +328,17 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             else {
                 for($i = 0; $i <= 3; ++$i)
                     $planet_units[$i] += $atk_alive[$i];
+
+                $sql = 'UPDATE ship_fleets
+                        SET unit_1 = 0,
+                            unit_2 = 0,
+                            unit_3 = 0,
+                            unit_4 = 0
+                        WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+
+                if(!$this->db->query($sql)) {
+                    return $this->log(MV_M_DATABASE, 'Could not update ship fleets unit transport data! SKIP');
+                }
             }
 
             $sql = 'DELETE FROM scheduler_instbuild
@@ -583,6 +606,16 @@ else {
             $atk_title = 'Attack on '.$this->dest['planet_name'].' failed';
         break;
     }
+
+    // 01/07/08 - The attacker has lost fleet
+    for($i = 0; $i < count($atk_fleets); ++$i) {
+        $atk_losses[0] += $atk_fleets[$i]['unit_1'];
+        $atk_losses[1] += $atk_fleets[$i]['unit_2'];
+        $atk_losses[2] += $atk_fleets[$i]['unit_3'];
+        $atk_losses[3] += $atk_fleets[$i]['unit_4'];
+        $atk_losses[4] += $atk_fleets[$i]['resource_4'];
+    }
+    $dfd_losses = array(0, 0, 0, 0, 0);
 }
 
 
@@ -598,11 +631,11 @@ $log1_data[20] = $this->dest['user_race'];
 $log2_data[20] = $this->move['user_race'];
 
 for($i = 0; $i < 5; ++$i) {
-    $log1_data[18][$i] = $log2_data[19][$i] = ($atk_units[$i] - $ucmb[0][$i]);
-    $log1_data[19][$i] = $log2_data[18][$i] = ($dfd_units[$i] - $ucmb[1][$i]);
+    $log1_data[18][$i] = $log2_data[19][$i] = $atk_losses[$i];
+    $log1_data[19][$i] = $log2_data[18][$i] = $dfd_losses[$i];
 }
 
-$log1_data[19][4] = $log2_data[18][4] = ((int)$this->dest['resource_4'] - $ucmb[1][4]);
+//$log1_data[19][4] = $log2_data[18][4] = (int)$dfd_losses[4]; already done by for above...
 
 $log2_data[14] = $this->cmb[MV_CMB_KILLS_PLANETARY];
 
