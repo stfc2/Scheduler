@@ -183,6 +183,42 @@ class NPC
 		$this->sdl->finish_job('Sensors monitor', TICK_LOG_FILE_NPC);
 	}
 
+	function CreateFleet($name,$template,$num)
+	{
+		$this->sdl->log('Check fleet "'.$name.'" composition', TICK_LOG_FILE_NPC);
+		$query='SELECT fleet_id FROM `ship_fleets` WHERE fleet_name="'.$name.'" AND user_id='.$this->bot['user_id'].' LIMIT 0, 1';
+		$fleet = $this->db->query($query);
+		if($this->db->num_rows()<=0)
+		{
+			$sql = 'INSERT INTO ship_fleets (fleet_name, user_id, planet_id, move_id, n_ships)
+				VALUES ("'.$name.'", '.$this->bot['user_id'].', '.$this->bot['planet_id'].', 0, '.$num.')';
+			if(!$this->db->query($sql))
+				$this->sdl->log('<b>Error:</b> Could not insert new fleet data', TICK_LOG_FILE_NPC);
+			$fleet_id = $this->db->insert_id();
+
+			if(!$fleet_id) $this->sdl->log('Error - '.$fleet_id.' = empty', TICK_LOG_FILE_NPC);
+
+			$sql= 'SELECT * FROM `ship_templates` WHERE `id` = '.$template;
+			if(($stpl = $this->db->queryrow($sql)) === false)
+				$this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql, TICK_LOG_FILE_NPC);
+
+			$sql= 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time,
+			                          unit_1, unit_2, unit_3, unit_4)
+			       VALUES ('.$fleet_id.', '.$this->bot['user_id'].', '.$template.', '.$stpl['value_9'].',
+			               '.$stpl['value_5'].', '.time().', '.$stpl['min_unit_1'].', '.$stpl['min_unit_2'].',
+			               '.$stpl['min_unit_3'].', '.$stpl['min_unit_4'].')';
+			for($i = 0; $i < $num; ++$i)
+			{
+				if(!$this->db->query($sql)) {
+					$this->sdl->log('<b>Error:</b> Could not insert new ships #'.$i.' data', TICK_LOG_FILE_NPC);
+				}
+			}
+			$this->sdl->log('Fleet: '.$fleet_id.' - '.$num.' ships created', TICK_LOG_FILE_NPC);
+		}
+
+		return $fleet_id;
+	}
+
 	function RestoreFleetLosses($name,$template,$num)
 	{
 		$query='SELECT * FROM `ship_fleets` WHERE fleet_name="'.$name.'" and user_id='.$this->bot['user_id'].' LIMIT 0, 1';
