@@ -848,6 +848,7 @@ else {
     }
 
     // 01/07/08 - The attacker has lost the fleets
+    $atk_losses = array(0, 0, 0, 0, 0);
     for($i = 0; $i < count($atk_fleets); ++$i) {
         $atk_losses[0] += $atk_fleets[$i]['unit_1'];
         $atk_losses[1] += $atk_fleets[$i]['unit_2'];
