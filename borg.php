@@ -399,6 +399,17 @@ class Borg extends NPC
 		// ########################################################################################
 		//Fleets's crew creation
 
+		// Actually put simply the troops aboard
+		$sql = 'UPDATE `ship_fleets` SET `unit_1` = 5000, `unit_2` = 2500, `unit_3` = 1250, `unit_4` = 125
+		        WHERE `fleet_name`="Borg cube" AND `user_id` = '.$this->bot['user_id'];
+		if(!$this->db->query($sql))
+			$this->sdl->log('<b>Warning:</b> cannot update Borg cube crew!', TICK_LOG_FILE_NPC);
+
+		$sql = 'UPDATE `ship_fleets` SET `unit_1` = 1000, `unit_2` = 500, `unit_3` = 250, `unit_4` = 25
+		        WHERE `fleet_name`="Borg spheres" AND `user_id` = '.$this->bot['user_id'];
+		if(!$this->db->query($sql))
+			$this->sdl->log('<b>Warning:</b> cannot update Borg spheres crew!', TICK_LOG_FILE_NPC);
+
 		// ########################################################################################
 		// ########################################################################################
 		// Send ships
