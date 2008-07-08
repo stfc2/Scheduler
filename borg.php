@@ -37,9 +37,15 @@ define (BORG_CUBE, 'Borg Cube');
 
 define (BORG_RACE,'6'); // Well, this one should be defined in global.php among the other races */
 
+define (BORG_QUADRANT, 2); // Default Borg belong to Delta quadrant
+
 define (BORG_CYCLE, 480); // One attack each how many tick?
 
 define (BORG_CHANCE, 50); // Attack is not sistematic, leave a little chance
+
+define (BORG_MINATTACK, 10); // Attack only players with at least n planets
+
+define (BORG_BIGPLAYER, 2000); // Send a cube instead of spheres to player above this points
 
 /* ######################################################################################## */
 /* ######################################################################################## */
@@ -86,6 +92,7 @@ class Borg extends NPC
 				            `ship_template1` INT( 10 ) UNSIGNED NOT NULL DEFAULT  \'0\',
 				            `ship_template2` INT( 10 ) UNSIGNED NOT NULL DEFAULT  \'0\',
 				            `user_tick` INT( 10 ) NOT NULL ,
+				            `attack_quadrant` TINYINT( 3 ) UNSIGNED NOT NULL DEFAULT  \''.BORG_QUADRANT.'\',
 				            PRIMARY KEY (  `id` )
 				        ) ENGINE = MYISAM';
 
@@ -157,7 +164,7 @@ class Borg extends NPC
 				{
 					$this->sdl->log('Create new planet', TICK_LOG_FILE_NPC);
 					$this->db->lock('starsystems_slots');
-					$this->bot['planet_id']=create_planet($this->bot['user_id'], 'quadrant', 2);
+					$this->bot['planet_id']=create_planet($this->bot['user_id'], 'quadrant', BORG_QUADRANT);
 					$this->db->unlock();
 					if($this->bot['planet_id'] == 0)
 					{
@@ -414,12 +421,13 @@ class Borg extends NPC
 				$unimtx0 = $this->db->queryrow($sql);
 
 				// Now select the target...
-				$sql = 'SELECT p.planet_id, p.system_id, s.system_global_x, s.system_global_y,
+				$sql = 'SELECT p.planet_id, s.system_global_x, s.system_global_y,
 				               u.user_points, u.user_id
 				        FROM (planets p)
 				        INNER JOIN (starsystems s) ON s.system_id = p.system_id
 				        INNER JOIN (user u) ON u.user_id = p.planet_owner
-				        WHERE u.user_planets > 10';
+				        WHERE u.user_planets > '.BORG_MINATTACK.' AND
+				              CEIL(p.sector_id / 81) = '.$this->bot['attack_quadrant'];
 
 				$targets = $this->db->query($sql);
 
@@ -437,10 +445,10 @@ class Borg extends NPC
 					}
 				}
 
-				$this->sdl->log('Chosen target is planet: <b>'.$chosen_target['planet_id'].'</b> of user: <b>'.$chosen_target['user_id'].'<b> at distance: <b>'.$min_distance.'</b> from BOT planet',TICK_LOG_FILE_NPC);
+				$this->sdl->log('Chosen target is planet: <b>'.$chosen_target['planet_id'].'</b> of user: <b>'.$chosen_target['user_id'].'</b> at distance: <b>'.$min_distance.'</b> from BOT planet',TICK_LOG_FILE_NPC);
 
 				// Select appropriate fleet
-				if($chosen_target['user_points'] > 2000)
+				if($chosen_target['user_points'] > BORG_BIGPLAYER)
 					$sql = 'SELECT `fleet_id` FROM `ship_fleets`
 					        WHERE `fleet_name`="Borg cube" AND `user_id` = '.$this->bot['user_id'].' AND `planet_id` <> 0
 					        LIMIT 0,1';
@@ -453,7 +461,19 @@ class Borg extends NPC
 
 				if(!empty($fleet['fleet_id']) && !empty($chosen_target['planet_id'])) {
 					send_borg_fleet($fleet['fleet_id'],$chosen_target['planet_id']);
-					$this->sdl->log('Borg fleet #'.$fleet['fleet_id'].' sent to planet #'.$chosen_target['planet_id'], TICK_LOG_FILE_NPC);
+					$this->sdl->log('Borg fleet #'.$fleet['fleet_id'].' sent to planet #'.$chosen_target['planet_id'],
+						TICK_LOG_FILE_NPC);
+
+					// Next time attack another quadrant
+					$this->bot['attack_quadrant']++;
+					if($this->bot['attack_quadrant'] > 4)
+						$this->bot['attack_quadrant'] = 1;
+
+					$sql = 'UPDATE borg_bot SET attack_quadrant = '.$this->bot['attack_quadrant'].'
+					        WHERE id="'.$this->bot['id'].'"';
+					if(!$this->db->query($sql))
+						$this->sdl->log('<b>Warning:</b> cannot update bot attack_quadrant!',
+							TICK_LOG_FILE_NPC);
 				}
 				else {
 					$this->sdl->log('No fleets or no targets available!', TICK_LOG_FILE_NPC);
