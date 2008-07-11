@@ -136,6 +136,10 @@ switch($this->dest['language'])
 
 $action_status = 0;
 
+/* 11/07/08 - AC: Initialize here arrays atk/dfd_losses */
+$atk_losses = array(0, 0, 0, 0, 0);
+$dfd_losses = array(0, 0, 0, 0, 0);
+
 if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
     $atk_units = array(0, 0, 0, 0, 0);
@@ -549,7 +553,6 @@ else {
     }
 
     // 01/07/08 - The attacker has lost the fleets
-    $atk_losses = array(0, 0, 0, 0, 0);
     for($i = 0; $i < count($atk_fleets); ++$i) {
         $atk_losses[0] += $atk_fleets[$i]['unit_1'];
         $atk_losses[1] += $atk_fleets[$i]['unit_2'];
@@ -557,7 +560,6 @@ else {
         $atk_losses[3] += $atk_fleets[$i]['unit_4'];
         $atk_losses[4] += $atk_fleets[$i]['resource_4'];
     }
-    $dfd_losses = array(0, 0, 0, 0, 0);
 }
 
 
