@@ -1056,7 +1056,7 @@ class Ferengi extends NPC
 		 ****/
 		$this->sdl->start_job('Update Ramona resources svailability', TICK_LOG_FILE_NPC);
 
-		/* Read resources and units available on Ramona's planet */		
+		/* Read resources and units available on Ramona's planet */
 		$sql='SELECT unit_1, unit_2, unit_3, unit_4, unit_5, unit_6, resource_1, resource_2, resource_3 FROM planets
 			WHERE planet_id = '.$this->bot['planet_id'];
 
@@ -1091,35 +1091,35 @@ class Ferengi extends NPC
 			$pick_u[0] = $pick_u[1] = $pick_u[2] = $pick_u[3] = $pick_u[4] = $pick_u[5] = 0;
 
 			/* Pick up units only if there is a little stock pile */
-			if($tradecenter['unit_1'] < 200)
+			if($tradecenter['unit_1'] < 450)
 			{
 				if($resources['unit_1'] > 500)
-					$pick_u[0] = $resources['unit_1'] / 200;
+					$pick_u[0] = $resources['unit_1'] / 450;
 			}
-			if($tradecenter['unit_2'] < 200)
+			if($tradecenter['unit_2'] < 450)
 			{
 				if($resources['unit_2'] > 500)
-					$pick_u[1] = $resources['unit_2'] / 200;
+					$pick_u[1] = $resources['unit_2'] / 450;
 			}
-			if($tradecenter['unit_3'] < 200)
+			if($tradecenter['unit_3'] < 450)
 			{
 				if($resources['unit_3'] > 500)
-					$pick_u[2] = $resources['unit_3'] / 200;
+					$pick_u[2] = $resources['unit_3'] / 450;
 			}
-			if($tradecenter['unit_4'] < 100)
+			if($tradecenter['unit_4'] < 200)
 			{
 				if($resources['unit_4'] > 500)
-					$pick_u[3] = $resources['unit_4'] / 100;
+					$pick_u[3] = $resources['unit_4'] / 200;
 			}
-			if($tradecenter['unit_5'] < 100)
+			if($tradecenter['unit_5'] < 200)
 			{
 				if($resources['unit_5'] > 500)
-					$pick_u[4] = $resources['unit_5'] / 100;
+					$pick_u[4] = $resources['unit_5'] / 200;
 			}
-			if($tradecenter['unit_6'] < 100)
+			if($tradecenter['unit_6'] < 200)
 			{
 				if($resources['unit_6'] > 500)
-					$pick_u[5] = $resources['unit_6'] / 100;
+					$pick_u[5] = $resources['unit_6'] / 200;
 			}
 
 			$this->sdl->log('Add units: '.$pick_u[0].' -- '.$pick_u[1].' -- '.$pick_u[2].' -- '.$pick_u[3].' -- '.$pick_u[4].' -- '.$pick_u[5], TICK_LOG_FILE_NPC);
@@ -1152,7 +1152,7 @@ class Ferengi extends NPC
 					$pick_r[0] += $metal_cost;
 					$pick_r[1] += $mineral_cost;
 				}
-			}			
+			}
 			// Soldier lvl 3
 			if ($pick_u[2] > 0) {
 				$metal_cost     = ($pick_u[2]*650);
@@ -1167,7 +1167,7 @@ class Ferengi extends NPC
 					$pick_r[2] += $dilithium_cost;
 				}
 			}
-			// Coptains
+			// Captains
 			if ($pick_u[3] > 0) {
 				$metal_cost     = ($pick_u[3]*410);
 				$mineral_cost   = ($pick_u[3]*210);
