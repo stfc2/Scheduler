@@ -320,7 +320,7 @@ class Borg extends NPC
 				 * Assault drone: 7000
 				 * Elite drone: 5000
 				 * Commander drone: 1000
-				 */ 
+				 */
 				$reload++;
 				$sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
 				                                    component_1, component_2, component_3, component_4, component_5,
@@ -438,6 +438,8 @@ class Borg extends NPC
 				        INNER JOIN (starsystems s) ON s.system_id = p.system_id
 				        INNER JOIN (user u) ON u.user_id = p.planet_owner
 				        WHERE u.user_planets > '.BORG_MINATTACK.' AND
+				              u.user_vacation_end < '.$ACTUAL_TICK.' AND
+				              p.planet_owner <> '.$this->bot['id'].' AND
 				              CEIL(p.sector_id / 81) = '.$this->bot['attack_quadrant'];
 
 				$targets = $this->db->query($sql);
