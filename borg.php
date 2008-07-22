@@ -93,6 +93,11 @@ class Borg extends NPC
 				            `ship_template2` INT( 10 ) UNSIGNED NOT NULL DEFAULT  \'0\',
 				            `user_tick` INT( 10 ) NOT NULL ,
 				            `attack_quadrant` TINYINT( 3 ) UNSIGNED NOT NULL DEFAULT  \''.BORG_QUADRANT.'\',
+				            `attacked_user1` MEDIUMINT( 8 ) UNSIGNED NOT NULL ,
+				            `attacked_user2` MEDIUMINT( 8 ) UNSIGNED NOT NULL ,
+				            `attacked_user3` MEDIUMINT( 8 ) UNSIGNED NOT NULL ,
+				            `attacked_user4` MEDIUMINT( 8 ) UNSIGNED NOT NULL ,
+				            `last_attacked` MEDIUMINT( 8 ) UNSIGNED NOT NULL DEFAULT  \'0\',
 				            PRIMARY KEY (  `id` )
 				        ) ENGINE = MYISAM';
 
@@ -431,6 +436,20 @@ class Borg extends NPC
 
 				$unimtx0 = $this->db->queryrow($sql);
 
+				// Filter last four attacked users
+				$filter = '';
+				if($this->bot['last_attacked'] > 0 && $this->bot['last_attacked'] < 4)
+				{
+					$skip_id = array();
+					for($i = 0; $i < $this->bot['last_attacked']; ++$i) {
+						$skip_id[$i] = $this->bot['attacked_user'.($i+1)];
+					}
+					$filter = 'u.user_id NOT IN ('.implode(',', $skip_id).') AND';
+				}
+				// Reset attacked counter
+				else if($this->bot['last_attacked'] >= 4)
+					$this->bot['last_attacked'] = 0;
+
 				// Now select the target...
 				$sql = 'SELECT p.planet_id, s.system_global_x, s.system_global_y,
 				               u.user_points, u.user_id
@@ -440,7 +459,9 @@ class Borg extends NPC
 				        WHERE u.user_planets > '.BORG_MINATTACK.' AND
 				              u.user_vacation_end < '.$ACTUAL_TICK.' AND
 				              p.planet_owner <> '.$this->bot['id'].' AND
-				              CEIL(p.sector_id / 81) = '.$this->bot['attack_quadrant'];
+				              '.$filter.'
+				              CEIL(p.sector_id / 81) = '.$this->bot['attack_quadrant'].'
+				              ORDER BY p.planet_id ASC';
 
 				$targets = $this->db->query($sql);
 
@@ -482,7 +503,10 @@ class Borg extends NPC
 					if($this->bot['attack_quadrant'] > 4)
 						$this->bot['attack_quadrant'] = 1;
 
-					$sql = 'UPDATE borg_bot SET attack_quadrant = '.$this->bot['attack_quadrant'].'
+					$sql = 'UPDATE borg_bot SET
+					               attack_quadrant = '.$this->bot['attack_quadrant'].',
+					               attacked_user'.($this->bot['last_attacked']+1).' = '.$chosen_target['user_id'].',
+					               last_attacked = last_attacked + 1
 					        WHERE id="'.$this->bot['id'].'"';
 					if(!$this->db->query($sql))
 						$this->sdl->log('<b>Warning:</b> cannot update bot attack_quadrant!',
