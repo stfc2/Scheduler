@@ -518,13 +518,29 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
                     switch($this->move['language'])
                     {
                         case 'ITA':
-                            $log_title1 = 'Scout in arrivo presso '.$this->dest['planet_name'].' hanno eluso forze ostili';
+                            $log_title1 = 'Scout in arrivo presso '.$this->dest['planet_name'].' obbligati a tornare indietro da forze ostili in allarme rosso.';
                         break;
                         default:
-                            $log_title1 = 'Scout arrived at '.$this->dest['planet_name'].' avoided hostile forces';
+                            $log_title1 = 'Scout aproaching at '.$this->dest['planet_name'].' forced to get back by hostile forces';
                         break;
                     }
                     add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $log_title1, $log1_data);
+	    // DC --- Scouts evades AR Fleet and come back to home
+		    $this->flags['skip_action'] = true;
+		    $sql = 'INSERT INTO scheduler_shipmovement (user_id, move_status, move_exec_started, start, dest, total_distance, remaining_distance, tick_speed, move_begin, move_finish, n_ships, action_code)
+                    VALUES ('.$this->move['user_id'].', 0, 0, '.$this->move['dest'].', '.$this->move['start'].', '.$this->move['total_distance'].', '.$this->move['total_distance'].', '.$this->move['tick_speed'].', '.$this->CURRENT_TICK.', '.($this->CURRENT_TICK + ($this->move['move_finish'] - $this->move['move_begin'])).', '.$this->move['n_ships'].', 11)';
+		    if(!$this->db->query($sql)) {
+			return $this->log(MV_M_DATABASE, 'Could not create new movement for scout return! SKIP');
+		    }
+		    $new_move_id = $this->db->insert_id();
+		    if(!$new_move_id) {
+			return $this->log(MV_M_ERROR, 'Could not get new move id! SKIP');
+		    }
+		    $sql = 'UPDATE ship_fleets SET move_id = '.$new_move_id.' WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+		    if(!$this->db->query($sql)) {
+			return $this->log(MV_M_DATABASE, 'Could not update fleets movement data! SKIP');
+		    }
+	    // ----
                 }
             }
             //170408 DC ----
