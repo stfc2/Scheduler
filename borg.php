@@ -39,9 +39,9 @@ define (BORG_RACE,'6'); // Well, this one should be defined in global.php among 
 
 define (BORG_QUADRANT, 2); // Default Borg belong to Delta quadrant
 
-define (BORG_CYCLE, 480); // One attack each how many tick?
+define (BORG_CYCLE, 3360); // One attack each how many tick?
 
-define (BORG_CHANCE, 50); // Attack is not sistematic, leave a little chance
+define (BORG_CHANCE, 25); // Attack is not sistematic, leave a little chance
 
 define (BORG_MINATTACK, 10); // Attack only players with at least n planets
 
