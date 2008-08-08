@@ -393,68 +393,66 @@ if(!$q_shipyard = $db->query($sql)) {
 }
 else {
 
-	$bFirstTime = true;
-	$bShipyardFull = false;
+    $bShipyardFull = false;
     while($shipbuild = $db->fetchrow($q_shipyard)) {
-	    
-		if ($bFirstTime) {
-		   $sql = '
-		      SELECT COUNT(*) AS no_ships 
-		      FROM ships 
-			  WHERE fleet_id = -'.$shipbuild['planet_id'];
-           
-		   if(!$q_spacedock = $db->query($sql)) {
-             $sdl->log(' - <b>Warning:</b> Could not query spacedock number of ships! CONTINUED AND JUMP NEXT');
-			 continue;
-           }
-		   
-		   $spacedock = $db->fetchrow($q_spacedock);
-		   if ($spacedock['no_ships'] >= $MAX_SPACEDOCK_SHIPS[$shipbuild['building_7']]) {
-		      $bShipyardFull = true;
-           }
-		   $bFirstTime = false;
-		}
+
+        $sql = '
+          SELECT COUNT(*) AS no_ships 
+          FROM ships 
+          WHERE fleet_id = -'.$shipbuild['planet_id'];
+
+        if(!$q_spacedock = $db->query($sql)) {
+            $sdl->log(' - <b>Warning:</b> Could not query spacedock number of ships! CONTINUED AND JUMP NEXT');
+            continue;
+        }
+
+        $spacedock = $db->fetchrow($q_spacedock);
+        if ($spacedock['no_ships'] >= $MAX_SPACEDOCK_SHIPS[$shipbuild['building_7']]) {
+            $bShipyardFull = true;
+        }
+        else
+            $bShipyardFull = false;
 
         if ($bShipyardFull) {
-		   $sql = '
-		      UPDATE scheduler_shipbuild
-			  SET start_build = start_build + 1,
-                  finish_build = finish_build + 1
-              WHERE planet_id = '.$shipbuild['planet_id'].'
-			    AND finish_build > '.$ACTUAL_TICK;
-				
-		   if(!$db->query($sql)) {
-              $sdl->log(' - <b>Warning:</b> Could not update start and finish scheduler! CONTINUED!');
-			  continue;
-           }
-			
-		} else {
-			
-           if(empty($shipbuild['template_id'])) {
-               $sdl->log(' - <b>Warning:</b> Could not find template '.$shipbuild['template_id'].'! CONTINUED AND JUMP TO NEXT');
-               continue;
-           }
+            $sql = '
+                UPDATE scheduler_shipbuild
+                SET start_build = start_build + 1,
+                    finish_build = finish_build + 1
+                WHERE planet_id = '.$shipbuild['planet_id'].'
+                  AND finish_build > '.$ACTUAL_TICK;
 
-           $sql = 'DELETE FROM scheduler_shipbuild
-                   WHERE planet_id = '.$shipbuild['planet_id'].' AND
-                         finish_build = '.$shipbuild['finish_build'].'
-                   LIMIT 1';
+            if(!$db->query($sql)) {
+                $sdl->log(' - <b>Warning:</b> Could not update start and finish scheduler! CONTINUED!');
+                continue;
+            }
 
-           if(!$db->query($sql)) {
-               $sdl->log(' - <b>Warning:</b> Could not delete shipbuild data on planet '.$shipbuild['planet_id'].' ending in tick '.$shipbuild['finish_build'].'! CONTINUED AND JUMP TO NEXT');
-               continue;
-           }
+        } else {
 
-           $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
-                   VALUES (-'.$shipbuild['planet_id'].', '.$shipbuild['user_id'].', '.$shipbuild['ship_type'].', '.$shipbuild['template_value_9'].', '.$shipbuild['template_value_5'].', '.$game->TIME.', '.$shipbuild['unit_1'].', '.$shipbuild['unit_2'].', '.$shipbuild['unit_3'].', '.$shipbuild['unit_4'].')';
+            if(empty($shipbuild['template_id'])) {
+                $sdl->log(' - <b>Warning:</b> Could not find template '.$shipbuild['template_id'].'! CONTINUED AND JUMP TO NEXT');
+                continue;
+            }
 
-           if(!$db->query($sql)) {
-            $sdl->log(' - <b>Warning:</b> Could not insert new ship data! CONTINUED AND JUMP TO NEXT');
-            continue;
-           }
-           $sdl->log('<b>Added Ship from Yard to Dock:</b> Planet #'.$shipbuild['planet_id'].' for User #'.$shipbuild['user_id'].' with Template #'.$shipbuild['ship_type'].' - <b>SUCCESS!</b>');
-       }
-	}
+            $sql = 'DELETE FROM scheduler_shipbuild
+                    WHERE planet_id = '.$shipbuild['planet_id'].' AND
+                          finish_build = '.$shipbuild['finish_build'].'
+                    LIMIT 1';
+
+            if(!$db->query($sql)) {
+                $sdl->log(' - <b>Warning:</b> Could not delete shipbuild data on planet '.$shipbuild['planet_id'].' ending in tick '.$shipbuild['finish_build'].'! CONTINUED AND JUMP TO NEXT');
+                continue;
+            }
+
+            $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
+                    VALUES (-'.$shipbuild['planet_id'].', '.$shipbuild['user_id'].', '.$shipbuild['ship_type'].', '.$shipbuild['template_value_9'].', '.$shipbuild['template_value_5'].', '.$game->TIME.', '.$shipbuild['unit_1'].', '.$shipbuild['unit_2'].', '.$shipbuild['unit_3'].', '.$shipbuild['unit_4'].')';
+
+            if(!$db->query($sql)) {
+                $sdl->log(' - <b>Warning:</b> Could not insert new ship data! CONTINUED AND JUMP TO NEXT');
+                continue;
+            }
+            $sdl->log('<b>Added Ship from Yard to Dock:</b> Planet #'.$shipbuild['planet_id'].' for User #'.$shipbuild['user_id'].' with Template #'.$shipbuild['ship_type'].' - <b>SUCCESS!</b>');
+        }
+    }
 }
 
 $sdl->finish_job('Shipyard Scheduler');
