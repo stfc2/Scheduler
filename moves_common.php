@@ -527,8 +527,15 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
                     add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $log_title1, $log1_data);
 	    // DC --- Scouts evades AR Fleet and come back to home
 		    $this->flags['skip_action'] = true;
+		
 		    $sql = 'INSERT INTO scheduler_shipmovement (user_id, move_status, move_exec_started, start, dest, total_distance, remaining_distance, tick_speed, move_begin, move_finish, n_ships, action_code)
-                    VALUES ('.$this->move['user_id'].', 0, 0, '.$this->move['dest'].', '.$this->move['start'].', '.$this->move['total_distance'].', '.$this->move['total_distance'].', '.$this->move['tick_speed'].', '.$this->CURRENT_TICK.', '.($this->CURRENT_TICK + ($this->move['move_finish'] - $this->move['move_begin'])).', '.$this->move['n_ships'].', 11)';
+                    VALUES ('.$this->move['user_id'].', 0, 0, '.$this->move['dest'].', '
+			     .$this->move['start'].', '
+			     .$this->move['total_distance'].', '
+			     .$this->move['total_distance'].', '
+			     .$this->move['tick_speed'].', '
+			     .$this->CURRENT_TICK.', '.(CURRENT_TICK + ( (CURRENT_TICK + 1) - $this->move['move_begin'] ) ).', '.$this->move['n_ships'].', 11)';
+			     
 		    if(!$this->db->query($sql)) {
 			return $this->log(MV_M_DATABASE, 'Could not create new movement for scout return! SKIP');
 		    }
@@ -558,43 +565,50 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
             if($this->_action_main() != MV_EXEC_OK) {
                 return $this->log(MV_M_ERROR, 'Could not exec successfully _action_main()! SKIP');
             }
-        }
-
-	// DC ---- Here we go, first steps into "Fog of War"
-	// DC  We never have been here before?
-	// DC  500 = I was already here 
-	$sql = 'SELECT COUNT(*) AS been_there FROM planet_details'
+	    else {
+	    
+		// DC ---- Here we go, first steps into "Fog of War"
+		// DC  We never have been here before?
+		// DC  500 = I was already here 
+		$sql = 'SELECT COUNT(*) AS been_there FROM planet_details'
 		.' WHERE planet_id = '.$this->dest['planet_id']
 		.' AND log_code = 500'
 		.' AND user_id = '.$this->move['user_id'];
-	if(!$_flag = $this->db->queryrow($sql)) $this->log(MV_M_DATABASE, 'Could not query planet details db! SKIP!');
-	if($_flag['been_there'] < 1) {
-	// DC ---- Ok, we never have been here before
-	// DC First, let's mark this planet as a know one
-		$sql = 'INSERT INTO planet_details (planet_id, system_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
-			. ' VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.time().', 500)';
-		if(!$this->db->query($sql)) $this->log(MV_M_DATABASE, 'Could not update planet details db! SKIP!');
-	// DC Now, if the planet is unsettled...
-		if(empty($this->dest['user_id'])) {
-	// DC Maybe we did boldly go where nobody has boldly gone before?
-			$sql = 'SELECT COUNT(*) AS first_here FROM planet_details WHERE planet_id = '.$this->dest['planet_id'].' AND log_code = 1';
-			if(!$_flag = $this->db->queryrow($sql)) $this->log(MV_M_DATABASE, 'Could not query planet details db! SKIP!');
-			if($_flag['first_here'] == 0) {
-	// DC Yeah, we made it!
-				$sql = 'INSERT INTO planet_details (planet_id, system_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
-					. 'VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.time().', 1)';		
-				if(!$this->db->query($sql)) $this->log(MV_M_DATABASE, 'Could not update planet details db! SKIP!');
-			}
-			else {
-	// DC Bad luck, we are seconds...
-				$sql = 'INSERT INTO planet_details (planet_id, system_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
-					. 'VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.time().', 2)';		
-				if(!$this->db->query($sql)) $this->log(MV_M_DATABASE, 'Could not update planet details db! SKIP!');
+		if(!$_flag = $this->db->queryrow($sql)) $this->log(MV_M_DATABASE, 'Could not query planet details db! SKIP!');
+		if($_flag['been_there'] < 1) {
+		// DC ---- Ok, we never have been here before
+		// DC First, let's mark this planet as a know one
+			$sql = 'INSERT INTO planet_details (planet_id, system_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
+				. ' VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.time().', 500)';
+			if(!$this->db->query($sql)) $this->log(MV_M_DATABASE, 'Could not update planet details db! SKIP!');
+		// DC Now, if the planet is unsettled...
+			if(empty($this->dest['user_id'])) {
+		// DC Maybe we did boldly go where nobody has boldly gone before?
+				$sql = 'SELECT COUNT(*) AS first_here FROM planet_details WHERE planet_id = '.$this->dest['planet_id'].' AND log_code = 1';
+				if(!$_flag = $this->db->queryrow($sql)) $this->log(MV_M_DATABASE, 'Could not query planet details db! SKIP!');
+				if($_flag['first_here'] == 0) {
+		// DC Yeah, we made it!
+					$sql = 'INSERT INTO planet_details (planet_id, system_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
+						. 'VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.time().', 1)';		
+					if(!$this->db->query($sql)) $this->log(MV_M_DATABASE, 'Could not update planet details db! SKIP!');
+				}
+				else {
+		// DC Bad luck, we are seconds...
+					$sql = 'INSERT INTO planet_details (planet_id, system_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
+						. 'VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.time().', 2)';		
+					if(!$this->db->query($sql)) $this->log(MV_M_DATABASE, 'Could not update planet details db! SKIP!');
+				}
 			}
 		}
-	}
 	
-	// DC ----
+		// DC ----
+	    
+	    }
+	    
+        }
+
+	
+	
 
         // #############################################################################
         // Clean-Up
