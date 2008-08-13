@@ -40,7 +40,9 @@ class moves_action_22 extends moves_common {
 
                        SUM(st.value_11) AS sum_sensors,
 
-                       SUM(st.value_12) AS sum_cloak
+                       SUM(st.value_12) AS sum_cloak,
+		       
+		       AVG(st.value_9) AS scoutxp
 
                 FROM (ship_fleets f)
 
@@ -86,7 +88,7 @@ class moves_action_22 extends moves_common {
 
 
 
-        $spy_result = Spy($spy_fleet['sum_sensors'], $spy_fleet['sum_cloak'], $spy_fleet['n_ships'], $dest_planet['sum_sensors'], $this->dest['building_7']);
+        $spy_result = Spy($spy_fleet['sum_sensors'], $spy_fleet['sum_cloak'], $spy_fleet['n_ships'], $dest_planet['sum_sensors'], $this->dest['building_7'], $spy_fleet['scoutxp']);
 
 
 
@@ -137,6 +139,22 @@ class moves_action_22 extends moves_common {
         }
 
         else {
+
+//	Calcolo dell'exp guadagnata
+
+	    $difficult_rate = $dest_planet['sum_sensors'] + ($this->dest['building_7'] +1)*200;
+	    
+	    $exp = ((float)$difficult_rate/266)+5.0;
+	    
+	    $sql = 'UPDATE ships SET experience = experience+'.$exp.' WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+	    
+	    $this->log(MV_M_NOTICE, 'SQL UPDATE EXP: '.$sql);
+	    
+	    if(!$this->db->query($sql)) {
+                $this->log(MV_M_DATABASE, 'Could not update fleet EXP! CONTINUE');
+            }
+	    
+	    
 
             $sql = 'INSERT INTO scheduler_shipmovement (user_id, move_status, move_exec_started, start, dest, total_distance, remaining_distance, tick_speed, move_begin, move_finish, n_ships, action_code, action_data)
 
