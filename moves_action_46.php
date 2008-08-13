@@ -486,6 +486,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
         if(!$this->db->query($sql)) {
             return $this->log(MV_M_DATABASE, 'Could not update planets data! SKIP');
         }
+	
 
 // DC ---- Historycal record in planet_details, with label '29'
         $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code, defeat_uid, defeat_aid)
@@ -495,6 +496,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             $this->log(MV_M_DATABASE, 'Could not update planet details data! CONTINUE');
         }
 // DC ----
+
 
         if(!$this->db->query('SET @i=0')) {
             return $this->log(MV_M_DATABASE, 'Could not set sql iterator variable for planet owner enum (the invading player)! SKIP');
