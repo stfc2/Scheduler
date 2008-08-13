@@ -967,7 +967,7 @@ return $planet;
 
 
 
-function Spy($spy_sensor,$spy_cloak,$spy_ships,$planet_sensor,$spacedock_lvl)
+function Spy($spy_sensor,$spy_cloak,$spy_ships,$planet_sensor,$spacedock_lvl, $scoutxp)
 {
 
 $cloak=(($spy_sensor/$spy_ships)*5+($spy_cloak/$spy_ships)*125)*10;
@@ -984,9 +984,11 @@ if ($sensor<=0) $sensor=1;
 
 $chance_identify=round(100*($sensor/$cloak));
 
-if ($chance_identify<5) $chance_identify=5;
+$threshold = 76 - pow($scoutxp, 0.65);
 
-if ($chance_identify>70) $chance_identify=70;	
+if ($chance_identify < 5) $chance_identify = 5;
+
+if ($chance_identify > $threshold) $chance_identify = $threshold;	
 
 $rval=rand(0,100);
 
