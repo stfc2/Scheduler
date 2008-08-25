@@ -458,7 +458,7 @@ class Borg extends NPC
 				        INNER JOIN (user u) ON u.user_id = p.planet_owner
 				        WHERE u.user_planets > '.BORG_MINATTACK.' AND
 				              u.user_vacation_end < '.$ACTUAL_TICK.' AND
-				              p.planet_owner <> '.$this->bot['id'].' AND
+				              p.planet_owner <> '.$this->bot['user_id'].' AND
 				              '.$filter.'
 				              CEIL(p.sector_id / 81) = '.$this->bot['attack_quadrant'].'
 				              ORDER BY p.planet_id ASC';
