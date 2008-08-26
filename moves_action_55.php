@@ -667,13 +667,25 @@ $this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_u
                 return $this->log(MV_M_DATABASE, 'Could not update planets data! SKIP');
             }
 
-// DC ---- Historycal record in planet_details, with label '26'
+// DC ---- History record in planet_details, with label '26'
             $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code, defeat_uid, defeat_aid)
                     VALUES ('.$this->move['dest'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.time().', 26,'.$this->dest['user_id'].', '.$this->dest['user_alliance'].')';
 
             if(!$this->db->query($sql)) {
                 $this->log(MV_M_DATABASE, 'Could not update planet details data! CONTINUE');
             }
+	    
+	    // If the attack was on a settlers planet, we get rid of the moods data!
+    
+	    if($this->flags['is_indipendent']) {
+		$this->log(MV_M_NOTICE, 'Colony: Settlers taken over!!! They gonna be no more...');
+	
+		$sql = 'DELETE planet_details WHERE planet_id = '.$this->dest['planet_id'].' AND log_code = 300';
+	
+		if(!$this->db->query($sql)) {
+			$this->log(MV_M_DATABASE, 'Could not delete settlers moods! CONTINUE!');   
+		}
+	    }
 // DC ----
 
         $this->log('Update Planetdata', 'Limited resources');

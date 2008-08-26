@@ -374,6 +374,19 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                 break;
             }
 
+	    // If the attack was on a settlers planet, they will get a little mad!
+    
+	    if($this->flags['is_indipendent']) {
+		$this->log(MV_M_NOTICE, 'Colony: Settlers being attacked!!! They gonna be mad!');
+	
+		$sql = 'UPDATE planet_details SET mood_race'.$cur_user['user_race'].' = mood_race'.$cur_user['user_race'].' - 30 
+		        WHERE planet_id = '.$this->dest['planet_id'].' AND log_code = 300';
+	
+	        if(!$this->db->query($sql)) {
+			$this->log(MV_M_DATABASE, 'Could not update settlers moods! CONTINUE!');   
+		}
+	    }
+
             $this->flags['keep_move_alive'] = true;
         }
     }

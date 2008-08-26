@@ -83,7 +83,8 @@ class moves_common {
         'skip_action' => false,
         'keep_move_alive' => false,
 
-        'combat_happened' => false
+        'combat_happened' => false,
+	'is_indipendent' => false
     );
 
     var $action_data = array();
@@ -354,6 +355,7 @@ class moves_common {
             }
 
             settype($this->dest['user_id'], 'int');
+	    $this->flags['is_indipendent'] = ($this->dest['user_id'] == INDEPENDENT_USERID);
 
 
             // #############################################################################
