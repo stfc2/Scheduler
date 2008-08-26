@@ -23,14 +23,14 @@
 // include game definitions, path url and so on
 include('config.script.php');
 
-include($game_path . 'game/include/sql.php');
-include($game_path . 'game/include/libs/maps.php');
-include($game_path . 'game/include/global.php');
-include($game_path . 'game/include/functions.php');
-include($game_path . 'game/include/text_races.php');
-include($game_path . 'game/include/race_data.php');
-include($game_path . 'game/include/ship_data.php');
-include($game_path . 'game/include/libs/moves.php');
+include($game_path . 'include/sql.php');
+include($game_path . 'include/libs/maps.php');
+include($game_path . 'include/global.php');
+include($game_path . 'include/functions.php');
+include($game_path . 'include/text_races.php');
+include($game_path . 'include/race_data.php');
+include($game_path . 'include/ship_data.php');
+include($game_path . 'include/libs/moves.php');
 
 $db = new sql($config['server'].":".$config['port'], $config['game_database'], $config['user'], $config['password']); // create sql-object for db-connection
 $game = new game();
@@ -40,9 +40,9 @@ $maps = new maps();
 $maps->create_galaxy_detail_map();
 
 $destimg=ImageCreateTrueColor(150,150) or die("Problem In Creating image");
-$srcimg=ImageCreateFromPNG($game_path . 'game/maps/images/galaxy_detail.png') or die("Problem In opening Source Image");
+$srcimg=ImageCreateFromPNG($game_path . 'maps/images/galaxy_detail.png') or die("Problem In opening Source Image");
 ImageCopyResampled($destimg,$srcimg,0,0,0,0,150,159,ImageSX($srcimg),ImageSY($srcimg)) or die("Problem In resizing");
-imagepng ($destimg,$game_path . 'game/maps/images/galaxy_detail_small.png');
+imagepng ($destimg,$game_path . 'maps/images/galaxy_detail_small.png');
 imagedestroy($destimg);
 imagedestroy($srcimg);
 

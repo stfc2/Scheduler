@@ -36,7 +36,7 @@ if(!empty($_SERVER['SERVER_SOFTWARE'])) {
     echo 'The scheduler can only be called by CLI!'; exit;
 }
 
-define('TICK_LOG_FILE', $game_path . 'game/logs/tick_'.date('d-m-Y', time()).'.log');
+define('TICK_LOG_FILE', $game_path . 'logs/tick_'.date('d-m-Y', time()).'.log');
 define('IN_SCHEDULER', true); // we are in the scheduler...
 
 // include commons classes and functions
@@ -49,13 +49,13 @@ include('commons.php');
 
 $starttime = ( microtime() + time() );
 
-include($game_path . 'game/include/global.php');
-include($game_path . 'game/include/functions.php');
-include($game_path . 'game/include/text_races.php');
-include($game_path . 'game/include/race_data.php');
-include($game_path . 'game/include/ship_data.php');
-include($game_path . 'game/include/libs/moves.php');
-include($game_path . 'game/include/libs/world.php'); // Needed by NPC BOT
+include($game_path . 'include/global.php');
+include($game_path . 'include/functions.php');
+include($game_path . 'include/text_races.php');
+include($game_path . 'include/race_data.php');
+include($game_path . 'include/ship_data.php');
+include($game_path . 'include/libs/moves.php');
+include($game_path . 'include/libs/world.php'); // Needed by NPC BOT
 
 $sdl = new scheduler();
 $db = new sql($config['server'].":".$config['port'], $config['game_database'], $config['user'], $config['password']); // create sql-object for db-connection
@@ -563,8 +563,8 @@ $sdl->finish_job('Resourcetrade Scheduler');
 // ########################################################################################
 //BOT
 ini_set('memory_limit', '500M');
-define('FILE_PATH_hg',$game_path.'game/');
-define('TICK_LOG_FILE_NPC', $game_path.'game/logs/NPC_BOT_tick_'.date('d-m-Y', time()).'.log');
+define('FILE_PATH_hg',$game_path);
+define('TICK_LOG_FILE_NPC', $game_path.'logs/NPC_BOT_tick_'.date('d-m-Y', time()).'.log');
 include('NPC_BOT.php');
 include('ferengi.php');
 include('borg.php');

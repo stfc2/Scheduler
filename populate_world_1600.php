@@ -25,10 +25,10 @@ include('config.script.php');
 
 $PLANETS_PER_QUADRANT = 125;
 
-include($game_path . 'game/include/sql.php');
-include($game_path . 'game/include/global.php');
-include($game_path . 'game/include/functions.php');
-include($game_path . 'game/include/libs/world.php');
+include($game_path . 'include/sql.php');
+include($game_path . 'include/global.php');
+include($game_path . 'include/functions.php');
+include($game_path . 'include/libs/world.php');
 
 $game = new game();
 $db = new sql($config['server'].":".$config['port'], $config['game_database'], $config['user'], $config['password']); // create sql-object for db-connection

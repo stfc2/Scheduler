@@ -35,7 +35,7 @@ if(!empty($_SERVER['SERVER_SOFTWARE'])) {
     echo 'The scheduler can only be called by CLI!'; exit;
 }
 
-define('TICK_LOG_FILE', $game_path . 'game/logs/moves_tick_'.date('d-m-Y', time()).'.log');
+define('TICK_LOG_FILE', $game_path . 'logs/moves_tick_'.date('d-m-Y', time()).'.log');
 define('IN_SCHEDULER', true); // wir sind im scheduler...
 
 // include commons classes and functions
@@ -48,13 +48,13 @@ include('commons.php');
 
 $starttime = ( microtime() + time() );
 
-//include($game_path . 'game/include/sql.php');
-include($game_path . 'game/include/global.php');
-include($game_path . 'game/include/functions.php');
-include($game_path . 'game/include/text_races.php');
-include($game_path . 'game/include/race_data.php');
-include($game_path . 'game/include/ship_data.php');
-include($game_path . 'game/include/libs/moves.php');
+//include($game_path . '/include/sql.php');
+include($game_path . 'include/global.php');
+include($game_path . 'include/functions.php');
+include($game_path . 'include/text_races.php');
+include($game_path . 'include/race_data.php');
+include($game_path . 'include/ship_data.php');
+include($game_path . 'include/libs/moves.php');
 
 $sdl = new scheduler();
 $db = new sql($config['server'].":".$config['port'], $config['game_database'], $config['user'], $config['password']); // create sql-object for db-connection

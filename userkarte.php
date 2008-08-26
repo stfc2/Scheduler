@@ -26,9 +26,9 @@ include('config.script.php');
 error_reporting(E_ERROR);
 ini_set('memory_limit', '200M');
 
-include($game_path . 'game/include/sql.php');
-include($game_path . 'game/include/global.php');
-include($game_path . 'game/include/functions.php');
+include($game_path . 'include/sql.php');
+include($game_path . 'include/global.php');
+include($game_path . 'include/functions.php');
 
 // create sql-object for db-connection
 $db = new sql($config['server'].":".$config['port'], $config['game_database'], $config['user'], $config['password']); // create sql-object for db-connection

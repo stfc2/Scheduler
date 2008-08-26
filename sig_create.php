@@ -36,13 +36,13 @@ if(!empty($_SERVER['SERVER_SOFTWARE'])) {
 
 
 // include global definitions + functions + game-class + player-class
-include($game_path . 'game/include/global.php');
-include($game_path . 'game/include/sql.php');
+include($game_path . 'include/global.php');
+include($game_path . 'include/sql.php');
 // create sql-object for db-connection
 $db = new sql($config['server'].":".$config['port'], $config['game_database'], $config['user'], $config['password']); // create sql-object for db-connection
 
 
-exec('cd '.$game_path.'game/sig_tmp/; rm -f *.jpg');
+exec('cd '.$game_path.'sig_tmp/; rm -f *.jpg');
 
 $rank_honor = array();
 $rank_honor[0]=0;
@@ -76,14 +76,14 @@ while (($player_data=$db->fetchrow($userqry))==true)
 	if ($player_data['user_honor']>=$rank_honor[8]) $rank_nr=9;
 	if ($player_data['user_honor']>=$rank_honor[9]) $rank_nr=10;
 
-	$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/sig_tpl.jpg");
+	$image = ImageCreateFromJPEG($game_path . "sig_gfx/sig_tpl.jpg");
 
 	if ($player_data['user_race']==0)
 	{
 		switch($player_data['language'])
 		{
 			case 'GER':
-				$user_race='Fˆderation';
+				$user_race='F√∂deration';
 			break;
 			case 'ENG':
 				$user_race='Federation';
@@ -92,7 +92,7 @@ while (($player_data=$db->fetchrow($userqry))==true)
 				$user_race='Federazione';
 			break;
 		}
-		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/foederation.jpg");
+		$image = ImageCreateFromJPEG($game_path . "sig_gfx/foederation.jpg");
 	}
 	if ($player_data['user_race']==1)
 	{
@@ -108,7 +108,7 @@ while (($player_data=$db->fetchrow($userqry))==true)
 				$user_race='Romulani';
 			break;
 		}
-		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/romulaner.jpg");
+		$image = ImageCreateFromJPEG($game_path . "sig_gfx/romulaner.jpg");
 	}
 	if ($player_data['user_race']==2)
 	{
@@ -124,7 +124,7 @@ while (($player_data=$db->fetchrow($userqry))==true)
 				$user_race='Klingon';
 			break;
 		}
-		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/klingonen.jpg");
+		$image = ImageCreateFromJPEG($game_path . "sig_gfx/klingonen.jpg");
 	}
 	if ($player_data['user_race']==3)
 	{
@@ -140,7 +140,7 @@ while (($player_data=$db->fetchrow($userqry))==true)
 				$user_race='Cardassiani';
 			break;
 		}
-		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/cardassia.jpg");
+		$image = ImageCreateFromJPEG($game_path . "sig_gfx/cardassia.jpg");
 	}
 	if ($player_data['user_race']==4)
 	{
@@ -156,17 +156,17 @@ while (($player_data=$db->fetchrow($userqry))==true)
 				$user_race='Dominio';
 			break;
 		}
-		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/dominion.jpg");
+		$image = ImageCreateFromJPEG($game_path . "sig_gfx/dominion.jpg");
 	}
 	if ($player_data['user_race']==5)
 	{
 		$user_race='Ferengi';
-		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/ferengi.jpg");
+		$image = ImageCreateFromJPEG($game_path . "sig_gfx/ferengi.jpg");
 	}
 	if ($player_data['user_race']==8)
 	{
 		$user_race='Breen';
-		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/breen.jpg");
+		$image = ImageCreateFromJPEG($game_path . "sig_gfx/breen.jpg");
 	}
 	if ($player_data['user_race']==9)
 	{
@@ -182,17 +182,17 @@ while (($player_data=$db->fetchrow($userqry))==true)
 				$user_race='Hirogeni';
 			break;
 		}
-		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/hirogen.jpg");
+		$image = ImageCreateFromJPEG($game_path . "sig_gfx/hirogen.jpg");
 	}
 	if ($player_data['user_race']==10)
 	{
 		$user_race='Krenim';
-		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/krenim.jpg");
+		$image = ImageCreateFromJPEG($game_path . "sig_gfx/krenim.jpg");
 	}
 	if ($player_data['user_race']==11)
 	{
 		$user_race='Kazon';
-		$image = ImageCreateFromJPEG($game_path . "game/sig_gfx/kazon.jpg");
+		$image = ImageCreateFromJPEG($game_path . "sig_gfx/kazon.jpg");
 	}
 
 
@@ -222,8 +222,8 @@ while (($player_data=$db->fetchrow($userqry))==true)
 	}
 
 
-	//$image = ImageCreateFromJPEG($game_path."game/sig_gfx/sig_tpl.jpg");
-	//$image_rank = ImageCreateFromJPEG($game_path . 'game/sig_gfx/rank_'.$rank_nr.'.jpg');
+	//$image = ImageCreateFromJPEG($game_path."sig_gfx/sig_tpl.jpg");
+	//$image_rank = ImageCreateFromJPEG($game_path . 'sig_gfx/rank_'.$rank_nr.'.jpg');
 	$color_1=imagecolorallocate($image,255,240,70);
 	$color_2=imagecolorallocate($image,150,140,30);
 	$color_3=imagecolorallocate($image,255,255,255);
@@ -231,7 +231,7 @@ while (($player_data=$db->fetchrow($userqry))==true)
 	//imagestring ($image, 4,2,2,'Herrscher:', $color_1);
 	//imagestring ($image, 5,2,1,$player_data['user_name'].' ('.$player_data['user_rank_points'].'.)', $color_2);
 	imagestring ($image, 5,3,2,$player_data['user_name'].' ('.$player_data['user_rank_points'].'.)', $color_1);
-	//imagestring ($image, 5,120,1,'Pr‰sident', $color_1);
+	//imagestring ($image, 5,120,1,'Pr√§sident', $color_1);
 	imageline($image,0,19,195,19,$color_1);
 	imagestring ($image, 3,2,25,$str_ally.$player_data['alliance_name'], $color_1);
 	imagestring ($image, 3,2,35,$str_points.$player_data['user_points'], $color_1);
@@ -239,11 +239,11 @@ while (($player_data=$db->fetchrow($userqry))==true)
 	//ImageCopyResized($image,$image_rank,300,30,0,0,110,24,ImageSX($image_rank),ImageSY($image_rank));
 	imagestring ($image, 3,120,35,$str_honor.$player_data['user_honor'], $color_1);
 	imagestring ($image, 3,120,45,$str_race.$user_race, $color_1);
-	//imagestring ($image, 3,270,45,'Pr‰sident', $color_1);
+	//imagestring ($image, 3,270,45,'Pr√§sident', $color_1);
 	//imagestring ($image, 2,405,46,$game_url, $color_1);
 	imagestring ($image, 2,320,46,$game_url, $color_1);
-	//imagejpeg($image,$game_path . 'game/sig_tmp/'.strtolower($player_data['user_name']).'.jpg',60);
-	imagejpeg($image,$game_path . 'game/sig_tmp/'.strtolower($player_data['user_name']).'.jpg',75); // Increase a bit the quality
+	//imagejpeg($image,$game_path . 'sig_tmp/'.strtolower($player_data['user_name']).'.jpg',60);
+	imagejpeg($image,$game_path . 'sig_tmp/'.strtolower($player_data['user_name']).'.jpg',75); // Increase a bit the quality
 }
 
 
