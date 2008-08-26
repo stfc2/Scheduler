@@ -223,69 +223,95 @@ if ($MAX_RESEARCH_LVL[$capital][$t]>=9) $db->query('UPDATE planets SET research_
 $sdl->finish_job('Buildings / Research level fix');
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 $sdl->start_job('Rioters planets take over by the settlers');
 
-  $sql = 'UPDATE planets
-                    SET planet_owner='.INDEPENDENT_USERID.',
-                        planet_owned_date = '.time().',
-                        resource_1 = 10000,
-                        resource_2 = 10000,
-                        resource_3 = 10000,
-                        resource_4 = '.mt_rand(0, 5000).',
-                        recompute_static = 1, 
-                        building_1 = '.mt_rand(0, 9).',
-                        building_2 = '.mt_rand(0, 9).',
-                        building_3 = '.mt_rand(0, 9).',
-                        building_4 = '.mt_rand(0, 9).',
-                        building_5 = '.mt_rand(0, 9).',
-                        building_6 = '.mt_rand(0, 9).',
-                        building_7 = '.mt_rand(0, 9).',
-                        building_8 = '.mt_rand(0, 9).',
-                        building_10 = '.mt_rand(5, 15).',
-                        building_11 = '.mt_rand(0, 9).',
-                        building_13 = '.mt_rand(0, 10).',
-                        unit_1 = '.mt_rand(500, 1500).',
-                        unit_2 = '.mt_rand(500, 1000).',
-                        unit_3 = '.mt_rand(0, 500).',
-                        unit_4 = 0,
-                        unit_5 = 0,
-                        unit_6 = 0,
-                        workermine_1 = 100,
-                        workermine_2 = 100,
-                        workermine_3 = 100,
-                        catresearch_1 = 0,
-                        catresearch_2 = 0,
-                        catresearch_3 = 0,
-                        catresearch_4 = 0,
-                        catresearch_5 = 0,
-                        catresearch_6 = 0,
-                        catresearch_7 = 0,
-                        catresearch_8 = 0,
-                        catresearch_9 = 0,
-                        catresearch_10 = 0,
-                        unittrain_actual = 0,
-                        unittrainid_nexttime=0,
-                        building_queue=0,
-                        planet_surrender=0
-            WHERE ( planet_surrender < '.$ACTUAL_TICK.' AND planet_surrender > 0 )';
+  $sql = 'SELECT * FROM planets WHERE ( planet_surrender < '.$ACTUAL_TICK.' AND planet_surrender > 0 )';
 
-  $sdl->log($sql);
+  if(($query_s_p = $db->query($sql)) === false) {
+	message(DATABASE_ERROR, 'Could not query surrending plantes');
+  }
+  
+  while($surrending_planets = $db->fetchrow($query_s_p)) {
+  
+	$sql = 'UPDATE planets
+		SET planet_owner='.INDEPENDENT_USERID.',
+	        planet_owned_date = '.time().',
+                resource_1 = 10000,
+                resource_2 = 10000,
+                resource_3 = 10000,
+                resource_4 = '.mt_rand(0, 5000).',
+                recompute_static = 1, 
+                building_1 = '.mt_rand(0, 9).',
+                building_2 = '.mt_rand(0, 9).',
+                building_3 = '.mt_rand(0, 9).',
+                building_4 = '.mt_rand(0, 9).',
+                building_5 = '.mt_rand(0, 9).',
+                building_6 = '.mt_rand(0, 9).',
+                building_7 = '.mt_rand(0, 9).',
+                building_8 = '.mt_rand(0, 9).',
+                building_10 = '.mt_rand(5, 15).',
+                building_11 = '.mt_rand(0, 9).',
+                building_13 = '.mt_rand(0, 10).',
+                unit_1 = '.mt_rand(500, 1500).',
+                unit_2 = '.mt_rand(500, 1000).',
+                unit_3 = '.mt_rand(0, 500).',
+                unit_4 = 0,
+                unit_5 = 0,
+                unit_6 = 0,
+                workermine_1 = 100,
+                workermine_2 = 100,
+                workermine_3 = 100,
+                catresearch_1 = 0,
+                catresearch_2 = 0,
+                catresearch_3 = 0,
+                catresearch_4 = 0,
+                catresearch_5 = 0,
+                catresearch_6 = 0,
+                catresearch_7 = 0,
+                catresearch_8 = 0,
+                catresearch_9 = 0,
+                catresearch_10 = 0,
+                unittrain_actual = 0,
+                unittrainid_nexttime=0,
+                building_queue=0,
+                planet_surrender=0
+		WHERE planet_id = '.$surrending_planets['planet_id'];
+		
+	$sdl->log($sql);
 
-  if(!$db->query($sql)) {
-	message(DATABASE_ERROR, 'Could not delete switch user');
+	if(!$db->query($sql)) {
+		message(DATABASE_ERROR, 'Could not delete switch user');
+	}
+	
+// DC ---- History record in planet_details, with label '30'
+
+	$sql = 'SELECT user_race, user_alliance from user WHERE user_id = '.$surrending_planets['planet_owner'];
+	
+	$_temp = $db->queryrow($sql);
+	
+	$sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
+		.'VALUES ('.$surrending_planets['planet_id'].', '.$surrending_planets['planet_owner'].', '.( (isset($_temp['user_alliance'])) ? $_temp['user_alliance'] : 0).', '.$surrending_planets['planet_owner'].', '.( (isset($_temp['user_alliance'])) ? $_temp['user_alliance'] : 0).', '.time().', 30)';
+
+        if(!$db->query($sql)) {
+            $sdl->log('<b>Error:</b> Could not update planet details <b>'.$surrending_planets['planet_id'].'</b>! CONTINUED');	
+        }
+
+// DC ---- Colony mood record, vith label '300'
+
+	$sql = 'INSERT INTO planet_details (planet_id, user_id, timestamp, log_code) VALUES ('.$planet['planet_id'].', '.INDEPENDENT_USERID.', '.time().', 300)';
+	
+	if(!$db->query($sql)) {
+            $sdl->log('<b>Error:</b> Could not update planet details <b>'.$surrending_planets['planet_id'].'</b>! CONTINUED');	
+        }
+	
+	$sql = 'UPDATE planet_details SET mood_race'.$_temp['user_race'].' = mood_race'.$_temp['user_race'].' + 50 WHERE planet_id = '.$surrending_planets['planet_id'];
+	
+	$sdl->log('SQL UPDATE: '.$sql);
+	
+	if(!$db->query($sql)) {
+            $sdl->log('<b>Error:</b> Could not update planet details <b>'.$surrending_planets['planet_id'].'</b>! CONTINUED');	
+        }	
+		
   }
 
 $sdl->finish_job('Rioters planets take over by the settlers');
