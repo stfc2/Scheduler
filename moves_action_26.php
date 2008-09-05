@@ -36,7 +36,7 @@ class moves_action_26 extends moves_common {
 		//
 		//#############################################################################
 
-		$sql = 'SELECT s.ship_name, t.name FROM ship_fleets f
+		$sql = 'SELECT s.ship_name, s.experience, s.ship_id, t.name FROM ship_fleets f
 		               LEFT JOIN ships s ON s.fleet_id = f.fleet_id
 		               LEFT JOIN ship_templates t ON t.id = s.template_id
 		        WHERE f.fleet_id IN ('.$this->fleet_ids_str.')';
@@ -53,6 +53,24 @@ class moves_action_26 extends moves_common {
 				$name_of_ship = '<b><i>&#171;'.$ship_details['name'].'&#187;</i></b>';
 			}
 		}
+
+		// Calcolo Exp per missione
+		if($ship_details['experience'] < 50) {
+
+			$actual_exp = $ship_details['experience'];
+
+			$exp = (2.5/((float)$actual_exp*0.0635))+0.6;
+
+			$sql = 'UPDATE ships SET experience = experience+'.$exp.' WHERE ship_id = '.$ship_details['ship_id'];
+
+//			$this->log(MV_M_NOTICE, 'SQL per update EXP: '.$sql);
+		
+			if(!$this->db->query($sql)) {
+				$this->log(MV_M_DATABASE, 'Could not update ship exp! CONTINUE');
+			}
+
+		}
+
 
 		$sql = 'SELECT * FROM planets WHERE planet_id = '.$this->move['dest'];
 
