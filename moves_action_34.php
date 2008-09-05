@@ -24,61 +24,48 @@ class moves_action_34 extends moves_common {
 
     var $tr_data = array();
 
-    
+
 
     var $fleet = array();
 
-    
+
 
     var $actions;
 
-    
+
 
     function do_unloading() {
-    
-	$this->log(MV_M_NOTICE, 'Inizio a scaricare le merci');
+
+        $this->log(MV_M_NOTICE, 'Inizio a scaricare le merci');
 
         $wares = array(201 => 'resource_1', 202 => 'resource_2', 203 => 'resource_3', 204 => 'resource_4', 211 => 'unit_1', 212 => 'unit_2', 213 => 'unit_3', 214 => 'unit_4', 215 => 'unit_5', 216 => 'unit_6');
 
         foreach($wares as $code => $column) {
 
             if($this->actions[$code] == 0) {
-	//	$this->log(MV_M_NOTICE, 'Nulla da scaricare per quanto riguarda '.$column);
-		$this->report_unload[$column] = 0;
-		continue;
-	    }
-            
+                $this->log(MV_M_NOTICE, 'Nulla da scaricare per quanto riguarda '.$column);
+                continue;
+            }
+
 
             if($this->actions[$code] == -1) {
-
+                $this->log(MV_M_NOTICE, 'Scarico tutto quello che ho a bordo di '.$column.' (ossia '.$this->fleet[$column].')');
                 $this->dest[$column] += $this->fleet[$column];
-		
-		$this->report_unload[$column] = $this->fleet[$column];
-
                 $this->fleet[$column] = 0;
-
             }
 
             else {
-	    
-
                 $value = ($this->fleet[$column] < $this->actions[$code]) ? $this->fleet[$column] : $this->actions[$code];
-
-	//	$this->log(MV_M_NOTICE, 'Sto scaricando '.$value.' di '.$column);
-
+                $this->log(MV_M_NOTICE, 'Sto scaricando '.$value.' di '.$column);
                 $this->dest[$column] += $value;
-		
-		$this->report_unload[$column] = $value;
-
                 $this->fleet[$column] -= $value;
-
             }
 
         }
 
     }
 
-    
+
 
     function do_loading() {
 
@@ -90,7 +77,7 @@ class moves_action_34 extends moves_common {
 
         $n_units = $this->fleet['resource_4'] + $this->fleet['unit_1'] + $this->fleet['unit_2'] + $this->fleet['unit_3'] + $this->fleet['unit_4'] + $this->fleet['unit_5'] + $this->fleet['unit_6'];
 
-        
+
 
         $resources = array(101 => 'resource_1', 102 => 'resource_2', 103 => 'resource_3');
 
@@ -102,31 +89,19 @@ class moves_action_34 extends moves_common {
 
             $value = ($this->actions[$code] == -1) ? $this->dest[$column] : $this->actions[$code];
 
-
-
             if($value > $this->dest[$column]) {
-
                 $value = $this->dest[$column];
-
             }
-
-
 
             if( ($n_resources + $value) > $this->fleet['max_resources'] ) {
-
                 $value = $max_resources - $n_resources;
-
             }
 
-
+            $this->log(MV_M_NOTICE, 'Sto caricando '.$value.' di '.$column);
 
             $this->fleet[$column] += $value;
-	    
-	    $this->report_load[$column] = $value;
-
+            $this->report_load[$column] = $value;
             $this->dest[$column] -= $value;
-
-
 
             $n_resources += $value;
 
@@ -138,38 +113,23 @@ class moves_action_34 extends moves_common {
 
             $value = ($this->actions[$code] == -1) ? $this->dest[$column] : $this->actions[$code];
 
-
-
             if($value > $this->dest[$column]) {
-
                 $value = $this->dest[$column];
-
             }
-
-
 
             if( ($n_units + $value) > $this->fleet['max_units'] ) {
-
                 $value = $max_units - $n_units;
-
             }
 
+            $this->log(MV_M_NOTICE, 'Sto caricando '.$value.' di '.$column);
 
-
-            $this->fleet[$column] += $value;
-	    
-	    $this->report_load[$column] = $value;
-
+            $this->fleet[$column] += $value;  
+            $this->report_load[$column] = $value;
             $this->dest[$column] -= $value;
-
-
-
             $n_units += $value;
-
         }
-
     }
-    
+
 
     function _action_main() {
 
@@ -183,7 +143,7 @@ class moves_action_34 extends moves_common {
 
                     WHERE fleet_id = '.$this->fleet_ids[0];
 
-                    
+
 
             if(!$this->db->query($sql)) {
 
@@ -191,13 +151,13 @@ class moves_action_34 extends moves_common {
 
             }
 
-            
+
 
             return MV_EXEC_OK;
 
         }
 
-        
+
 
         if($this->flags['free_dest_planet']) {
 
@@ -223,19 +183,20 @@ class moves_action_34 extends moves_common {
 
         }
 
-        
+
+
         $this->tr_data = $this->action_data;
-	
+
         $this->tr_data[5] *= 2;
-	
-	if($this->tr_data[5] < 0) $this->tr_data[5] = -1;
-	
+
+        if($this->tr_data[5] < 0) $this->tr_data[5] = -1;
+
 
         if($this->move['dest'] == $this->tr_data[2]) $this->actions = &$this->tr_data[4];
 
         else $this->actions = &$this->tr_data[3];
 
-        
+        $this->log(MV_M_NOTICE, 'Buondi!, Sono quello della flotta '.$this->fleet_ids[0].' del Boss '.$this->move['user_id'].', in arrivo sul pianeta '.$this->dest['planet_id'].' che appartiene a '.$this->dest['user_id'].' per un trasporto.');
 
         $sql = 'SELECT resource_1, resource_2, resource_3, resource_4, unit_1, unit_2, unit_3, unit_4, unit_5, unit_6
 
@@ -243,7 +204,7 @@ class moves_action_34 extends moves_common {
 
                 WHERE fleet_id = '.$this->fleet_ids[0];
 
-                
+
 
         if(($this->fleet = $this->db->queryrow($sql)) === false) {
 
@@ -251,7 +212,7 @@ class moves_action_34 extends moves_common {
 
         }
 
-                
+
 
         $sql = 'SELECT COUNT(s.ship_id) AS n_transporter
 
@@ -271,22 +232,22 @@ class moves_action_34 extends moves_common {
 
         }
 
-        
+
 
         $this->fleet['max_resources'] = $n_transporter['n_transporter'] * MAX_TRANSPORT_RESOURCES;
 
         $this->fleet['max_units'] = $n_transporter['n_transporter'] * MAX_TRANSPORT_UNITS;
 
-        
+
 
         $this->do_unloading();
 
-	$this->log(MV_M_NOTICE, 'Ho finito di scaricare');
-	
+        $this->log(MV_M_NOTICE, 'Ho finito di scaricare');
+
 
         if($this->move['user_id'] != $this->dest['user_id']) {
 
-	    $this->log(MV_M_NOTICE, 'Devo decidere se sei un mio alleato');
+//            $this->log(MV_M_NOTICE, 'Devo decidere se sei un mio alleato');
 
             $sql = 'SELECT ud.ud_id, a.alliance_id, ad.ad_id, ad.type, ad.status 
 
@@ -301,7 +262,7 @@ class moves_action_34 extends moves_common {
                     WHERE u.user_id = '.$this->dest['user_id'];
 
 
-            $this->log(MV_M_NOTICE, 'Query per alleanza: '.$sql);        
+//            $this->log(MV_M_NOTICE, 'Query per alleanza: '.$sql);
 
 
             if(($diplomacy = $this->db->queryrow($sql)) === false) {
@@ -310,17 +271,17 @@ class moves_action_34 extends moves_common {
 
             }
 
-            $this->log(MV_M_NOTICE, 'Ho raccolto i dati sulle alleanze, ora controllo...');
+//            $this->log(MV_M_NOTICE, 'Ho raccolto i dati sulle alleanze, ora controllo...');
 
             $allied = false;
 
-            
+
             if(!empty($diplomacy['ud_id'])) $allied = true;
 
 
             if( ($diplomacy['alliance_id'] != 0) && ($diplomacy['alliance_id'] == $this->move['user_alliance']) ) $allied = true;
 
-            
+
             if(!empty($diplomacy['ad_id'])) {
 
                 if($diplomacy['type'] == 2) {
@@ -339,12 +300,12 @@ class moves_action_34 extends moves_common {
 
         }
 
-        $this->log(MV_M_NOTICE, 'Ho deciso se sei un alleato o no...');	
+//        $this->log(MV_M_NOTICE, 'Ho deciso se sei un alleato o no...');
 
         if($allied && ($this->tr_data[5] < 0 || $this->tr_data[5] == 4)) $this->do_loading();
 
-	$this->log(MV_M_NOTICE, 'Nel caso, ho finito di caricare');
-        
+        $this->log(MV_M_NOTICE, 'Nel caso, ho finito di caricare');
+
 
         $sql = 'UPDATE ship_fleets
 
@@ -378,7 +339,7 @@ class moves_action_34 extends moves_common {
 
         }
 
-        
+
 
         $sql = 'UPDATE planets
                 SET resource_1 = '.$this->dest['resource_1'].',
@@ -393,34 +354,34 @@ class moves_action_34 extends moves_common {
                     unit_6 = '.$this->dest['unit_6'].'
                 WHERE planet_id = '.$this->dest['planet_id'];
 
-//	$this->log(MV_M_NOTICE, 'SQL UPDATE del pianeta: '.$sql);	
-	
-	
+//        $this->log(MV_M_NOTICE, 'SQL UPDATE del pianeta: '.$sql);
+
+
         if(!$this->db->query($sql)) {
 
             return $this->log(MV_M_DATABASE, 'Could not update planets resource data');
 
         }
-	
-	
-	
+
+
+
 	if($this->tr_data[5] < 0 || $this->tr_data[5] == 4) {
 		$new_move_begin = $this->CURRENT_TICK;
 		$new_move_finish = ($this->move['move_finish'] - $this->move['move_begin']) + $this->CURRENT_TICK;
-	
+
 
 		$sql = 'UPDATE scheduler_shipmovement
 		            SET start = '.$this->move['dest'].',
-			        dest = '.$this->move['start'].',
+		                dest = '.$this->move['start'].',
 		                move_begin = '.$new_move_begin.',
 		                move_finish = '.$new_move_finish.',
-				remaining_distance = total_distance,
-				action_data = "'.serialize($this->tr_data).'"
+		                remaining_distance = total_distance,
+		                action_data = "'.serialize($this->tr_data).'"
 		            WHERE move_id = '.$this->mid;
 
 		if(!$this->db->query($sql)) {
 			return $this->log(MV_M_DATABASE, 'Could not update move data! SKIP');
-		}        
+		}
 
 		$this->flags['keep_move_alive'] = true;
 	}
@@ -429,15 +390,15 @@ class moves_action_34 extends moves_common {
 			SET planet_id = '.$this->move['dest'].',
 			move_id = 0
 			WHERE fleet_id IN ('.$this->fleet_ids_str.')';
-                
+
 		if(!$this->db->query($sql)) {
 			return $this->log(MV_M_DATABASE, 'Could not update fleets data! SKIP');
 		}
-        }
+	}
 
-        return MV_EXEC_OK;
-		
-	
+	return MV_EXEC_OK;
+
+
 
     }
 
