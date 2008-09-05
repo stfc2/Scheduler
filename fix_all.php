@@ -304,7 +304,7 @@ $sdl->start_job('Rioters planets take over by the settlers');
             $sdl->log('<b>Error:</b> Could not update planet details <b>'.$surrending_planets['planet_id'].'</b>! CONTINUED');	
         }
 	
-	$sql = 'UPDATE planet_details SET mood_race'.$_temp['user_race'].' = mood_race'.$_temp['user_race'].' + 50 WHERE planet_id = '.$surrending_planets['planet_id'];
+	$sql = 'UPDATE planet_details SET mood_race'.$_temp['user_race'].' = mood_race'.$_temp['user_race'].' + 50 WHERE planet_id = '.$surrending_planets['planet_id'].' AND log_code = 300';
 	
 	$sdl->log('SQL UPDATE: '.$sql);
 	
