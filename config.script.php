@@ -1,7 +1,7 @@
 <?
 
 // This should point directly to the directory game.
-$game_path = '/home/taku/public_html/stfc/game/';
+$game_path = '/home/taku/public_html/stfc/game2/';
 
 // This should point to the directory where the daemons game are installed.
 $script_path = '/home/taku/stfc/';
