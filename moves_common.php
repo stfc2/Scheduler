@@ -46,7 +46,7 @@ define('MV_COMBAT_LEVEL_PLANETARY', 1); // Attack of the planet (= Colonization)
 define('MV_COMBAT_LEVEL_ORBITAL', 2); // Attack on owned planet, but only ships
 define('MV_COMBAT_LEVEL_OUTER', 3); // Fight beyond the planet between foreign players (or attack by the owner)
 
-define('MV_COMBAT_BIN_PATH', $script_path . 'stfc-moves-combat/bin/moves_combat');
+define('MV_COMBAT_BIN_PATH', $script_path . 'stfc-moves-combat2/bin/moves_combat');
 
 
 function commonlog($message,$message2,$move_id=0)
@@ -583,6 +583,19 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
 			$sql = 'INSERT INTO planet_details (planet_id, system_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
 				. ' VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.time().', 500)';
 			if(!$this->db->query($sql)) $this->log(MV_M_DATABASE, 'Could not update planet details db! SKIP!');
+		// Galaxy II: Share the exploration data with allies
+			$sql = 'SELECT user_id FROM user WHERE user_alliance = '.$this->move['user_alliance'].' AND user_id <> '.$this->move['user_id'];
+			if(!$share_ally = $this->db->query($sql)) {
+				return $this->log(MV_M_DATABASE, 'Could not read alliance members data!');
+			}
+			while($fetch_ally = $this->db->fetchrow($share_ally)) {
+				$sql_ally = 'INSERT INTO planet_details (planet_id, system_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
+				.'VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$fetch_ally['user_id'].', '.$this->move['user_alliance'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.time().', 500)';
+				if(!$this->db->query($sql_ally)) {
+					return $this->log(MV_M_DATABASE, 'Could not INSERT survey planet data!');
+				}
+				
+			}
 		// DC Now, if the planet is unsettled...
 			if(empty($this->dest['user_id'])) {
 		// DC Maybe we did boldly go where nobody has boldly gone before?

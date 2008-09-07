@@ -152,24 +152,22 @@ class moves_action_26 extends moves_common {
 		add_logbook_entry($this->move['user_id'],  LOGBOOK_TACTICAL_2, $log_title, $log_data);
 
 
-		/*
-		// Smistiamo le informazioni all'alleanza, se desiderato
-		if($this->action_data['share'] == 1) {
-			$sql = 'SELECT `user_id` FROM `user` WHERE `user_alliance` = '.$this->move['user_alliance'].' AND `user_id` <> '.$this->move['user_id'];
-			if(($share_ally = $this->db->query($sql)) === false) {
-				return $this->log(MV_M_DATABASE, 'Could not read alliance members data!');
-			}
-			while($share_ally = $this->db->fetchrow($sql)) {
-				$sql_ally = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, survey_1, survey_2, survey_3)'
-				.'VALUES ('.$this->move['dest'].', '.$share_ally['user_id'].', '.$this->move['user_alliance'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.time().', '.$survey_data['rateo_1'].', '.$survey_data['rateo_2'].', '.$survey_data['rateo_3'].')';
-				if(!$this->db->query($sql_ally) {
-					return $this->log(MV_M_DATABASE, 'Could not INSERT survey planet data!');
-				}
-				
-			}
-			
+
+		// Smistiamo le informazioni all'alleanza
+
+		$sql = 'SELECT user_id FROM user WHERE user_alliance = '.$this->move['user_alliance'].' AND user_id <> '.$this->move['user_id'];
+		if(!$share_ally = $this->db->query($sql)) {
+			return $this->log(MV_M_DATABASE, 'Could not read alliance members data!');
 		}
-		*/
+		while($fetch_ally = $this->db->fetchrow($share_ally)) {
+			$sql_ally = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code, ship_name, survey_1, survey_2, survey_3)'
+			.'VALUES ('.$this->move['dest'].', '.$fetch_ally['user_id'].', '.$this->move['user_alliance'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.time().', 100,"'.$name_of_ship.'", '.$_survey1.', '.$_survey2.', '.$_survey3.')';
+			if(!$this->db->query($sql_ally)) {
+				return $this->log(MV_M_DATABASE, 'Could not INSERT survey planet data!');
+			}
+				
+		}
+
 
 		$sql = 'UPDATE ship_fleets
 		        SET planet_id = '.$this->move['dest'].',
