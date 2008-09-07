@@ -1,5 +1,5 @@
 <?php
-/*    
+/*
     This file is part of STFC.
     Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
 
@@ -208,102 +208,626 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
     }
 
     if($cship_exists) {
-        $atk_units = array( ($cship['unit_1'] - $cship['min_unit_1']) , ($cship['unit_2'] - $cship['min_unit_2']) , ($cship['unit_3'] - $cship['min_unit_3']) , ($cship['unit_4'] - $cship['min_unit_4']),0 );
+        // We need the number of planets, which owns the colonizing
+        // (we want planet_owner_enum degree of certainty)
 
-        // 20/06/08 - AC: Keep out workers from battle!
-        for($i = 0; $i < count($atk_fleets); ++$i) {
-            $atk_units[0] += $atk_fleets[$i]['unit_1'];
-            $atk_units[1] += $atk_fleets[$i]['unit_2'];
-            $atk_units[2] += $atk_fleets[$i]['unit_3'];
-            $atk_units[3] += $atk_fleets[$i]['unit_4'];
-            //$atk_units[4] += $atk_fleets[$i]['resource_4']; <-- What the hell is this field?? No workers in the battle!
-            // 23/06/08 - AC: Store the space occupied by workers
-            $worker_per_fleets[$atk_fleets[$i]['fleet_id']] = $atk_fleets[$i]['resource_4'];
+        $sql = 'SELECT COUNT(planet_id) AS n_planets
+                FROM planets
+                WHERE planet_owner = '.$this->move['user_id'];
+
+        if(($pcount = $this->db->queryrow($sql)) === false) {
+            $this->log(MV_M_DATABASE, 'Could not query planets count data! CONTINUE AND USE INSTABLE VALUE');
+
+            $n_planets = $this->move['user_planets'];
+        }
+        else {
+            $n_planets = $pcount['n_planets'];
         }
 
-        // 090408 DC:  ------ Let those fucking soldiers on ships do their job!!!!
-        for($i = 0; $i < count($atk_crews); ++$i) {
-            $atk_units[0] += $atk_crews[$i]['troop_1'];
-            $atk_units[1] += $atk_crews[$i]['troop_2'];
-            $atk_units[2] += $atk_crews[$i]['troop_3'];
-            $atk_units[3] += $atk_crews[$i]['troop_4'];
-        }
-        // 090409 DC:  ------
+        // Does player has reached max number of planets?
+        if($n_planets < USER_MAX_PLANETS) {
+            $atk_units = array( ($cship['unit_1'] - $cship['min_unit_1']) , ($cship['unit_2'] - $cship['min_unit_2']) , ($cship['unit_3'] - $cship['min_unit_3']) , ($cship['unit_4'] - $cship['min_unit_4']),0 );
 
-        $dfd_units = array($this->dest['unit_1'], $this->dest['unit_2'], $this->dest['unit_3'], $this->dest['unit_4'],$this->dest['resource_4']);
-
-        // Are there some defenders?
-        if (array_sum($dfd_units)>0)
-        {
-            $ucmb = UnitFight($atk_units, $this->move['user_race'], $dfd_units, $this->dest['user_race'], $this->mid);
-            $n_atk_alive = array_sum($ucmb[0]);
-            $atk_alive = $ucmb[0];
-            $dfd_alive = $ucmb[1];
-        }
-        // No ground troops presents!
-        else
-        {
-            $n_atk_alive=1;
-            $atk_alive = $atk_units;
-            $dfd_alive = array(0, 0, 0, 0, 0);
-        }
-
-        // 01/07/08 - AC: Count losses for each part
-        for($i = 0; $i < count($atk_fleets); ++$i) {
-            $atk_losses[$i] = $atk_units[$i] - $atk_alive[$i];
-            $dfd_losses[$i] = $dfd_units[$i] - $dfd_alive[$i];
-        }
-
-        // If there are no more attackers, the defender
-        // always won even if the defending had no units
-        if($n_atk_alive == 0) {
-            // In order to eliminate the troops of the aggressor, simply reset all transporters
-
-            // 21/06/08 - AC: Keep out workers from battle!
-            $sql = 'UPDATE ship_fleets
-                    SET unit_1 = 0,
-                        unit_2 = 0,
-                        unit_3 = 0,
-                        unit_4 = 0
-                    WHERE fleet_id IN ('.$this->fleet_ids_str.')';
-
-            if(!$this->db->query($sql)) {
-                return $this->log(MV_M_DATABASE, 'Could not update ship fleets unit transport data! SKIP');
+            // 20/06/08 - AC: Keep out workers from battle!
+            for($i = 0; $i < count($atk_fleets); ++$i) {
+                $atk_units[0] += $atk_fleets[$i]['unit_1'];
+                $atk_units[1] += $atk_fleets[$i]['unit_2'];
+                $atk_units[2] += $atk_fleets[$i]['unit_3'];
+                $atk_units[3] += $atk_fleets[$i]['unit_4'];
+                //$atk_units[4] += $atk_fleets[$i]['resource_4']; <-- What the hell is this field?? No workers in the battle!
+                // 23/06/08 - AC: Store the space occupied by workers
+                $worker_per_fleets[$atk_fleets[$i]['fleet_id']] = $atk_fleets[$i]['resource_4'];
             }
 
-            // Simply update the defender troops
+            // 090408 DC:  ------ Let those fucking soldiers on ships do their job!!!!
+            for($i = 0; $i < count($atk_crews); ++$i) {
+                $atk_units[0] += $atk_crews[$i]['troop_1'];
+                $atk_units[1] += $atk_crews[$i]['troop_2'];
+                $atk_units[2] += $atk_crews[$i]['troop_3'];
+                $atk_units[3] += $atk_crews[$i]['troop_4'];
+            }
+            // 090409 DC:  ------
 
-            $sql = 'UPDATE planets
-                    SET unit_1 = '.$ucmb[1][0].',
-                        unit_2 = '.$ucmb[1][1].',
-                        unit_3 = '.$ucmb[1][2].',
-                        unit_4 = '.$ucmb[1][3].',
-                        resource_4 = '.$ucmb[1][4].'
-                    WHERE planet_id = '.$this->move['dest'];
+            $dfd_units = array($this->dest['unit_1'], $this->dest['unit_2'], $this->dest['unit_3'], $this->dest['unit_4'],$this->dest['resource_4']);
 
-            if(!$this->db->query($sql)) {
-                return $this->log(MV_M_DATABASE, 'Could not update dest planet units data! SKIP');
+            // Are there some defenders?
+            if (array_sum($dfd_units)>0)
+            {
+                $ucmb = UnitFight($atk_units, $this->move['user_race'], $dfd_units, $this->dest['user_race'], $this->mid);
+                $n_atk_alive = array_sum($ucmb[0]);
+                $atk_alive = $ucmb[0];
+                $dfd_alive = $ucmb[1];
+            }
+            // No ground troops presents!
+            else
+            {
+                $n_atk_alive=1;
+                $atk_alive = $atk_units;
+                $dfd_alive = array(0, 0, 0, 0, 0);
             }
 
-            // 090408 DC:  ------ Finally the fucking soldiers have done their job!!!! 
-            $sql = 'UPDATE ships ss, ship_templates st
-                    SET ss.unit_1 = st.min_unit_1,
-                        ss.unit_2 = st.min_unit_2,
-                        ss.unit_3 = st.min_unit_3,
-                        ss.unit_4 = st.min_unit_4
-                    WHERE ss.template_id = st.id
-                AND ss.fleet_id IN ('.$this->fleet_ids_str.')';
-            $this->log(MV_M_NOTICE, 'Update ships with the minimum troops value: '.$sql);
-            if(!$this->db->query($sql))
-                return $this->log(MV_M_DATABASE, 'Could not update attacking ships! SKIP');
-            // 090408 DC:  ------ 
+            // 01/07/08 - AC: Count losses for each part
+            for($i = 0; $i < count($atk_fleets); ++$i) {
+                $atk_losses[$i] = $atk_units[$i] - $atk_alive[$i];
+                $dfd_losses[$i] = $dfd_units[$i] - $dfd_alive[$i];
+            }
 
-            $action_status = -1;
+            // If there are no more attackers, the defender
+            // always won even if the defending had no units
+            if($n_atk_alive == 0) {
+                // In order to eliminate the troops of the aggressor, simply reset all transporters
+
+                // 21/06/08 - AC: Keep out workers from battle!
+                $sql = 'UPDATE ship_fleets
+                        SET unit_1 = 0,
+                            unit_2 = 0,
+                            unit_3 = 0,
+                            unit_4 = 0
+                        WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+
+                if(!$this->db->query($sql)) {
+                    return $this->log(MV_M_DATABASE, 'Could not update ship fleets unit transport data! SKIP');
+                }
+
+                // Simply update the defender troops
+
+                $sql = 'UPDATE planets
+                        SET unit_1 = '.$ucmb[1][0].',
+                            unit_2 = '.$ucmb[1][1].',
+                            unit_3 = '.$ucmb[1][2].',
+                            unit_4 = '.$ucmb[1][3].',
+                            resource_4 = '.$ucmb[1][4].'
+                        WHERE planet_id = '.$this->move['dest'];
+
+                if(!$this->db->query($sql)) {
+                    return $this->log(MV_M_DATABASE, 'Could not update dest planet units data! SKIP');
+                }
+
+                // 090408 DC:  ------ Finally the fucking soldiers have done their job!!!! 
+                $sql = 'UPDATE ships ss, ship_templates st
+                        SET ss.unit_1 = st.min_unit_1,
+                            ss.unit_2 = st.min_unit_2,
+                            ss.unit_3 = st.min_unit_3,
+                            ss.unit_4 = st.min_unit_4
+                        WHERE ss.template_id = st.id
+                    AND ss.fleet_id IN ('.$this->fleet_ids_str.')';
+                $this->log(MV_M_NOTICE, 'Update ships with the minimum troops value: '.$sql);
+                if(!$this->db->query($sql))
+                    return $this->log(MV_M_DATABASE, 'Could not update attacking ships! SKIP');
+                // 090408 DC:  ------ 
+
+                $action_status = -1;
+
+                // #############################################################################
+                // 03/04/08 - AC: Retrieve player language
+                switch($this->move['language'])
+                {
+                    case 'GER':
+                        $atk_title = 'Angriff auf '.$this->dest['planet_name'].' teilweise erfolgreich';
+                    break;
+                    case 'ITA':
+                        $atk_title = 'Attacco su '.$this->dest['planet_name'].' parzialmente riuscito';
+                    break;
+                    default:
+                        $atk_title = 'Attack on '.$this->dest['planet_name'].' partially successful';
+                    break;
+                }
+            }
+            else {
+                account_log($this->move['user_id'], $this->dest['user_id'], 4);
+
+                // Export a ruler switch
+
+                // We accommodate as much troops, as on the colony ship were, on the planet
+                $planet_units = array(0, 0, 0, 0);
+
+                // 21/06/08 - AC: Check available space on target planet
+                $sql = 'SELECT max_units FROM planets WHERE planet_id = '.$this->move['dest'];
+
+                if(($plspace = $this->db->queryrow($sql)) === false) {
+                    $this->log(MV_M_DATABASE, 'Could not query planet max units data! CONTINUE AND USE INSTABLE VALUE');
+                    $plspace['max_units'] = 1300; // Minimum size available
+                }
+
+                if(($atk_alive[0] * 2 + $atk_alive[1] * 3 + $atk_alive[2] * 4 + $atk_alive[3] * 4) > $plspace['max_units'])
+                {
+                    $this->log(MV_M_NOTICE, 'Alive units exceed planet maximum units, we need to recall aboard the surplus');
+
+                    // AC: Recall aboard the surplus troops
+                    $i = 0;
+                    while($n_atk_alive) {
+                        if(($planet_units[0] * 2 + $planet_units[1] * 3 +
+                            $planet_units[2] * 4 + $planet_units[3] * 4) >= $plspace['max_units'])
+                            break;
+                        if($atk_alive[$i] > 0)
+                        {
+                            $planet_units[$i]++;
+                            $atk_alive[$i]--;
+                            $n_atk_alive--;
+                        }
+                        else
+                            $i++;
+                    }
+
+$this->log(MV_M_NOTICE, 'Troops that will return aboard: Lev1 '.$atk_alive[0].' Lev2 '.$atk_alive[1].' Lev3 '.$atk_alive[2].' Lev4 '.$atk_alive[3]);
+
+                    // We pick ALL transporter of the fleets and then distribute
+
+                    $sql = 'SELECT s.ship_id, s.fleet_id
+                            FROM (ships s, ship_templates st)
+                            WHERE s.fleet_id IN ('.$this->fleet_ids_str.') AND
+                                  st.ship_torso = '.SHIP_TYPE_TRANSPORTER;
+
+                    if(!$q_ftrans = $this->db->query($sql)) {
+                        $this->log(MV_M_DATABASE, 'Could not query fleets transporter data! CONTINUE');
+                    }
+
+                    $space_per_fleets = array();
+
+                    while($_ship = $this->db->fetchrow($q_ftrans)) {
+                        if(!isset($space_per_fleets[$_ship['fleet_id']])) $space_per_fleets[$_ship['fleet_id']] = $worker_per_fleets[$_ship['fleet_id']] * (-1);
+
+                        $space_per_fleets[$_ship['fleet_id']] += MAX_TRANSPORT_UNITS;
+                    }
+
+                    foreach($space_per_fleets as $fleet_id => $free_space) {
+                        if($free_space == 0) continue;
+
+                        $still_free = $free_space;
+                        $new_load = array(0, 0, 0, 0);
+
+                        for($i = 0; $i < 4; ++$i) {
+                            $j = $i + 1;
+
+                            if($atk_alive[$i] > 0) {
+                                $new_load[$i] = ($atk_alive[$i] > $still_free) ? ($still_free - $atk_alive[$i]) : $atk_alive[$i];
+
+                                $atk_alive[$i] -= $new_load[$i];
+                                $still_free -= $new_load[$i];
+                            }
+
+                            if($still_free == 0) break;
+                        }
+
+                        $sql = 'UPDATE ship_fleets
+                                SET unit_1 = '.$new_load[0].',
+                                    unit_2 = '.$new_load[1].',
+                                    unit_3 = '.$new_load[2].',
+                                    unit_4 = '.$new_load[3].'
+                                WHERE fleet_id = '.$fleet_id;
+
+                        if(!$this->db->query($sql)) {
+                            $this->log(MV_M_DATABASE, 'Could not update fleets units data! CONTINUE');
+                        }
+                    }
+                } // alive troops doesn't exceed max planet units
+                else {
+                    for($i = 0; $i <= 3; ++$i)
+                        $planet_units[$i] += $atk_alive[$i];
+
+                    // 28/06/08 - AC: Snort! Delete landed troops!
+                    $sql = 'UPDATE ship_fleets
+                            SET unit_1 = 0,
+                                unit_2 = 0,
+                                unit_3 = 0,
+                                unit_4 = 0
+                            WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+
+                    if(!$this->db->query($sql)) {
+                        return $this->log(MV_M_DATABASE, 'Could not update ship fleets unit transport data! SKIP');
+                    }
+                }
+
+$this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_units[0].' Lev2 '.$planet_units[1].' Lev3 '.$planet_units[2].' Lev4 '.$planet_units[3]);
+
+                $sql = 'DELETE FROM scheduler_instbuild
+                        WHERE planet_id = '.$this->move['dest'];
+
+                if(!$this->db->query($sql)) {
+                    $this->log(MV_M_DATABASE, 'Could not delete scheduler instbuild data! CONTINUE');
+                }
+
+                $sql = 'DELETE FROM scheduler_research
+                        WHERE planet_id = '.$this->move['dest'];
+
+                if(!$this->db->query($sql)) {
+                    $this->log(MV_M_DATABASE, 'Could not delete scheduler research data! CONTINUE');
+                }
+
+                $sql = 'DELETE FROM scheduler_resourcetrade
+                        WHERE planet = '.$this->move['dest'];
+
+                if(!$this->db->query($sql)) {
+                    $this->log(MV_M_DATABASE, 'Could not delete resource data! CONTINUE');
+                }
+
+                $sql = 'DELETE FROM scheduler_shipbuild
+                        WHERE planet_id = '.$this->move['dest'];
+
+                if(!$this->db->query($sql)) {
+                    $this->log(MV_M_DATABASE, 'Could not delete shipbuild data! CONTINUE');
+                }
+
+                global $NUM_BUILDING, $MAX_BUILDING_LVL;
+
+                // As someone yes number == max_index sets
+                $n_buildings = $NUM_BUILDING + 1;
+
+                $building_levels = array();
+
+                $building_damage = 0.01 * mt_rand(40, 60);
+
+                // Set new home world
+                if($this->move['dest'] == $this->dest['user_capital']) {
+                    for($i = 0; $i < $n_buildings; ++$i) {
+                        $j = $i + 1;
+
+                        $building_levels[$i] = (int) ($this->dest['building_'.$j] > $MAX_BUILDING_LVL[0][$i]) ? $MAX_BUILDING_LVL[0][$i] : round($this->dest['building_'.$j] * $building_damage, 0);
+                    }
+
+                    if($this->dest['user_planets'] == 1) {
+                        // #############################################################################
+                        // 03/04/08 - AC: Retrieve player language
+                        switch($this->dest['language'])
+                        {
+                            case 'GER':
+                                $msg_title = 'Verlust aller deiner Planeten';
+                                $msg_body = 'Da du alle deine Planeten verloren hast, wurde f&uuml;r dich ein neuer Planet an einer zuf&uuml;ligen Stelle der Galaxie erstellt.';
+                            break;
+                            case 'ITA':
+                                $msg_title = 'Perdita di tutti i pianeti';
+                                $msg_body = 'Dato che hai perduto tutti i pianeti ne &egrave; stato creato uno nuovo nella galassia.';
+                            break;
+                            default:
+                                $msg_title = 'Loss of all your planets';
+                                $msg_body = 'Since you lost all your planets a new one have been created in the body of the galaxy.';
+                            break;
+                        }
+                        SystemMessage($this->dest['user_id'], $msg_title, $msg_body);
+                    }
+                    else {
+                        if(!$this->db->query('SET @i=0')) {
+                            return $this->log(MV_M_DATABASE, 'Could not set sql iterator variable for planet owner enum! SKIP');
+                        }
+
+                        $sql = 'UPDATE planets
+                                SET planet_owner_enum = (@i := (@i + 1))-1
+                                WHERE planet_owner = '.$this->dest['user_id'].'
+                                ORDER BY planet_owned_date ASC, planet_id ASC';
+
+                        if(!$this->db->query($sql)) {
+                            return $this->log(MV_M_DATABASE, 'Could not update planet owner enum data! SKIP');
+                        }
+
+                        $sql = 'SELECT planet_id
+                                FROM planets
+                                WHERE planet_owner = '.$this->dest['user_id'].'
+                                ORDER BY planet_owner_enum ASC
+                                LIMIT 1';
+
+                        if(($first_planet = $this->db->queryrow($sql)) === false) {
+                            return $this->log(MV_M_DATABASE, 'Could not query first planet data! SKIP');
+                        }
+
+                        $sql = 'UPDATE user
+                                SET last_active = '.time().',
+                                    last_ip = "0.0.0.0",
+                                    user_capital = '.$first_planet['planet_id'].',
+                                    pending_capital_choice = 1
+                                WHERE user_id = '.$this->dest['user_id'];
+
+                        if(!$this->db->query($sql)) {
+                            return $this->log(MV_M_DATABASE, 'Could not update user capital data! SKIP');
+                        }
+                    }
+                }
+                else {
+                    for($i = 0; $i < $n_buildings; ++$i) {
+                        $building_levels[$i] = round($this->dest['building_'.($i + 1)] * $building_damage, 0);
+                    }
+                }
+
+                $sql = 'DELETE FROM resource_trade
+                        WHERE planet = '.$this->move['dest'];
+
+                if(!$this->db->query($sql)) {
+                    $this->log(MV_M_DATABASE, 'Could not delete resource trade data! CONTINUE');
+                }
+
+                $sql = 'SELECT ship_id
+                        FROM ship_trade
+                        WHERE scheduler_processed = 0 AND
+                              planet = '.$this->move['dest'];
+
+                if(!$q_shipt = $this->db->query($sql)) {
+                    $this->log(MV_M_DATABASE, 'Could not query ship trade data! CONTINUE');
+                }
+                else {
+                    $ship_ids = array();
+
+                    while($_ship = $this->db->fetchrow($q_shipt)) {
+                        $ship_ids[] = $_ship['ship_id'];
+                    }
+
+                    if(count($ship_ids) > 0) {
+                        $sql = 'UPDATE ships
+                                SET ship_untouchable = 0
+                                WHERE ship_id IN ('.implode(',', $ship_ids).')';
+
+                        if(!$this->db->query($sql)) {
+                            $this->log(MV_M_DATABASE, 'Could not update ships untouchable data! CONTINUE');
+                        }
+                    }
+                }
+
+                $sql = 'DELETE FROM ship_trade
+                        WHERE scheduler_processed = 0 AND
+                              planet = '.$this->move['dest'];
+
+                if(!$this->db->query($sql)) {
+                    $this->log(MV_M_DATABASE, 'Could not delete ship trade data! CONTINUE');
+                }
+
+                $sql = 'UPDATE planets
+                        SET planet_owner = '.$this->move['user_id'].',
+                            planet_owned_date = '.time().',
+                            planet_owner_enum = '.($n_planets - 1).',
+                            resource_4 = 0,
+                            recompute_static = 1,
+                            building_1 = '.$building_levels[0].',
+                            building_2 = '.$building_levels[1].',
+                            building_3 = '.$building_levels[2].',
+                            building_4 = '.$building_levels[3].',
+                            building_5 = '.$building_levels[4].',
+                            building_6 = '.$building_levels[5].',
+                            building_7 = '.$building_levels[6].',
+                            building_8 = '.$building_levels[7].',
+                            building_9 = '.$building_levels[8].',
+                            building_10 = '.$building_levels[9].',
+                            building_11 = '.$building_levels[10].',
+                            building_12 = '.$building_levels[11].',
+                            building_13 = '.$building_levels[12].',
+                            unit_1 = '.$planet_units[0].',
+                            unit_2 = '.$planet_units[1].',
+                            unit_3 = '.$planet_units[2].',
+                            unit_4 = '.$planet_units[3].',
+                            unit_5 = 0,
+                            unit_6 = 0,
+                            workermine_1 = 100,
+                            workermine_2 = 100,
+                            workermine_3 = 100,
+                            catresearch_1 = 0,
+                            catresearch_2 = 0,
+                            catresearch_3 = 0,
+                            catresearch_4 = 0,
+                            catresearch_5 = 0,
+                            catresearch_6 = 0,
+                            catresearch_7 = 0,
+                            catresearch_8 = 0,
+                            catresearch_9 = 0,
+                            catresearch_10 = 0,
+                            unittrainid_1 = 0,
+                            unittrainid_2 = 0,
+                            unittrainid_3 = 0,
+                            unittrainid_4 = 0,
+                            unittrainid_5 = 0,
+                            unittrainid_6 = 0,
+                            unittrainid_7 = 0,
+                            unittrainid_8 = 0,
+                            unittrainid_9 = 0,
+                            unittrainid_10 = 0,
+                            unittrainnumber_1 = 0,
+                            unittrainnumber_2 = 0,
+                            unittrainnumber_3 = 0,
+                            unittrainnumber_4 = 0,
+                            unittrainnumber_5 = 0,
+                            unittrainnumber_6 = 0,
+                            unittrainnumber_7 = 0,
+                            unittrainnumber_8 = 0,
+                            unittrainnumber_9 = 0,
+                            unittrainnumber_10 = 0,
+                            unittrainnumberleft_1 = 0,
+                            unittrainnumberleft_2 = 0,
+                            unittrainnumberleft_3 = 0,
+                            unittrainnumberleft_4 = 0,
+                            unittrainnumberleft_5 = 0,
+                            unittrainnumberleft_6 = 0,
+                            unittrainnumberleft_7 = 0,
+                            unittrainnumberleft_8 = 0,
+                            unittrainnumberleft_9 = 0,
+                            unittrainnumberleft_10 = 0,
+                            unittrain_actual = 0,
+                            unittrainid_nexttime=0,
+                            planet_insurrection_time=0,
+                            building_queue=0,
+                            planet_surrender=0
+                        WHERE planet_id = '.$this->move['dest'];
+
+                $this->log('SQL Debug', ''.$sql.'');
+
+                if(!$this->db->query($sql)) {
+                    return $this->log(MV_M_DATABASE, 'Could not update planets data! SKIP');
+                }
+
+// DC ---- History record in planet_details, with label '26'
+                $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code, defeat_uid, defeat_aid)
+                        VALUES ('.$this->move['dest'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.time().', 26,'.$this->dest['user_id'].', '.$this->dest['user_alliance'].')';
+
+                if(!$this->db->query($sql)) {
+                    $this->log(MV_M_DATABASE, 'Could not update planet details data! CONTINUE');
+                }
+
+                // If the attack was on a settlers planet, we get rid of the moods data!
+
+                if($this->flags['is_indipendent']) {
+                    $this->log(MV_M_NOTICE, 'Colony: Settlers taken over!!! They gonna be no more...');
+
+                    $sql = 'DELETE planet_details WHERE planet_id = '.$this->dest['planet_id'].' AND log_code = 300';
+
+                    if(!$this->db->query($sql)) {
+                        $this->log(MV_M_DATABASE, 'Could not delete settlers moods! CONTINUE!');   
+                    }
+                }
+// DC ----
+
+            $this->log('Update Planetdata', 'Limited resources');
+
+            //Concept of vessels destroyed by hostile takeover.
+            //Version 0.2b by Mojo1987 - Calculation adjusted
+
+            $this->log('Ship destruction', 'Begin ships deletion');
+
+            $sql = 'SELECT s.ship_id FROM (ships s) WHERE s.fleet_id = -'.$this->move['dest'].'';
+
+            if(!$del_ship = $this->db->query($sql)) {
+               $this->log('Errors with ships get', 'Could not query planets ships! CONTINUE - '.$sql.'');
+            }
+
+            while($ship_wahl = $this->db->fetchrow($del_ship)) {
+
+              $zufall = mt_rand(6,18);
+
+              if($zufall>=8) {
+
+                $sql = 'DELETE FROM ships WHERE ship_id = '.$ship_wahl['ship_id'].'';
+
+                if(!$this->db->query($sql)) {
+                    $this->log('Error with ship deletion', 'Could not query deleted ship! CONTINUE');
+                }
+                else { $this->log('Ships removed', 'Ship_ID: '.$ship_wahl['ship_id'].' Random number: '.$zufall.' <b>SUCCESS!</b>'); }
+              }
+
+            }
+
+            $this->log('Ship destruction', 'Deletion ended');
+
+                if(!$this->db->query('SET @i=0')) {
+                    return $this->log(MV_M_DATABASE, 'Could not set sql iterator variable for planet owner enum (the invading player)! SKIP');
+                }
+
+                $sql = 'UPDATE planets
+                        SET planet_owner_enum = (@i := (@i + 1))-1
+                        WHERE planet_owner = '.$this->move['user_id'].'
+                        ORDER BY planet_owned_date ASC, planet_id ASC';
+
+                if(!$this->db->query($sql)) {
+                    return $this->log(MV_M_DATABASE, 'Could not update planet owner enum data (the invading player)! SKIP');
+                }
+
+                $sql = 'UPDATE ships
+                        SET user_id = '.$this->move['user_id'].'
+                        WHERE fleet_id = -'.$this->move['dest'];
+
+                if(!$this->db->query($sql)) {
+                    return $this->log(MV_M_DATABASE, 'Could not update ships location data! SKIP');
+                }
+
+                if($this->dest['user_id'] == BORG_USERID) {
+                    if((int)$this->move['user_alliance'] != 0) {
+                        $sql = 'UPDATE alliance
+                                SET borg_invade = borg_invade + 1
+                                WHERE alliance_id = '.$this->move['user_alliance'];
+
+                        if(!$this->db->query($sql)) {
+                            $this->log(MV_M_DATABASE, 'Could not update user alliance Borg honor data! CONTINUE');
+                        }
+                    }
+
+                    send_premonition_to_user($this->move['user_id']);
+
+                    // #############################################################################
+                    // 03/04/08 - AC: Retrieve player language
+                    switch($this->move['language'])
+                    {
+                        case 'GER':
+                            $msg_title = 'Verdienst im Kampf gegen die Borg';
+                            $msg_text = 'F&uuml;e gerade erbrachten Verdienst gegen die neue Invasion des Borg-Kollektives befinden sich im Anflug auf euren Heimatplaneten ein speziell f&ouml;sen Kampf entwickeltes Schiff. Versucht nicht die enthaltene Technologie zu verstehen, sie wurde wirkungsvoll gegen euch abgeschirmt - nutzt sie stattdessen in eurem weiteren Kampf!';
+                        break;
+                        case 'ITA':
+                            $msg_title = 'Merito in battaglia contro i Borg';
+                            $msg_text = 'Proprio per rendere merito contro la nuova invasione del collettivo Borg si trova in approccio al tuo pianeta madre una nave appositamente progettata per combatterli. Non provare a capire la tecnologia inclusa, &egrave; stata efficacemente schermata contro di te - utilizzala invece ulteriormente nella tua lotta!';
+                        break;
+                        default:
+                            $msg_title = 'Merit in the battle against the Borg';
+                            $msg_text = 'For precisely rendered merit against the new invasion of the Borg Collective are located in the approach to your home planet fuse fight a specially designed ship. Do not try to understand the included technology, it was effectively shielded against you - instead uses it further in your fight!';
+                       break;
+                    }
+
+                    $sql = 'INSERT INTO message (sender, receiver, subject, text, time)
+                            VALUES ('.FUTURE_HUMANS_UID.', '.$this->move['user_id'].', "'.$msg_title.'", "'.$msg_text.'", '.time().')';
+
+                    if(!$this->db->query($sql)) {
+                        $this->log(MV_M_DATABASE, 'Could not send message');
+                    }
+                }
+
+                $action_status = 1;
+
+                // #############################################################################
+                // 03/04/08 - AC: Retrieve player language
+                switch($this->move['language'])
+                {
+                    case 'GER':
+                        $atk_title = 'Angriff auf '.$this->dest['planet_name'].' erfolgreich';
+                    break;
+                    case 'ITA':
+                        $atk_title = 'Attacco su '.$this->dest['planet_name'].' riuscito';
+                    break;
+                    default:
+                        $atk_title = 'Attack on '.$this->dest['planet_name'].' successful';
+                    break;
+                }
+            }
+
+            $sql = 'DELETE FROM ships
+                    WHERE ship_id = '.$ship_id;
+
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not delete ships data! SKIP');
+            }
+
+            if($cship['n_ships'] == 1) {
+                $sql = 'DELETE FROM ship_fleets
+                        WHERE fleet_id = '.$cship['fleet_id'];
+            }
+            else {
+                $sql = 'UPDATE ship_fleets
+                        SET n_ships = n_ships - 1
+                        WHERE fleet_id = '.$cship['fleet_id'];
+            }
+
+            if(!$this->db->query($sql)) {
+                $this->log(MV_M_DATABASE, 'Could not update/delete cships fleet data! CONTINUE');
+            }
+        }
+        // Max planets reached
+        else {
+            $action_status = -3;
 
             // #############################################################################
             // 03/04/08 - AC: Retrieve player language
-            switch($this->move['language'])
-            {
+           switch($this->move['language'])
+           {
                 case 'GER':
                     $atk_title = 'Angriff auf '.$this->dest['planet_name'].' teilweise erfolgreich';
                 break;
@@ -315,509 +839,8 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                 break;
             }
         }
-        else {
-            account_log($this->move['user_id'], $this->dest['user_id'], 4);
-
-            // Export a ruler switch
-
-            // We need the number of planets, which owns the colonizing
-            // (we want planet_owner_enum degree of certainty)
-
-            $sql = 'SELECT COUNT(planet_id) AS n_planets
-                    FROM planets
-                    WHERE planet_owner = '.$this->move['user_id'];
-
-            if(($pcount = $this->db->queryrow($sql)) === false) {
-                $this->log(MV_M_DATABASE, 'Could not query planets count data! CONTINUE AND USE INSTABLE VALUE');
-
-                $n_planets = $this->move['user_planets'];
-            }
-            else {
-                $n_planets = $pcount['n_planets'];
-            }
-
-            // We accommodate as much troops, as on the colony ship were, on the planet
-            $planet_units = array(0, 0, 0, 0);
-
-            // 21/06/08 - AC: Check available space on target planet
-            $sql = 'SELECT max_units FROM planets WHERE planet_id = '.$this->move['dest'];
-
-            if(($plspace = $this->db->queryrow($sql)) === false) {
-                $this->log(MV_M_DATABASE, 'Could not query planet max units data! CONTINUE AND USE INSTABLE VALUE');
-                $plspace['max_units'] = 1300; // Minimum size available
-            }
-
-            if(($atk_alive[0] * 2 + $atk_alive[1] * 3 + $atk_alive[2] * 4 + $atk_alive[3] * 4) > $plspace['max_units'])
-            {
-                $this->log(MV_M_NOTICE, 'Alive units exceed planet maximum units, we need to recall aboard the surplus');
-
-                // AC: Recall aboard the surplus troops
-                $i = 0;
-                while($n_atk_alive) {
-                    if(($planet_units[0] * 2 + $planet_units[1] * 3 +
-                        $planet_units[2] * 4 + $planet_units[3] * 4) >= $plspace['max_units'])
-                        break;
-                    if($atk_alive[$i] > 0)
-                    {
-                        $planet_units[$i]++;
-                        $atk_alive[$i]--;
-                        $n_atk_alive--;
-                    }
-                    else
-                        $i++;
-                }
-
-$this->log(MV_M_NOTICE, 'Troops that will return aboard: Lev1 '.$atk_alive[0].' Lev2 '.$atk_alive[1].' Lev3 '.$atk_alive[2].' Lev4 '.$atk_alive[3]);
-
-                // We pick ALL transporter of the fleets and then distribute
-
-                $sql = 'SELECT s.ship_id, s.fleet_id
-                        FROM (ships s, ship_templates st)
-                        WHERE s.fleet_id IN ('.$this->fleet_ids_str.') AND
-                              st.ship_torso = '.SHIP_TYPE_TRANSPORTER;
-
-                if(!$q_ftrans = $this->db->query($sql)) {
-                    $this->log(MV_M_DATABASE, 'Could not query fleets transporter data! CONTINUE');
-                }
-
-                $space_per_fleets = array();
-
-                while($_ship = $this->db->fetchrow($q_ftrans)) {
-                    if(!isset($space_per_fleets[$_ship['fleet_id']])) $space_per_fleets[$_ship['fleet_id']] = $worker_per_fleets[$_ship['fleet_id']] * (-1);
-
-                    $space_per_fleets[$_ship['fleet_id']] += MAX_TRANSPORT_UNITS;
-                }
-
-                foreach($space_per_fleets as $fleet_id => $free_space) {
-                    if($free_space == 0) continue;
-
-                    $still_free = $free_space;
-                    $new_load = array(0, 0, 0, 0);
-
-                    for($i = 0; $i < 4; ++$i) {
-                        $j = $i + 1;
-
-                        if($atk_alive[$i] > 0) {
-                            $new_load[$i] = ($atk_alive[$i] > $still_free) ? ($still_free - $atk_alive[$i]) : $atk_alive[$i];
-
-                            $atk_alive[$i] -= $new_load[$i];
-                            $still_free -= $new_load[$i];
-                        }
-
-                        if($still_free == 0) break;
-                    }
-
-                    $sql = 'UPDATE ship_fleets
-                            SET unit_1 = '.$new_load[0].',
-                                unit_2 = '.$new_load[1].',
-                                unit_3 = '.$new_load[2].',
-                                unit_4 = '.$new_load[3].'
-                            WHERE fleet_id = '.$fleet_id;
-
-                    if(!$this->db->query($sql)) {
-                        $this->log(MV_M_DATABASE, 'Could not update fleets units data! CONTINUE');
-                    }
-                }
-            } // alive troops doesn't exceed max planet units
-            else {
-                for($i = 0; $i <= 3; ++$i)
-                    $planet_units[$i] += $atk_alive[$i];
-
-                // 28/06/08 - AC: Snort! Delete landed troops!
-                $sql = 'UPDATE ship_fleets
-                        SET unit_1 = 0,
-                            unit_2 = 0,
-                            unit_3 = 0,
-                            unit_4 = 0
-                        WHERE fleet_id IN ('.$this->fleet_ids_str.')';
-
-                if(!$this->db->query($sql)) {
-                    return $this->log(MV_M_DATABASE, 'Could not update ship fleets unit transport data! SKIP');
-                }
-            }
-
-$this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_units[0].' Lev2 '.$planet_units[1].' Lev3 '.$planet_units[2].' Lev4 '.$planet_units[3]);
-
-            $sql = 'DELETE FROM scheduler_instbuild
-                    WHERE planet_id = '.$this->move['dest'];
-
-            if(!$this->db->query($sql)) {
-                $this->log(MV_M_DATABASE, 'Could not delete scheduler instbuild data! CONTINUE');
-            }
-
-            $sql = 'DELETE FROM scheduler_research
-                    WHERE planet_id = '.$this->move['dest'];
-
-            if(!$this->db->query($sql)) {
-                $this->log(MV_M_DATABASE, 'Could not delete scheduler research data! CONTINUE');
-            }
-
-            $sql = 'DELETE FROM scheduler_resourcetrade
-                    WHERE planet = '.$this->move['dest'];
-
-            if(!$this->db->query($sql)) {
-                $this->log(MV_M_DATABASE, 'Could not delete resource data! CONTINUE');
-            }
-
-            $sql = 'DELETE FROM scheduler_shipbuild
-                    WHERE planet_id = '.$this->move['dest'];
-
-            if(!$this->db->query($sql)) {
-                $this->log(MV_M_DATABASE, 'Could not delete shipbuild data! CONTINUE');
-            }
-
-            global $NUM_BUILDING, $MAX_BUILDING_LVL;
-
-            // As someone yes number == max_index sets
-            $n_buildings = $NUM_BUILDING + 1;
-
-            $building_levels = array();
-
-            $building_damage = 0.01 * mt_rand(40, 60);
-
-            // Set new home world
-            if($this->move['dest'] == $this->dest['user_capital']) {
-                for($i = 0; $i < $n_buildings; ++$i) {
-                    $j = $i + 1;
-
-                    $building_levels[$i] = (int) ($this->dest['building_'.$j] > $MAX_BUILDING_LVL[0][$i]) ? $MAX_BUILDING_LVL[0][$i] : round($this->dest['building_'.$j] * $building_damage, 0);
-                }
-
-                if($this->dest['user_planets'] == 1) {
-                    // #############################################################################
-                    // 03/04/08 - AC: Retrieve player language
-                    switch($this->dest['language'])
-                    {
-                        case 'GER':
-                            $msg_title = 'Verlust aller deiner Planeten';
-                            $msg_body = 'Da du alle deine Planeten verloren hast, wurde f&uuml;r dich ein neuer Planet an einer zuf&uuml;ligen Stelle der Galaxie erstellt.';
-                        break;
-                        case 'ITA':
-                            $msg_title = 'Perdita di tutti i pianeti';
-                            $msg_body = 'Dato che hai perduto tutti i pianeti ne &egrave; stato creato uno nuovo nella galassia.';
-                        break;
-                        default:
-                            $msg_title = 'Loss of all your planets';
-                            $msg_body = 'Since you lost all your planets a new one have been created in the body of the galaxy.';
-                        break;
-                    }
-                    SystemMessage($this->dest['user_id'], $msg_title, $msg_body);
-                }
-                else {
-                    if(!$this->db->query('SET @i=0')) {
-                        return $this->log(MV_M_DATABASE, 'Could not set sql iterator variable for planet owner enum! SKIP');
-                    }
-
-                    $sql = 'UPDATE planets
-                            SET planet_owner_enum = (@i := (@i + 1))-1
-                            WHERE planet_owner = '.$this->dest['user_id'].'
-                            ORDER BY planet_owned_date ASC, planet_id ASC';
-
-                    if(!$this->db->query($sql)) {
-                        return $this->log(MV_M_DATABASE, 'Could not update planet owner enum data! SKIP');
-                    }
-
-                    $sql = 'SELECT planet_id
-                            FROM planets
-                            WHERE planet_owner = '.$this->dest['user_id'].'
-                            ORDER BY planet_owner_enum ASC
-                            LIMIT 1';
-
-                    if(($first_planet = $this->db->queryrow($sql)) === false) {
-                        return $this->log(MV_M_DATABASE, 'Could not query first planet data! SKIP');
-                    }
-
-                    $sql = 'UPDATE user
-                            SET last_active = '.time().',
-                                last_ip = "0.0.0.0",
-                                user_capital = '.$first_planet['planet_id'].',
-                                pending_capital_choice = 1
-                            WHERE user_id = '.$this->dest['user_id'];
-
-                    if(!$this->db->query($sql)) {
-                        return $this->log(MV_M_DATABASE, 'Could not update user capital data! SKIP');
-                    }
-                }
-            }
-            else {
-                for($i = 0; $i < $n_buildings; ++$i) {
-                    $building_levels[$i] = round($this->dest['building_'.($i + 1)] * $building_damage, 0);
-                }
-            }
-
-            $sql = 'DELETE FROM resource_trade
-                    WHERE planet = '.$this->move['dest'];
-
-            if(!$this->db->query($sql)) {
-                $this->log(MV_M_DATABASE, 'Could not delete resource trade data! CONTINUE');
-            }
-
-            $sql = 'SELECT ship_id
-                    FROM ship_trade
-                    WHERE scheduler_processed = 0 AND
-                          planet = '.$this->move['dest'];
-
-            if(!$q_shipt = $this->db->query($sql)) {
-                $this->log(MV_M_DATABASE, 'Could not query ship trade data! CONTINUE');
-            }
-            else {
-                $ship_ids = array();
-
-                while($_ship = $this->db->fetchrow($q_shipt)) {
-                    $ship_ids[] = $_ship['ship_id'];
-                }
-
-                if(count($ship_ids) > 0) {
-                    $sql = 'UPDATE ships
-                            SET ship_untouchable = 0
-                            WHERE ship_id IN ('.implode(',', $ship_ids).')';
-
-                    if(!$this->db->query($sql)) {
-                        $this->log(MV_M_DATABASE, 'Could not update ships untouchable data! CONTINUE');
-                    }
-                }
-            }
-
-            $sql = 'DELETE FROM ship_trade
-                    WHERE scheduler_processed = 0 AND
-                          planet = '.$this->move['dest'];
-
-            if(!$this->db->query($sql)) {
-                $this->log(MV_M_DATABASE, 'Could not delete ship trade data! CONTINUE');
-            }
-
-            $sql = 'UPDATE planets
-                    SET planet_owner = '.$this->move['user_id'].',
-                        planet_owned_date = '.time().',
-                        planet_owner_enum = '.($n_planets - 1).',
-                        resource_4 = 0,
-                        recompute_static = 1,
-                        building_1 = '.$building_levels[0].',
-                        building_2 = '.$building_levels[1].',
-                        building_3 = '.$building_levels[2].',
-                        building_4 = '.$building_levels[3].',
-                        building_5 = '.$building_levels[4].',
-                        building_6 = '.$building_levels[5].',
-                        building_7 = '.$building_levels[6].',
-                        building_8 = '.$building_levels[7].',
-                        building_9 = '.$building_levels[8].',
-                        building_10 = '.$building_levels[9].',
-                        building_11 = '.$building_levels[10].',
-                        building_12 = '.$building_levels[11].',
-                        building_13 = '.$building_levels[12].',
-                        unit_1 = '.$planet_units[0].',
-                        unit_2 = '.$planet_units[1].',
-                        unit_3 = '.$planet_units[2].',
-                        unit_4 = '.$planet_units[3].',
-                        unit_5 = 0,
-                        unit_6 = 0,
-                        workermine_1 = 100,
-                        workermine_2 = 100,
-                        workermine_3 = 100,
-                        catresearch_1 = 0,
-                        catresearch_2 = 0,
-                        catresearch_3 = 0,
-                        catresearch_4 = 0,
-                        catresearch_5 = 0,
-                        catresearch_6 = 0,
-                        catresearch_7 = 0,
-                        catresearch_8 = 0,
-                        catresearch_9 = 0,
-                        catresearch_10 = 0,
-                        unittrainid_1 = 0,
-                        unittrainid_2 = 0,
-                        unittrainid_3 = 0,
-                        unittrainid_4 = 0,
-                        unittrainid_5 = 0,
-                        unittrainid_6 = 0,
-                        unittrainid_7 = 0,
-                        unittrainid_8 = 0,
-                        unittrainid_9 = 0,
-                        unittrainid_10 = 0,
-                        unittrainnumber_1 = 0,
-                        unittrainnumber_2 = 0,
-                        unittrainnumber_3 = 0,
-                        unittrainnumber_4 = 0,
-                        unittrainnumber_5 = 0,
-                        unittrainnumber_6 = 0,
-                        unittrainnumber_7 = 0,
-                        unittrainnumber_8 = 0,
-                        unittrainnumber_9 = 0,
-                        unittrainnumber_10 = 0,
-                        unittrainnumberleft_1 = 0,
-                        unittrainnumberleft_2 = 0,
-                        unittrainnumberleft_3 = 0,
-                        unittrainnumberleft_4 = 0,
-                        unittrainnumberleft_5 = 0,
-                        unittrainnumberleft_6 = 0,
-                        unittrainnumberleft_7 = 0,
-                        unittrainnumberleft_8 = 0,
-                        unittrainnumberleft_9 = 0,
-                        unittrainnumberleft_10 = 0,
-                        unittrain_actual = 0,
-                        unittrainid_nexttime=0,
-                        planet_insurrection_time=0,
-                        building_queue=0,
-                        planet_surrender=0
-                    WHERE planet_id = '.$this->move['dest'];
-
-            $this->log('SQL Debug', ''.$sql.'');
-
-            if(!$this->db->query($sql)) {
-                return $this->log(MV_M_DATABASE, 'Could not update planets data! SKIP');
-            }
-
-// DC ---- History record in planet_details, with label '26'
-            $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code, defeat_uid, defeat_aid)
-                    VALUES ('.$this->move['dest'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.time().', 26,'.$this->dest['user_id'].', '.$this->dest['user_alliance'].')';
-
-            if(!$this->db->query($sql)) {
-                $this->log(MV_M_DATABASE, 'Could not update planet details data! CONTINUE');
-            }
-	    
-	    // If the attack was on a settlers planet, we get rid of the moods data!
-    
-	    if($this->flags['is_indipendent']) {
-		$this->log(MV_M_NOTICE, 'Colony: Settlers taken over!!! They gonna be no more...');
-	
-		$sql = 'DELETE planet_details WHERE planet_id = '.$this->dest['planet_id'].' AND log_code = 300';
-	
-		if(!$this->db->query($sql)) {
-			$this->log(MV_M_DATABASE, 'Could not delete settlers moods! CONTINUE!');   
-		}
-	    }
-// DC ----
-
-        $this->log('Update Planetdata', 'Limited resources');
-
-        //Concept of vessels destroyed by hostile takeover.
-        //Version 0.2b by Mojo1987 - Calculation adjusted
-
-        $this->log('Ship destruction', 'Begin ships deletion');
-
-        $sql = 'SELECT s.ship_id FROM (ships s) WHERE s.fleet_id = -'.$this->move['dest'].'';
-
-        if(!$del_ship = $this->db->query($sql)) {
-           $this->log('Errors with ships get', 'Could not query planets ships! CONTINUE - '.$sql.'');
-        }
-
-        while($ship_wahl = $this->db->fetchrow($del_ship)) {
-
-          $zufall = mt_rand(6,18);
-
-          if($zufall>=8) {
-
-            $sql = 'DELETE FROM ships WHERE ship_id = '.$ship_wahl['ship_id'].'';
-
-            if(!$this->db->query($sql)) {
-                $this->log('Error with ship deletion', 'Could not query deleted ship! CONTINUE');
-            }
-            else { $this->log('Ships removed', 'Ship_ID: '.$ship_wahl['ship_id'].' Random number: '.$zufall.' <b>SUCCESS!</b>'); }
-          }
-
-        }
-
-        $this->log('Ship destruction', 'Deletion ended');
-
-            if(!$this->db->query('SET @i=0')) {
-                return $this->log(MV_M_DATABASE, 'Could not set sql iterator variable for planet owner enum (the invading player)! SKIP');
-            }
-
-            $sql = 'UPDATE planets
-                    SET planet_owner_enum = (@i := (@i + 1))-1
-                    WHERE planet_owner = '.$this->move['user_id'].'
-                    ORDER BY planet_owned_date ASC, planet_id ASC';
-
-            if(!$this->db->query($sql)) {
-                return $this->log(MV_M_DATABASE, 'Could not update planet owner enum data (the invading player)! SKIP');
-            }
-
-            $sql = 'UPDATE ships
-                    SET user_id = '.$this->move['user_id'].'
-                    WHERE fleet_id = -'.$this->move['dest'];
-
-            if(!$this->db->query($sql)) {
-                return $this->log(MV_M_DATABASE, 'Could not update ships location data! SKIP');
-            }
-
-            if($this->dest['user_id'] == BORG_USERID) {
-                if((int)$this->move['user_alliance'] != 0) {
-                    $sql = 'UPDATE alliance
-                            SET borg_invade = borg_invade + 1
-                            WHERE alliance_id = '.$this->move['user_alliance'];
-
-                    if(!$this->db->query($sql)) {
-                        $this->log(MV_M_DATABASE, 'Could not update user alliance Borg honor data! CONTINUE');
-                    }
-                }
-
-                send_premonition_to_user($this->move['user_id']);
-
-                // #############################################################################
-                // 03/04/08 - AC: Retrieve player language
-                switch($this->move['language'])
-                {
-                    case 'GER':
-                        $msg_title = 'Verdienst im Kampf gegen die Borg';
-                        $msg_text = 'F&uuml;e gerade erbrachten Verdienst gegen die neue Invasion des Borg-Kollektives befinden sich im Anflug auf euren Heimatplaneten ein speziell f&ouml;sen Kampf entwickeltes Schiff. Versucht nicht die enthaltene Technologie zu verstehen, sie wurde wirkungsvoll gegen euch abgeschirmt - nutzt sie stattdessen in eurem weiteren Kampf!';
-                    break;
-                    case 'ITA':
-                        $msg_title = 'Merito in battaglia contro i Borg';
-                        $msg_text = 'Proprio per rendere merito contro la nuova invasione del collettivo Borg si trova in approccio al tuo pianeta madre una nave appositamente progettata per combatterli. Non provare a capire la tecnologia inclusa, &egrave; stata efficacemente schermata contro di te - utilizzala invece ulteriormente nella tua lotta!';
-                    break;
-                    default:
-                        $msg_title = 'Merit in the battle against the Borg';
-                        $msg_text = 'For precisely rendered merit against the new invasion of the Borg Collective are located in the approach to your home planet fuse fight a specially designed ship. Do not try to understand the included technology, it was effectively shielded against you - instead uses it further in your fight!';
-                   break;
-                }
-
-                $sql = 'INSERT INTO message (sender, receiver, subject, text, time)
-                        VALUES ('.FUTURE_HUMANS_UID.', '.$this->move['user_id'].', "'.$msg_title.'", "'.$msg_text.'", '.time().')';
-
-                if(!$this->db->query($sql)) {
-                    $this->log(MV_M_DATABASE, 'Could not send message');
-                }
-            }
-
-            $action_status = 1;
-
-            // #############################################################################
-            // 03/04/08 - AC: Retrieve player language
-            switch($this->move['language'])
-            {
-                case 'GER':
-                    $atk_title = 'Angriff auf '.$this->dest['planet_name'].' erfolgreich';
-                break;
-                case 'ITA':
-                    $atk_title = 'Attacco su '.$this->dest['planet_name'].' riuscito';
-                break;
-                default:
-                    $atk_title = 'Attack on '.$this->dest['planet_name'].' successful';
-                break;
-            }
-        }
-
-        $sql = 'DELETE FROM ships
-                WHERE ship_id = '.$ship_id;
-
-        if(!$this->db->query($sql)) {
-            return $this->log(MV_M_DATABASE, 'Could not delete ships data! SKIP');
-        }
-
-        if($cship['n_ships'] == 1) {
-            $sql = 'DELETE FROM ship_fleets
-                    WHERE fleet_id = '.$cship['fleet_id'];
-        }
-        else {
-            $sql = 'UPDATE ship_fleets
-                    SET n_ships = n_ships - 1
-                    WHERE fleet_id = '.$cship['fleet_id'];
-        }
-
-        if(!$this->db->query($sql)) {
-            $this->log(MV_M_DATABASE, 'Could not update/delete cships fleet data! CONTINUE');
-        }
     }
+    // No colonization ship found
     else {
         $action_status = -2;
 
@@ -847,6 +870,7 @@ $this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_u
         return $this->log(MV_M_DATABASE, 'Could not update fleets location data! SKIP');
     }
 }
+// Attacker has lost orbital battle
 else {
     // #############################################################################
     // 03/04/08 - AC: Retrieve player language
