@@ -144,6 +144,23 @@ class moves_action_24 extends moves_common {
             $n_planets = $pcount['n_planets'];
         }
 
+        if($n_planets >= USER_MAX_PLANETS) {
+            $sql = 'UPDATE ship_fleets
+                    SET planet_id = '.$this->move['dest'].',
+                        move_id = 0
+                    WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+                    
+            // Here there is a point at which I should be notified
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update fleets location data! CONTINUE');
+            }
+
+            $log_data[8] = -3;
+            add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $col_title.$this->dest['planet_name'].$col_fail, $log_data);
+
+            return MV_EXEC_OK;
+        }
+
 
         // #############################################################################
         // Colonization attempt
@@ -248,7 +265,7 @@ class moves_action_24 extends moves_common {
                     unittrain_actual = 0,
                     unittrainid_nexttime=0,
                     building_queue=0,
-                  	planet_surrender=0
+                    planet_surrender=0
                 WHERE planet_id = '.$this->move['dest'];
 
             $this->log('SQL Debug', ''.$sql.'');
