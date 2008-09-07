@@ -223,7 +223,7 @@ if ($MAX_RESEARCH_LVL[$capital][$t]>=9) $db->query('UPDATE planets SET research_
 $sdl->finish_job('Buildings / Research level fix');
 
 
-$sdl->start_job('Rioters planets take over by the settlers');
+$sdl->start_job('Rioters planets return inhabitated');
 
   $sql = 'SELECT * FROM planets WHERE ( planet_surrender < '.$ACTUAL_TICK.' AND planet_surrender > 0 )';
 
@@ -234,7 +234,7 @@ $sdl->start_job('Rioters planets take over by the settlers');
   while($surrending_planets = $db->fetchrow($query_s_p)) {
   
 	$sql = 'UPDATE planets
-		SET planet_owner='.INDEPENDENT_USERID.',
+		SET planet_owner= 0,
 	        planet_owned_date = '.time().',
                 resource_1 = 10000,
                 resource_2 = 10000,
@@ -304,7 +304,7 @@ $sdl->start_job('Rioters planets take over by the settlers');
             $sdl->log('<b>Error:</b> Could not update planet details <b>'.$surrending_planets['planet_id'].'</b>! CONTINUED');	
         }
 	
-	$sql = 'UPDATE planet_details SET mood_race'.$_temp['user_race'].' = mood_race'.$_temp['user_race'].' + 50 WHERE planet_id = '.$surrending_planets['planet_id'].' AND log_code = 300';
+	$sql = 'UPDATE planet_details SET mood_race'.$_temp['user_race'].' = mood_race'.$_temp['user_race'].' + 50 WHERE planet_id = '.$surrending_planets['planet_id'];
 	
 	$sdl->log('SQL UPDATE: '.$sql);
 	
@@ -314,7 +314,7 @@ $sdl->start_job('Rioters planets take over by the settlers');
 		
   }
 
-$sdl->finish_job('Rioters planets take over by the settlers');
+$sdl->finish_job('Rioters planets return inhabitated');
 
 
 $sdl->start_job('Logbook cleaning');
@@ -356,7 +356,7 @@ else {
 $sdl->finish_job('Logbook cleaning');
 
 
-$sdl->start_job('Clearing invalid war declarations');
+/*$sdl->start_job('Clearing invalid war declarations');
 
 $min_points = 500;
 $min_members = 5;
@@ -377,7 +377,7 @@ else {
 	}
 }
 
-$sdl->finish_job('Clearing invalid war declarations');
+$sdl->finish_job('Clearing invalid war declarations');*/
 
 // ########################################################################################
 // ########################################################################################

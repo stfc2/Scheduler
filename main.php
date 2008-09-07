@@ -55,7 +55,7 @@ include($game_path . 'include/text_races.php');
 include($game_path . 'include/race_data.php');
 include($game_path . 'include/ship_data.php');
 include($game_path . 'include/libs/moves.php');
-include($game_path . 'include/libs/world.php'); // Needed by NPC BOT
+//include($game_path . 'include/libs/world.php'); // Needed by NPC BOT
 
 $sdl = new scheduler();
 $db = new sql($config['server'].":".$config['port'], $config['game_database'], $config['user'], $config['password']); // create sql-object for db-connection
@@ -561,7 +561,7 @@ $sdl->finish_job('Resourcetrade Scheduler');
 
 // ########################################################################################
 // ########################################################################################
-//BOT
+/*BOT
 ini_set('memory_limit', '500M');
 define('FILE_PATH_hg',$game_path);
 define('TICK_LOG_FILE_NPC', $game_path.'logs/NPC_BOT_tick_'.date('d-m-Y', time()).'.log');
@@ -582,7 +582,7 @@ $settlers = new Settlers($db,$sdl);
 $settlers->Execute(1);
 $sdl->finish_job('Mayflower is coming - settlers are the real workforce');
 define('TICK_LOG_FILE_NPC','');
-
+*/
 // ########################################################################################
 // ########################################################################################
 // Update Tick-ID
@@ -757,10 +757,10 @@ while($planet = $db->fetchrow($q_planets)) {
     $rand=rand(0,100);
     if ($rand==2)
     {
-        $sdl->log('Planet '.$planet['planet_name'].' ('.$planet['planet_id'].') taken over by NPC');
+        $sdl->log('Planet '.$planet['planet_name'].' ('.$planet['planet_id'].') return inhabitated');
 
         $sql = 'UPDATE planets
-                        SET planet_owner='.INDEPENDENT_USERID.',
+                        SET planet_owner= 0,
                         planet_owned_date = '.time().',
                         resource_1 = 10000,
                         resource_2 = 10000,
@@ -1900,7 +1900,7 @@ else {
 //DC ----
 
         $sql = 'UPDATE planets
-                    SET planet_owner='.INDEPENDENT_USERID.',
+                    SET planet_owner= 0,
                         planet_owned_date = '.time().',
                         resource_1 = 10000,
                         resource_2 = 10000,
@@ -1944,7 +1944,7 @@ else {
             WHERE planet_owner = '.$user['user_id'];
 
         if(!$db->query($sql)) {
-            $sdl->log('<b>Error:</b> Could not give deleted users\'s planets to the settlers! CONTIUED');
+            $sdl->log('<b>Error:</b> Could not give deleted users\'s planets to galaxy! CONTIUED');
         }
 
         /* 25/06/08 - AC: Set logbook messages flag to read in order to be cleaned up */
