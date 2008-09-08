@@ -71,7 +71,7 @@ class moves_action_34 extends moves_common {
 
         // von ship_traderoute.php...und das wahrscheinlich von ship_fleets_loadingp/f
 
-        $this->log(MV_M_NOTICE, 'Inizio a caricare le merci');	
+        $this->log(MV_M_NOTICE, 'Inizio a caricare le merci');
 
         $n_resources = $this->fleet['resource_1'] + $this->fleet['resource_2'] + $this->fleet['resource_3'];
 
@@ -94,7 +94,7 @@ class moves_action_34 extends moves_common {
             }
 
             if( ($n_resources + $value) > $this->fleet['max_resources'] ) {
-                $value = $max_resources - $n_resources;
+                $value = $this->fleet['max_resources'] - $n_resources;
             }
 
             $this->log(MV_M_NOTICE, 'Sto caricando '.$value.' di '.$column);
@@ -118,7 +118,7 @@ class moves_action_34 extends moves_common {
             }
 
             if( ($n_units + $value) > $this->fleet['max_units'] ) {
-                $value = $max_units - $n_units;
+                $value = $this->fleet['max_units'] - $n_units;
             }
 
             $this->log(MV_M_NOTICE, 'Sto caricando '.$value.' di '.$column);
