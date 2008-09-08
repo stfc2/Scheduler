@@ -36,27 +36,29 @@ class moves_action_34 extends moves_common {
 
     function do_unloading() {
 
-        $this->log(MV_M_NOTICE, 'Inizio a scaricare le merci');
+        $this->log(MV_M_NOTICE, 'Unloading goods...');
 
         $wares = array(201 => 'resource_1', 202 => 'resource_2', 203 => 'resource_3', 204 => 'resource_4', 211 => 'unit_1', 212 => 'unit_2', 213 => 'unit_3', 214 => 'unit_4', 215 => 'unit_5', 216 => 'unit_6');
 
         foreach($wares as $code => $column) {
 
             if($this->actions[$code] == 0) {
-                $this->log(MV_M_NOTICE, 'Nulla da scaricare per quanto riguarda '.$column);
+                //$this->log(MV_M_NOTICE, 'Nulla da scaricare per quanto riguarda '.$column);
                 continue;
             }
 
 
             if($this->actions[$code] == -1) {
-                $this->log(MV_M_NOTICE, 'Scarico tutto quello che ho a bordo di '.$column.' (ossia '.$this->fleet[$column].')');
+                if($this->fleet[$column] > 0)
+                    $this->log(MV_M_NOTICE, 'Scarico tutto quello che ho a bordo di '.$column.' (ossia <b>'.$this->fleet[$column].'</b>)');
                 $this->dest[$column] += $this->fleet[$column];
                 $this->fleet[$column] = 0;
             }
 
             else {
                 $value = ($this->fleet[$column] < $this->actions[$code]) ? $this->fleet[$column] : $this->actions[$code];
-                $this->log(MV_M_NOTICE, 'Sto scaricando '.$value.' di '.$column);
+                if($value > 0)
+                    $this->log(MV_M_NOTICE, 'Sto scaricando <b>'.$value.'</b> di '.$column);
                 $this->dest[$column] += $value;
                 $this->fleet[$column] -= $value;
             }
@@ -71,7 +73,7 @@ class moves_action_34 extends moves_common {
 
         // von ship_traderoute.php...und das wahrscheinlich von ship_fleets_loadingp/f
 
-        $this->log(MV_M_NOTICE, 'Inizio a caricare le merci');
+        $this->log(MV_M_NOTICE, 'Loading goods...');
 
         $n_resources = $this->fleet['resource_1'] + $this->fleet['resource_2'] + $this->fleet['resource_3'];
 
@@ -97,7 +99,8 @@ class moves_action_34 extends moves_common {
                 $value = $this->fleet['max_resources'] - $n_resources;
             }
 
-            $this->log(MV_M_NOTICE, 'Sto caricando '.$value.' di '.$column);
+            if($value > 0)
+                $this->log(MV_M_NOTICE, 'Sto caricando <b>'.$value.'</b> di '.$column);
 
             $this->fleet[$column] += $value;
             $this->report_load[$column] = $value;
@@ -121,7 +124,8 @@ class moves_action_34 extends moves_common {
                 $value = $this->fleet['max_units'] - $n_units;
             }
 
-            $this->log(MV_M_NOTICE, 'Sto caricando '.$value.' di '.$column);
+            if($value > 0)
+                $this->log(MV_M_NOTICE, 'Sto caricando <b>'.$value.'</b> di '.$column);
 
             $this->fleet[$column] += $value;  
             $this->report_load[$column] = $value;
@@ -196,7 +200,7 @@ class moves_action_34 extends moves_common {
 
         else $this->actions = &$this->tr_data[3];
 
-        $this->log(MV_M_NOTICE, 'Buondi!, Sono quello della flotta '.$this->fleet_ids[0].' del Boss '.$this->move['user_id'].', in arrivo sul pianeta '.$this->dest['planet_id'].' che appartiene a '.$this->dest['user_id'].' per un trasporto.');
+        $this->log(MV_M_NOTICE, 'Buondi! Sono quello della flotta <b>'.$this->fleet_ids[0].'</b> del Boss <b>'.$this->move['user_id'].'</b>, in arrivo sul pianeta <b>'.$this->dest['planet_id'].'</b> che appartiene a <b>'.$this->dest['user_id'].'</b> per un trasporto.');
 
         $sql = 'SELECT resource_1, resource_2, resource_3, resource_4, unit_1, unit_2, unit_3, unit_4, unit_5, unit_6
 
@@ -242,7 +246,7 @@ class moves_action_34 extends moves_common {
 
         $this->do_unloading();
 
-        $this->log(MV_M_NOTICE, 'Ho finito di scaricare');
+        //$this->log(MV_M_NOTICE, 'Ho finito di scaricare');
 
 
         if($this->move['user_id'] != $this->dest['user_id']) {
@@ -304,7 +308,7 @@ class moves_action_34 extends moves_common {
 
         if($allied && ($this->tr_data[5] < 0 || $this->tr_data[5] == 4)) $this->do_loading();
 
-        $this->log(MV_M_NOTICE, 'Nel caso, ho finito di caricare');
+        //$this->log(MV_M_NOTICE, 'Nel caso, ho finito di caricare');
 
 
         $sql = 'UPDATE ship_fleets
