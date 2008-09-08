@@ -50,7 +50,7 @@ class moves_action_34 extends moves_common {
 
             if($this->actions[$code] == -1) {
                 if($this->fleet[$column] > 0)
-                    $this->log(MV_M_NOTICE, 'Scarico tutto quello che ho a bordo di '.$column.' (ossia <b>'.$this->fleet[$column].'</b>)');
+                    $this->log(MV_M_NOTICE, 'Unloading <b>ALL</b> the quantity on board of '.$column.' (<b>'.$this->fleet[$column].'</b>)');
                 $this->dest[$column] += $this->fleet[$column];
                 $this->fleet[$column] = 0;
             }
@@ -58,7 +58,7 @@ class moves_action_34 extends moves_common {
             else {
                 $value = ($this->fleet[$column] < $this->actions[$code]) ? $this->fleet[$column] : $this->actions[$code];
                 if($value > 0)
-                    $this->log(MV_M_NOTICE, 'Sto scaricando <b>'.$value.'</b> di '.$column);
+                    $this->log(MV_M_NOTICE, 'Unloading <b>'.$value.'</b> of '.$column);
                 $this->dest[$column] += $value;
                 $this->fleet[$column] -= $value;
             }
@@ -100,7 +100,7 @@ class moves_action_34 extends moves_common {
             }
 
             if($value > 0)
-                $this->log(MV_M_NOTICE, 'Sto caricando <b>'.$value.'</b> di '.$column);
+                $this->log(MV_M_NOTICE, 'Loading <b>'.$value.'</b> of '.$column);
 
             $this->fleet[$column] += $value;
             $this->report_load[$column] = $value;
@@ -125,7 +125,7 @@ class moves_action_34 extends moves_common {
             }
 
             if($value > 0)
-                $this->log(MV_M_NOTICE, 'Sto caricando <b>'.$value.'</b> di '.$column);
+                $this->log(MV_M_NOTICE, 'Loading <b>'.$value.'</b> of '.$column);
 
             $this->fleet[$column] += $value;  
             $this->report_load[$column] = $value;
