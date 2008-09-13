@@ -69,12 +69,12 @@ $sql_3 = 'SELECT DISTINCT f.user_id,f.fleet_id,ssm.dest,
         LEFT JOIN alliance_diplomacy ad ON ( ( ad.alliance1_id ='.$user_attacker['user_alliance'].' AND ad.alliance2_id = u.user_alliance) OR ( ad.alliance1_id = u.user_alliance AND ad.alliance2_id = '.$user_attacker['user_alliance'].' ) ) 
         WHERE ssm.move_finish<='.$this->move['move_finish'].' AND
               f.user_id <>'.$this->dest['user_id'].' AND
-ssm.move_status=0 AND ssm.action_code!=31 AND ssm.action_code!=33 AND ssm.action_code!=34 AND ssm.action_code!=14 AND ssm.action_code!=22 AND ssm.action_code!=23 AND
-f.move_id!=0 AND
-ssm.dest='.$this->move['dest'].' AND
+              ssm.move_status=0 AND ssm.action_code!=31 AND ssm.action_code!=33 AND ssm.action_code!=34 AND ssm.action_code!=14 AND ssm.action_code!=22 AND ssm.action_code!=23 AND
+              f.move_id!=0 AND
+              ssm.dest='.$this->move['dest'].' AND
               f.user_id <> '.$this->move['user_id'].' AND
               f.alert_phase >= '.ALERT_PHASE_YELLOW;
-$this->log(MV_M_NOTICE, $sql_3);
+//$this->log(MV_M_NOTICE, $sql_3);
 if(!$l_st_uid = $this->db->query($sql_3)) {
     return $this->log(MV_M_DATABASE, 'Could not query stationated fleets user data! SKIP');
 }
@@ -101,14 +101,14 @@ while($at_uid = $this->db->fetchrow($l_st_uid)) {
 
 
 $a_st_user = count($at_user);
-$this->log(MV_M_NOTICE,$a_st_user .'Common assault:::'.$zahl);
+$this->log(MV_M_NOTICE,'Allied in orbit: <b>'.$a_st_user.'</b> common assault');
 if($a_st_user > 0) {
     $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
              FROM (ship_fleets f)
              INNER JOIN user u ON u.user_id = f.user_id
-LEFT JOIN (scheduler_shipmovement ssm) ON ssm.move_id=f.move_id
+             LEFT JOIN (scheduler_shipmovement ssm) ON ssm.move_id=f.move_id
              WHERE ssm.dest='.$this->move['dest'].' AND ssm.action_code!=31 AND ssm.action_code!=33 AND ssm.action_code!=34 AND ssm.action_code!=14 AND ssm.action_code!=22 AND ssm.action_code!=23 AND ssm.move_finish<='.$this->move['move_finish'].' AND ssm.move_status=0 AND f.move_id!=0 AND
-			       (
+                   (
                      (
                        f.user_id = '.$this->move['user_id'].' AND f.alert_phase >= '.ALERT_PHASE_YELLOW.'
                      )
@@ -135,8 +135,8 @@ if(($atk_fleets = $this->db->queryrowset($sql)) === false) {
 $atk_fleets_ids = array();
 $zahl=0;
 foreach($atk_fleets as $i => $cur_fleet) {
-$zahl++;
-$this->log(MV_M_NOTICE,'Fleet::'.$cur_fleet['fleet_id'].'::||:Alert:::'.$cur_fleet['alert_phase'].':::||:Name:::'.$cur_fleet['fleet_name']);
+	$zahl++;
+	$this->log(MV_M_NOTICE,'<b>Attacker:</b> fleet ID: <b>'.$cur_fleet['fleet_id'].'</b> name: <b>'.$cur_fleet['fleet_name'].'</b> ships: <b>'.$cur_fleet['n_ships'].'</b>');
 	$atk_fleets_ids[] = $cur_fleet['fleet_id'];
 }
 if($zahl<1)
@@ -189,7 +189,7 @@ if($n_st_user > 0) {
              FROM (ship_fleets f)
              INNER JOIN (user u) ON u.user_id = f.user_id
              WHERE f.planet_id = '.$this->move['dest'].' AND
-		 	      (
+                   (
                      (
                        f.user_id = '.$this->dest['user_id'].'
                      )
@@ -215,13 +215,13 @@ if(($dfd_fleets = $this->db->queryrowset($sql)) === false) {
 $dfd_fleet_ids = array();
 
 foreach($dfd_fleets as $i => $cur_fleet) {
-$this->log(MV_M_DATABASE,'Flotte::'.$cur_fleet['fleet_id'].'::||:Alert:::'.$cur_fleet['alert_phase'].':::||:Name:::'.$cur_fleet['fleet_name']);
+	$this->log(MV_M_NOTICE,'<b>Defender:</b> fleet ID: <b>'.$cur_fleet['fleet_id'].'</b> name: <b>'.$cur_fleet['fleet_name'].'</b> ships: <b>'.$cur_fleet['n_ships'].'</b>');
 	$dfd_fleet_ids[] = $cur_fleet['fleet_id'];
 }
-$this->log('Test','Muschu<br>'.$zahl);
+
 if($this->do_ship_combat(implode(',', $atk_fleets_ids), implode(',', $dfd_fleet_ids), MV_COMBAT_LEVEL_ORBITAL) == MV_EXEC_ERROR) {
 	$this->log(MV_M_DATABASE, 'Move Action 41: Something went wrong with this fight!');
-    return MV_EXEC_ERROR;
+	return MV_EXEC_ERROR;
 }
 
 
@@ -385,9 +385,9 @@ if(!$aad = $this->db->query($sql_3)) {
 
 while($aa_uid = $this->db->fetchrow($aad))
 {
-$this->log(MV_M_NOTICE, '::::'.$aa_uid['move_id'].'Now we delete:'.$this->move['user_id'].'<br>');
-if($aa_uid['move_id']!=$this->move['user_id'])
-{
+    $this->log(MV_M_NOTICE, '::::'.$aa_uid['move_id'].'Now we delete:'.$this->move['user_id'].'<br>');
+    if($aa_uid['move_id']!=$this->move['user_id'])
+    {
       /*  $sql = 'UPDATE scheduler_shipmovement
                 SET move_exec_started = move_exec_started + 1
                 WHERE move_id = '.$this->mid;*/
@@ -395,24 +395,23 @@ if($aa_uid['move_id']!=$this->move['user_id'])
      /*   if(!$this->db->query($sql)) {
             return $this->log(MV_M_DATABASE, 'Could not update move exec started data! SKIP');;
         } */
-$sql = 'UPDATE ship_fleets
-            SET planet_id = '.$aa_uid['dest'].',
-                move_id = 0
-            WHERE fleet_id ='.$aa_uid['fleet_id'].'';
-    if(!$this->db->query($sql)) {
-        return $this->log(MV_M_DATABASE, 'Could not update fleets location data! SKIP');
-    }
-$sql = 'UPDATE scheduler_shipmovement
-                    SET move_status = 11
-                    WHERE move_id = '.$aa_uid['move_id'].'';
+        $sql = 'UPDATE ship_fleets
+                SET planet_id = '.$aa_uid['dest'].',
+                    move_id = 0
+                WHERE fleet_id ='.$aa_uid['fleet_id'];
+        if(!$this->db->query($sql)) {
+            return $this->log(MV_M_DATABASE, 'Could not update fleets location data! SKIP');
+        }
+        $sql = 'UPDATE scheduler_shipmovement
+                SET move_status = 11
+                WHERE move_id = '.$aa_uid['move_id'];
 
-            if(!$this->db->query($sql)) {
-                $this->log(MV_M_DATABASE, 'Could not update move status data! CONTINUE');
-            }
-//
+        if(!$this->db->query($sql)) {
+            $this->log(MV_M_DATABASE, 'Could not update move status data! CONTINUE');
+        }
+    }
 }
-}
-$this->log('Test','muku<br>'.$zahl);
+
 return MV_EXEC_OK;
 
     }
