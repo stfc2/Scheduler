@@ -389,7 +389,7 @@ class moves_common {
                           f.user_id <> '.$this->move['user_id'].' AND
                           f.alert_phase = '.ALERT_PHASE_RED;
 
-$this->log(MV_M_NOTICE,'AR-Fleet:<br>"'.$sql.'"<br>');
+//$this->log(MV_M_NOTICE,'AR-Fleet:<br>"'.$sql.'"<br>');
 
             if(!$q_ar_uid = $this->db->query($sql)) {
                 return $this->log(MV_M_DATABASE, 'Could not query alert phase red user! SKIP');
@@ -416,7 +416,7 @@ $this->log(MV_M_NOTICE,'AR-Fleet:<br>"'.$sql.'"<br>');
             }
 
             $this->db->free_result($q_ar_uid);
-$this->log(MV_M_NOTICE,'AR-user(s): '.count($ar_user).'<br>');
+$this->log(MV_M_NOTICE,'AR-user(s): <b>'.count($ar_user).'</b>');
 
             // 160408 DC ---- Scouts does not trigger AR Fleets attack
             $scout_counter = 0;

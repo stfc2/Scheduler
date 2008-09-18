@@ -114,7 +114,7 @@ class moves_action_24 extends moves_common {
                     SET planet_id = '.$this->move['dest'].',
                         move_id = 0
                     WHERE fleet_id IN ('.$this->fleet_ids_str.')';
-                    
+
             // Here there is a point at which I should be notified
             if(!$this->db->query($sql)) {
                 $this->log(MV_M_DATABASE, 'Could not update fleets location data! CONTINUE');
@@ -134,7 +134,7 @@ class moves_action_24 extends moves_common {
         $sql = 'SELECT COUNT(planet_id) AS n_planets
                 FROM planets
                 WHERE planet_owner = '.$this->move['user_id'];
-                
+
         if(($pcount = $this->db->queryrow($sql)) === false) {
             $this->log(MV_M_DATABASE, 'Could not query planets count data! CONTINUE USING INSTABLE VALUE');
 
@@ -149,7 +149,7 @@ class moves_action_24 extends moves_common {
                     SET planet_id = '.$this->move['dest'].',
                         move_id = 0
                     WHERE fleet_id IN ('.$this->fleet_ids_str.')';
-                    
+
             // Here there is a point at which I should be notified
             if(!$this->db->query($sql)) {
                 return $this->log(MV_M_DATABASE, 'Could not update fleets location data! CONTINUE');
@@ -268,7 +268,7 @@ class moves_action_24 extends moves_common {
                     planet_surrender=0
                 WHERE planet_id = '.$this->move['dest'];
 
-            $this->log('SQL Debug', ''.$sql.'');
+        //$this->log('SQL Debug', ''.$sql.'');
 
         if(!$this->db->query($sql)) {
             return $this->log(MV_M_DATABASE, 'Could not update planets data! SKIP');
@@ -277,12 +277,12 @@ class moves_action_24 extends moves_common {
         //Concept of vessels destroyed by hostile takeover.
         //Version 0.2b by Mojo1987 - Computation adapted
 
-        $this->log('Ship handover protection', 'Start ships deletion');
+        $this->log(MV_M_NOTICE, 'Start ships deletion');
 
         $sql = 'SELECT s.ship_id FROM (ships s) WHERE s.fleet_id = -'.$this->move['dest'].'';
 
         if(!$del_ship = $this->db->query($sql)) {
-           $this->log('Errors with ships get', 'Could not query planets ships! CONTINUE - '.$sql.'');
+           $this->log(MV_M_DATABASE, 'Could not query planets ships! CONTINUE - '.$sql.'');
         }
 
         while($ship_wahl = $this->db->fetchrow($del_ship)) {
@@ -294,13 +294,13 @@ class moves_action_24 extends moves_common {
             $sql = 'DELETE FROM ships WHERE ship_id = '.$ship_wahl['ship_id'].'';
 
             if(!$this->db->query($sql)) {
-                $this->log('Errors with ships deletion', 'Could not query deleted ship! CONTINUE');
+                $this->log(MV_M_DATABASE, 'Could not query deleted ship! CONTINUE');
             }
-            else { $this->log('Ships deleted', 'Ship_ID: '.$ship_wahl['ship_id'].' Random number: '.$zufall.' <b> SUCCESS!</b>'); }
+            else { $this->log(MV_M_NOTICE, 'Ship_ID: '.$ship_wahl['ship_id'].' Random number: '.$zufall.' <b> SUCCESS!</b>'); }
           }
 
         }
-        $this->log('Ship handover protection', 'Delete terminated');
+        $this->log(MV_M_NOTICE, 'Delete terminated');
 
 
         $sql = 'DELETE FROM ships
