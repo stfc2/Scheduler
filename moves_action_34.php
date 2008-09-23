@@ -36,7 +36,7 @@ class moves_action_34 extends moves_common {
 
     function do_unloading() {
 
-        $this->log(MV_M_NOTICE, 'Unloading goods...');
+        //$this->log(MV_M_NOTICE, 'Unloading goods...');
 
         $wares = array(201 => 'resource_1', 202 => 'resource_2', 203 => 'resource_3', 204 => 'resource_4', 211 => 'unit_1', 212 => 'unit_2', 213 => 'unit_3', 214 => 'unit_4', 215 => 'unit_5', 216 => 'unit_6');
 
@@ -73,7 +73,7 @@ class moves_action_34 extends moves_common {
 
         // von ship_traderoute.php...und das wahrscheinlich von ship_fleets_loadingp/f
 
-        $this->log(MV_M_NOTICE, 'Loading goods...');
+        //$this->log(MV_M_NOTICE, 'Loading goods...');
 
         $n_resources = $this->fleet['resource_1'] + $this->fleet['resource_2'] + $this->fleet['resource_3'];
 
