@@ -249,7 +249,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
         }
 
         // 01/07/08 - AC: Count losses for each part
-        for($i = 0; $i < count($atk_fleets); ++$i) {
+        for($i = 0; $i < 5; ++$i) {
             $atk_losses[$i] = $atk_units[$i] - $atk_alive[$i];
             $dfd_losses[$i] = $dfd_units[$i] - $dfd_alive[$i];
         }
