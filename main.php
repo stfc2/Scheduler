@@ -360,12 +360,14 @@ if(!$db->query($sql)) {
 }
 else
 {
-$sql = 'UPDATE planets SET resource_1=resource_1+'.$res[0].', resource_2=resource_2+'.$res[1].', resource_3=resource_3+'.$res[2].',
-					unit_1=unit_1+'.$unit[0].',unit_2=unit_2+'.$unit[1].',unit_3=unit_3+'.$unit[2].',unit_4=unit_4+'.$unit[3].',unit_5=unit_5+'.$unit[4].',unit_6=unit_6+'.$unit[5].'
-			WHERE planet_id='.((-1)*$ship['fleet_id']).' LIMIT 1';
-if(!$db->query($sql)) {
-    $sdl->log('<b>Error:</b> Could not update planets data: <b>'.$sql.'</b>');
-}
+    $sdl->log('<b>The ship <b>#'.$ship['ship_id'].'</b> on planet <b>#'.((-1)*$ship['fleet_id']).'</b> was dismantled successfully!');
+
+    $sql = 'UPDATE planets SET resource_1=resource_1+'.$res[0].', resource_2=resource_2+'.$res[1].', resource_3=resource_3+'.$res[2].',
+                               unit_1=unit_1+'.$unit[0].',unit_2=unit_2+'.$unit[1].',unit_3=unit_3+'.$unit[2].',unit_4=unit_4+'.$unit[3].',unit_5=unit_5+'.$unit[4].',unit_6=unit_6+'.$unit[5].'
+            WHERE planet_id='.((-1)*$ship['fleet_id']).' LIMIT 1';
+    if(!$db->query($sql)) {
+        $sdl->log('<b>Error:</b> Could not update planets data: <b>'.$sql.'</b>');
+    }
 }
 
 }
