@@ -241,7 +241,7 @@ while (($player_data=$db->fetchrow($userqry))==true)
 	imagestring ($image, 3,120,45,$str_race.$user_race, $color_1);
 	//imagestring ($image, 3,270,45,'Präsident', $color_1);
 	//imagestring ($image, 2,405,46,$game_url, $color_1);
-	imagestring ($image, 2,320,46,$game_url, $color_1);
+	imagestring ($image, 2,370,46,$game_url, $color_1);
 	//imagejpeg($image,$game_path . 'sig_tmp/'.strtolower($player_data['user_name']).'.jpg',60);
 	imagejpeg($image,$game_path . 'sig_tmp/'.strtolower($player_data['user_name']).'.jpg',75); // Increase a bit the quality
 }
