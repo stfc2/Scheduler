@@ -494,7 +494,7 @@ class Borg extends NPC
 				$fleet = $this->db->queryrow($sql);
 
 				if(!empty($fleet['fleet_id']) && !empty($chosen_target['planet_id'])) {
-					send_borg_fleet($fleet['fleet_id'],$chosen_target['planet_id']);
+					$this->SendBorgFleet($ACTUAL_TICK,$fleet['fleet_id'],$chosen_target['planet_id']);
 					$this->sdl->log('Borg fleet #'.$fleet['fleet_id'].' sent to planet #'.$chosen_target['planet_id'],
 						TICK_LOG_FILE_NPC);
 
@@ -526,6 +526,66 @@ class Borg extends NPC
 
 		$this->sdl->log('<b>Finished Scheduler in <font color=#009900>'.round((microtime()+time())-$starttime, 4).' secs</font>'."\n".'Executed Queries: <font color=#ff0000>'.$this->db->i_query.'</font></b>', TICK_LOG_FILE_NPC);
 	}
+
+	function SendBorgFleet($ACTUAL_TICK,$fleet_id,$dest,$action = 46) {
+
+		$sql = 'SELECT f.fleet_id, f.user_id, f.n_ships, f.planet_id AS start,
+		           s1.system_id AS start_system_id, s1.system_global_x AS start_x, s1.system_global_y AS start_y,
+		           s2.system_id AS dest_system_id, s2.system_global_x AS dest_x, s2.system_global_y AS dest_y
+		    FROM (ship_fleets f)
+		    INNER JOIN (planets p1) ON p1.planet_id = f.planet_id
+		    INNER JOIN (starsystems s1) ON s1.system_id = p1.system_id
+		    INNER JOIN (planets p2) ON p2.planet_id = '.$dest.'
+		    INNER JOIN (starsystems s2) ON s2.system_id = p2.system_id
+		    WHERE f.fleet_id = '.$fleet_id;
+
+		if(($fleet = $this->db->queryrow($sql)) === false) {
+			$this->sdl->log('Could not query ship data',TICK_LOG_FILE_NPC);
+			return false;
+		}
+
+		if(empty($fleet['fleet_id'])) {
+			$this->sdl->log('Borg fleet for mission does not exist, already moving?',TICK_LOG_FILE_NPC);
+			return false;
+		}
+
+		if($fleet['start_system_id'] == $fleet['dest_system_id']) {
+			$distance = $velocity = 0;
+			$min_time = 6;
+		}
+		else {
+			$distance = get_distance(array($fleet['start_x'], $fleet['start_y']), array($fleet['dest_x'], $fleet['dest_y']));
+			$velocity = warpf(10);
+			$min_time = ceil( ( ($distance / $velocity) / TICK_DURATION ) );
+		}
+
+		if($min_time < 1) $min_time = 1;
+
+		$sql = 'INSERT INTO scheduler_shipmovement (user_id, move_status, move_exec_started, start, dest, total_distance, remaining_distance, tick_speed, move_begin, move_finish, n_ships, action_code, action_data)
+		         VALUES ('.$fleet['user_id'].', 0, 0, '.$fleet['start'].', '.$dest.', '.$distance.', '.$distance.', '.($velocity * TICK_DURATION).', '.$ACTUAL_TICK.', '.($ACTUAL_TICK + $min_time).', '.$fleet['n_ships'].', '.$action.', "")';
+
+		if(!$this->db->query($sql)) {
+			$this->sdl->log('Could not insert new movement data',TICK_LOG_FILE_NPC);
+			return false;
+		}
+
+		$new_move_id = $this->db->insert_id();
+
+		if(empty($new_move_id)) {
+			$this->sdl->log('Could not send Borg fleet $new_move_id = empty',TICK_LOG_FILE_NPC);
+			return false;
+		}
+
+		$sql = 'UPDATE ship_fleets SET planet_id = 0, move_id = '.$new_move_id.' WHERE fleet_id = '.$fleet['fleet_id'];
+
+		if(!$this->db->query($sql)) {
+			$this->sdl->log('Could not update Borg fleet data',TICK_LOG_FILE_NPC);
+			return false;
+		}
+
+		return true;
+	}
+
 }
 
 
