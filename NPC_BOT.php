@@ -36,6 +36,7 @@ define('BUILD_ERR_RESOURCES', -2);
 define('BUILD_ERR_REQUIRED', -3);
 define('BUILD_ERR_ENERGY', -4);
 define('BUILD_ERR_DB', -5);
+define('BUILD_ERR_MAXLEVEL',-6);
 
 
 //#######################################################################################
@@ -292,6 +293,10 @@ class NPC
 		$capital=(($userdata['user_capital']==$planet['planet_id']) ? 1 : 0);
 		if ($userdata['pending_capital_choice']) $capital=0;
 
+		// Check if building hasn't reached max level
+		if($planet['building_'.($building+1)] == $MAX_BUILDING_LVL[$capital][$building])
+			return BUILD_ERR_MAXLEVEL;
+
 		// Calculate resources needed for the building
 		$resource_1 = GetBuildingPrice($building,0,$planet,$race);
 		$resource_2 = GetBuildingPrice($building,1,$planet,$race);
@@ -300,8 +305,7 @@ class NPC
 		// Check resources availability
 		if ($planet['resource_1']>=$resource_1 &&
 		    $planet['resource_2']>=$resource_2 &&
-		    $planet['resource_3']>=$resource_3 &&
-		    $planet['building_'.($building+1)] < $MAX_BUILDING_LVL[$capital][$building])
+		    $planet['resource_3']>=$resource_3)
 		{
 			// Calculate planet power consumption
 			$buildings=$planet['building_1']+$planet['building_2']+$planet['building_3']+$planet['building_4']+
@@ -368,6 +372,15 @@ class NPC
 			$res = BUILD_ERR_RESOURCES;
 		}
 		return $res;
+	}
+
+	/**
+	 * NOTE: Use this function ONLY if you want to use NPC class without BOT core execution.
+	 */
+	function LoadNPCUserData($botID)
+	{
+		// Initialize $bot attribute
+		$this->bot = $this->db->queryrow('SELECT * FROM user WHERE user_id = '.$botID);
 	}
 
 	public function NPC(&$db, &$sdl)
