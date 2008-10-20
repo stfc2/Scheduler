@@ -370,5 +370,34 @@ function GetTaxes($percent,$alliance_id)
 	return $res;
 }
 
+function GetBuildingPrice($building,$resource,$planet,$user_race)
+{
+	global $RACE_DATA, $BUILDING_DATA, $PLANETS_DATA;
+	$pow_factor=2;
+
+	$price=round(pow($BUILDING_DATA[$building][$resource]*($planet['building_'.($building+1)]+1),$pow_factor),0);
+
+	// Orbital guns costs reduction
+	if ($building==9 || $building==12)
+		$price=$BUILDING_DATA[$building][$resource]/100*(100-2.5*$planet['research_3']);
+
+	$price*=$RACE_DATA[$user_race][5];
+	$price*=$PLANETS_DATA[$planet['planet_type']][4];
+
+	// Cost in metal
+	if($resource==0) {
+		$price*=$RACE_DATA[$user_race][23];
+	}
+	// Cost in minerals
+	elseif($resource==1) {
+		$price*=$RACE_DATA[$user_race][24];
+	}
+	// Cost in latinum
+	elseif($resource==2) {
+		$price*=$RACE_DATA[$user_race][25];
+	}
+
+	return round($price,0);
+}
 
 ?>
