@@ -41,7 +41,7 @@ define (BORG_QUADRANT, 2); // Default Borg belong to Delta quadrant
 
 define (BORG_CYCLE, 3360); // One attack each how many tick?
 
-define (BORG_CHANCE, 25); // Attack is not sistematic, leave a little chance
+define (BORG_CHANCE, 80); // Attack is not sistematic, leave a little chance
 
 define (BORG_MINATTACK, 10); // Attack only players with at least n planets
 
@@ -521,6 +521,59 @@ class Borg extends NPC
 		}
 
 		$this->sdl->finish_job('Assimilate planets', TICK_LOG_FILE_NPC);
+		// ########################################################################################
+		// ########################################################################################
+		// Create defences for BOT planets
+
+		$this->sdl->start_job('Create Borg defences on assimilated planets', TICK_LOG_FILE_NPC);
+
+		// We need many infos here, for StartBuild() function
+		$sql = 'SELECT * FROM planets WHERE planet_owner = '.$this->bot['user_id'];
+
+		$planets = $this->db->query($sql);
+
+		// Select each planet
+		while($planet = $this->db->fetchrow($planets)) {
+			// Build some orbital guns
+			if($planet['building_10'] < 15) {
+				$res = $this->StartBuild($ACTUAL_TICK,9,$planet);
+				if($res == BUILD_ERR_ENERGY)
+					$res = $this->StartBuild($ACTUAL_TICK,4,$planet);
+			}
+			if($planet['building_13'] < 15) {
+				$res = $this->StartBuild($ACTUAL_TICK,12,$planet);
+				if($res == BUILD_ERR_ENERGY)
+					$res = $this->StartBuild($ACTUAL_TICK,4,$planet);
+			}
+
+			$sql = 'SELECT `fleet_id`, `move_id`, `planet_id` FROM `ship_fleets`
+			        WHERE `user_id` = '.$this->bot['user_id'].' AND `fleet_name` = "'.$planet['planet_name'].'"
+			        LIMIT 0,1';
+			$fleet = $this->db->queryrow($sql);
+
+			// If the fleet does not exists
+			if(empty($fleet['fleet_id'])) {
+				// Create a new fleet
+				$fleet_id = $this->CreateFleet($planet['planet_name'],$this->bot['ship_template2'],1);
+
+				// Update alarm status
+				$sql = 'UPDATE ship_fleets SET alert_phase = '.ALERT_PHASE_RED.'
+				        WHERE fleet_id = '.$fleet_id;
+				if(!$this->db->query($sql))
+					$this->sdl->log('<b>Warning:</b> cannot update fleet alarm status to RED!',
+						TICK_LOG_FILE_NPC);
+
+				// Send it to the planet
+				$this->SendBorgFleet($ACTUAL_TICK,$fleet_id, $planet['planet_id'],11);
+			}
+			// If the fleet exists but it is not moving and it is not at planet
+			else if($fleet['planet_id'] != $planet['planet_id'] && $fleet['move_id'] == 0) {
+				// Send it to the planet
+				$this->SendBorgFleet($ACTUAL_TICK,$fleet['fleet_id'], $planet['planet_id'],11);
+			}
+		}
+
+		$this->sdl->finish_job('Create Borg defences on assimilated planets', TICK_LOG_FILE_NPC);
 		// ########################################################################################
 		// ########################################################################################
 
