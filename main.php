@@ -1796,16 +1796,17 @@ else {
 
             $db->query($sql);
         }
-        
-        /*if($user['user_alliance_status'] == ALLIANCE_STATUS_OWNER) {
+
+        if($user['user_alliance_status'] == ALLIANCE_STATUS_OWNER) {
             // If he is president of an alliance, we make another Admin president of the Alliance
-            
+
             $sql = 'SELECT u.user_id
                     FROM (user u)
                     INNER JOIN (alliance a) ON a.alliance_id = u.user_alliance
-                    WHERE u.user_alliance_status = '.ALLIANCE_STATUS_ADMIN.'
+                    WHERE u.user_alliance_status = '.ALLIANCE_STATUS_ADMIN.' AND
+                          a.alliance_id = '.$user['alliance_id'].'
                     LIMIT 1';
-                    
+
             if(($other_admin = $db->queryrow($sql)) === false) {
                 $sdl->log('<b>Notice:</b> Could not query another alliance admin - possible alliance without president! CONTINUED!');
             }
@@ -1817,11 +1818,11 @@ else {
                     $sql = 'UPDATE user
                             SET user_alliance_status = '.ALLIANCE_STATUS_OWNER.'
                             WHERE user_id = '.$other_admin['user_id'];
-                            
+
                     $db->query($sql);
                 }
             }
-        }*/
+        }
 
         $sql = 'UPDATE ship_templates
                 SET removed = 1
