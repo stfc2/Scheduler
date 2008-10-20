@@ -30,17 +30,21 @@ include('config.script.php');
 
 error_reporting(E_ERROR);
 ini_set('memory_limit', '200M');
-set_time_limit(120); // 2 minutes
+set_time_limit(300); // 5 minutes
 
 if(!empty($_SERVER['SERVER_SOFTWARE'])) {
     echo 'The scheduler can only be called by CLI!'; exit;
 }
 
 define('TICK_LOG_FILE', $game_path . 'logs/sixhours/tick_'.date('d-m-Y', time()).'.log');
+define('TICK_LOG_FILE_NPC', TICK_LOG_FILE);
 define('IN_SCHEDULER', true); // we are in the scheduler...
 
 // include commons classes and functions
 include('commons.php');
+
+// include BOT class
+include('NPC_BOT.php');
 
 
 // ########################################################################################
@@ -137,6 +141,71 @@ while($fetch_planet=$db->fetchrow($settlers_planets)) {
 }
 if($planets_restored != 0) $sdl->log('Colony Report: Restored '.$planets_restored.' default planets mood data');
 $sdl->finish_job('Colony DB checkup');
+
+
+
+// Check of miners available on Borg planets
+$sdl->start_job('Check miners on Borg planets');
+$mines_upgraded = 0;
+$workers = array();
+$borg = new NPC($db,$sdl);
+$borg -> LoadNPCUserData(BORG_USERID);
+
+// We need many infos here, for StartBuild() function
+$sql = 'SELECT * FROM planets WHERE planet_owner = '.BORG_USERID;
+$borg_planets = $db->query($sql);
+while($planet=$db->fetchrow($borg_planets)) {
+	// If we have at least a workers slot
+	if($planet['resource_4'] > 100) {
+		$mine = 0;
+		$max_reached = 0;
+		$miners_updated = false;
+		$miners[0] = $planet['workermine_1'];
+		$miners[1] = $planet['workermine_2'];
+		$miners[2] = $planet['workermine_3'];
+		$workers = $planet['resource_4'];
+
+		while($workers > 100 && $max_reached < 3) {
+			// If there is space for new worker
+			if($miners[$mine] < (($planet['building_'.($mine+2)]*100)+100)) {
+				$miners[$mine]+=100;
+				$workers-=100;
+				$miners_updated = true;
+			}
+			// There is no space available, perhaps we can increase the mine level?
+			else {
+				// Start to build a new mine level
+				$res = $borg->StartBuild($ACTUAL_TICK,($mine+2),$planet);
+				if($res == BUILD_ERR_ENERGY)
+					$res = $borg->StartBuild($ACTUAL_TICK,4,$planet);
+
+				$max_reached++;
+			}
+			$mine++;
+			if($mine > 2)
+				$mine = 0;
+		}
+
+		if($miners_updated) {
+			$sql='UPDATE planets SET
+			             workermine_1 = '.$miners[0].',
+			             workermine_2 = '.$miners[1].',
+			             workermine_3 = '.$miners[2].',
+			             resource_4 = '.$workers.'
+			      WHERE planet_id = '.$planet['planet_id'];
+
+			$sdl->log('Mines workers increased to: '.$miners[0].'/'.$miners[1].'/'.$miners[2].' on Borg planet: <b>#'.$planet['planet_id'].'</b>');
+
+			$mines_upgraded++;
+
+			if(!$db->query($sql)) {
+				$sdl->log('<b>Error:</b> could not update mines workers!');
+			}
+		}
+	}
+}
+if($mines_upgraded != 0) $sdl->log('Upgraded <b>'.$mines_upgraded.'</b> mines on Borg planets');
+$sdl->finish_job('Check miners on Borg planets');
 
 
 
