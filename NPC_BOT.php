@@ -30,6 +30,14 @@
   @Action: geändert  bzw verbessert
 */
 
+define('BUILD_SUCCESS',0);
+define('BUILD_ERR_QUEUE', -1);
+define('BUILD_ERR_RESOURCES', -2);
+define('BUILD_ERR_REQUIRED', -3);
+define('BUILD_ERR_ENERGY', -4);
+define('BUILD_ERR_DB', -5);
+
+
 //#######################################################################################
 //#######################################################################################
 // Startconfig of NPCs
@@ -187,7 +195,7 @@ class NPC
 	{
 		$this->sdl->log('Check fleet "'.$name.'" composition', TICK_LOG_FILE_NPC);
 		$query='SELECT fleet_id FROM `ship_fleets` WHERE fleet_name="'.$name.'" AND user_id='.$this->bot['user_id'].' LIMIT 0, 1';
-		$fleet = $this->db->query($query);
+		$q_fleet = $this->db->query($query);
 		if($this->db->num_rows()<=0)
 		{
 			$sql = 'INSERT INTO ship_fleets (fleet_name, user_id, planet_id, move_id, n_ships)
@@ -214,6 +222,10 @@ class NPC
 				}
 			}
 			$this->sdl->log('Fleet: '.$fleet_id.' - '.$num.' ships created', TICK_LOG_FILE_NPC);
+		}
+		else {
+			$fleet = $this->db->fetchrow($q_fleet);
+			$fleet_id = $fleet['fleet_id'];
 		}
 
 		return $fleet_id;
@@ -260,6 +272,102 @@ class NPC
 			$this->sdl->log('<b>Error:</b> Logbook message could not be set to read',
 				TICK_LOG_FILE_NPC);
 		$this->sdl->finish_job('Read Logbook', TICK_LOG_FILE_NPC);
+	}
+
+	function StartBuild($ACTUAL_TICK,$building,$planet)
+	{
+		global $MAX_BUILDING_LVL;
+		$res = BUILD_ERR_DB;
+
+		// Building queue full?
+		if ($planet['building_queue'] != 0)
+			return BUILD_ERR_QUEUE;
+
+		// Retrieve some BOT infos
+		$sql = 'SELECT user_race, user_capital, pending_capital_choice FROM user WHERE user_id='.$this->bot['user_id'];
+		$userdata=$this->db->queryrow($sql);
+		$race = $userdata['user_data'];
+
+		// Planet selected is capital or not?
+		$capital=(($userdata['user_capital']==$planet['planet_id']) ? 1 : 0);
+		if ($userdata['pending_capital_choice']) $capital=0;
+
+		// Calculate resources needed for the building
+		$resource_1 = GetBuildingPrice($building,0,$planet,$race);
+		$resource_2 = GetBuildingPrice($building,1,$planet,$race);
+		$resource_3 = GetBuildingPrice($building,2,$planet,$race);
+
+		// Check resources availability
+		if ($planet['resource_1']>=$resource_1 &&
+		    $planet['resource_2']>=$resource_2 &&
+		    $planet['resource_3']>=$resource_3 &&
+		    $planet['building_'.($building+1)] < $MAX_BUILDING_LVL[$capital][$building])
+		{
+			// Calculate planet power consumption
+			$buildings=$planet['building_1']+$planet['building_2']+$planet['building_3']+$planet['building_4']+
+				   $planet['building_10']+$planet['building_6']+$planet['building_7']+$planet['building_8']+
+				   $planet['building_9']+$planet['building_11']+$planet['building_12']+$planet['building_13'];
+
+			/* I think we don't need this check here...
+			if (($building==11 && $planet['building_1']<4) ||
+			($building==10 && $planet['building_1']<3) ||
+			($building==6 && $planet['building_1']<5) ||
+			($building==8 && $planet['building_1']<9) ||
+			($building==7 && $planet['building_7']<1) ||
+			($building==9 && ($planet['building_6']<5 ||$planet['building_7']<1)) ||
+			($building==12 && ($planet['building_6']<1 || $planet['building_7']<1)) )
+			{
+				return BUILD_ERR_REQUIRED;
+			}*/
+
+			// If we are building a power plant, or there is energy still available
+			if ($building==4 || $buildings<=($capital ? $planet['building_5']*11+14 : $planet['building_5']*15+3))
+			{
+				// Remove resources needed from the planet
+				$sql = 'UPDATE planets SET
+				               resource_1=resource_1-'.$resource_1.',
+				               resource_2=resource_2-'.$resource_2.',
+				               resource_3=resource_3-'.$resource_3.'
+				        WHERE planet_id= '.$planet['planet_id'];
+
+				if (!$this->db->query($sql))
+					$this->sdl->log('<b>Error:</b> Cannot remove resources need for construction from planet #'.$planet['planet_id'].'!', TICK_LOG_FILE_NPC);
+
+				// Check planet activity
+				$userquery=$this->db->query('SELECT * FROM scheduler_instbuild WHERE planet_id='.$planet['planet_id']);
+				if ($this->db->num_rows()>0)
+				{
+					$sql = 'UPDATE planets SET building_queue='.($building+1).'
+					        WHERE planet_id= '.$planet['planet_id'];
+				}
+				else {
+					$sql = 'INSERT INTO scheduler_instbuild (installation_type,planet_id,build_finish)
+						VALUES ("'.$building.'",
+						        "'.$planet['planet_id'].'",
+						        "'.($ACTUAL_TICK+GetBuildingTimeTicks($building,$planet,$race)).'")';
+				}
+
+				if (!$this->db->query($sql))
+					$this->sdl->log('<b>Error:</b> cannot add building <b>#'.$building.'</b> to the planet <b>#'.$planet['planet_id'].'</b>',
+						TICK_LOG_FILE_NPC);
+				else {
+					$this->sdl->log('Construction of <b>#'.$building.'</b> started on planet <b>#'.$planet['planet_id'].'</b>',
+						TICK_LOG_FILE_NPC);
+					$res = BUILD_SUCCESS;
+				}
+			}
+			else {
+				$this->sdl->log('Insufficient energy on planet <b>#'.$planet['planet_id'].'</b> for building <b>#'.$building.'</b>',
+					TICK_LOG_FILE_NPC);
+				$res = BUILD_ERR_ENERGY;
+			}
+		}
+		else {
+			$this->sdl->log('Insufficient resources on planet <b>#'.$planet['planet_id'].'</b> for building <b>#'.$building.'</b>',
+				TICK_LOG_FILE_NPC);
+			$res = BUILD_ERR_RESOURCES;
+		}
+		return $res;
 	}
 
 	public function NPC(&$db, &$sdl)
