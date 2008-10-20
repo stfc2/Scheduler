@@ -104,12 +104,12 @@ if(!$limit = $db->queryrow($sql)) {
 	$limit['user_points'] = 2000;
 }
 
-// Chi sta SOPRA la soglia puà fare solo una colonizzatrice per volta!!!
+// Chi sta SOPRA la soglia puÃ  fare solo una colonizzatrice per volta!!!
 $sql = 'UPDATE user SET user_max_colo = 1 WHERE user_points > '.$limit['user_points'];
 if(!$db->query($sql))
 	$sdl->log('<b>Error:</b> Cannot set user_max_colo to 1! CONTINUED');
 
-//Chi è uguale o minore della soglia, può fare quante colonizzatrici desidera!!!
+//Chi Ã¨ uguale o minore della soglia, puÃ² fare quante colonizzatrici desidera!!!
 $sql = 'UPDATE user SET user_max_colo = 0 WHERE user_points <= '.$limit['user_points'];
 if(!$db->query($sql))
 	$sdl->log('<b>Error:</b> Cannot set user_max_colo to 0! CONTINUED');
@@ -131,7 +131,7 @@ while($fetch_planet=$db->fetchrow($settlers_planets)) {
 		                  user_id = '.INDEPENDENT_USERID.',
 		                  log_code   = 300, 
 		                  timestamp  = '.time();
-		$sdl->log('Colony SQL: '.$sql);
+		//$sdl->log('Colony SQL: '.$sql);
 		if(!$db->query($sql))
 		{
 			$sdl->log('<b>Error:</b> Bot: Could not insert default colony moods data!');
@@ -147,7 +147,8 @@ $sdl->finish_job('Colony DB checkup');
 // Check of miners available on Borg planets
 $sdl->start_job('Check miners on Borg planets');
 $mines_upgraded = 0;
-$workers = array();
+$miners = array();
+$mines_level = array();
 $borg = new NPC($db,$sdl);
 $borg -> LoadNPCUserData(BORG_USERID);
 
@@ -164,26 +165,42 @@ while($planet=$db->fetchrow($borg_planets)) {
 		$miners[1] = $planet['workermine_2'];
 		$miners[2] = $planet['workermine_3'];
 		$workers = $planet['resource_4'];
+		$mines_level[0] = $planet['building_2'];
+		$mines_level[1] = $planet['building_3'];
+		$mines_level[2] = $planet['building_4'];
 
 		while($workers > 100 && $max_reached < 3) {
-			// If there is space for new worker
-			if($miners[$mine] < (($planet['building_'.($mine+2)]*100)+100)) {
+			// If there is space for new workers
+			if($miners[$mine] < (($mines_level[$mine]*100)+100)) {
 				$miners[$mine]+=100;
 				$workers-=100;
 				$miners_updated = true;
 			}
 			// There is no space available, perhaps we can increase the mine level?
 			else {
-				// Start to build a new mine level
-				$res = $borg->StartBuild($ACTUAL_TICK,($mine+2),$planet);
-				if($res == BUILD_ERR_ENERGY)
-					$res = $borg->StartBuild($ACTUAL_TICK,4,$planet);
-
 				$max_reached++;
 			}
 			$mine++;
 			if($mine > 2)
 				$mine = 0;
+		}
+
+		// If we exit from the while because there isn't space available on the mines
+		if($max_reached) {
+			// Search the mine with lowest level
+			$min = $mines_level[0];
+			$mine = 1;
+			for($i = 1;$i < 3;$i++)
+				if($mines_level[$i] < $min)
+				{
+					$min = $mines_level[$i];
+					$mine = $i + 1;
+				}
+
+			// Start to build a new mine level
+			$res = $borg->StartBuild($ACTUAL_TICK,$mine,$planet);
+			if($res == BUILD_ERR_ENERGY)
+				$res = $borg->StartBuild($ACTUAL_TICK,4,$planet);
 		}
 
 		if($miners_updated) {
