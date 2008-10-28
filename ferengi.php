@@ -62,7 +62,7 @@ class Ferengi extends NPC
 
 		$game = new game();
 
-		$this->sdl->log("\n".'<b>-------------------------------------------------------------</b>'."\n".
+		$this->sdl->log('<br><b>-------------------------------------------------------------</b><br>'.
 			'<b>Starting Bot Scheduler at '.date('d.m.y H:i:s', time()).'</b>', TICK_LOG_FILE_NPC);
 		//Damit der Bot auch Leben kann brauchen wir ein paar Infos
 		$Umwelt = $this->db->queryrow('SELECT * FROM config LIMIT 0 , 1');
@@ -1475,7 +1475,7 @@ class Ferengi extends NPC
 		// ########################################################################################
 		// ########################################################################################
 
-		$this->sdl->log('<b>Finished Scheduler in <font color=#009900>'.round((microtime()+time())-$starttime, 4).' secs</font>'."\n".'Executed Queries: <font color=#ff0000>'.$this->db->i_query.'</font></b>', TICK_LOG_FILE_NPC);
+		$this->sdl->log('<b>Finished Scheduler in <font color=#009900>'.round((microtime()+time())-$starttime, 4).' secs</font><br>Executed Queries: <font color=#ff0000>'.$this->db->i_query.'</font></b>', TICK_LOG_FILE_NPC);
 	}
 
 	function graph_zeichnen($art,$ticker,$stand="",$temp_id="")

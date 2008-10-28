@@ -61,7 +61,7 @@ $db = new sql($config['server'].":".$config['port'], $config['game_database'], $
 
 $game = new game();
 
-$sdl->log("\n\n\n".'<b>-------------------------------------------------------------</b>'."\n".
+$sdl->log('<br><br><br><b>-------------------------------------------------------------</b><br>'.
           '<b>Starting Scheduler at '.date('d.m.y H:i:s', time()).'</b>');
 if(($cfg_data = $db->queryrow('SELECT * FROM config')) === false) {
     $sdl->log('- Fatal: Could not query tick data! ABORTED');
@@ -73,12 +73,12 @@ $LAST_TICK_TIME = ($cfg_data['tick_time']-TICK_DURATION*60);
 $STARDATE = $cfg_data['stardate'];
 
 if($cfg_data['tick_stopped']) {
-    $sdl->log('Finished Scheduler in '.round((microtime()+time())-$starttime, 4).' secs\nTick has been stopped (Unlock in table "config")');
+    $sdl->log('Finished Scheduler in '.round((microtime()+time())-$starttime, 4).' secs<br>Tick has been stopped (Unlock in table "config")');
     exit;
 }
 
 if(empty($ACTUAL_TICK)) {
-    $sdl->log('Finished Scheduler in '.round((microtime()+time())-$starttime, 4).' secs\n- Fatal: empty($ACTUAL_TICK) == true');
+    $sdl->log('Finished Scheduler in '.round((microtime()+time())-$starttime, 4).' secs<br>- Fatal: empty($ACTUAL_TICK) == true');
     exit;
 }
 
@@ -110,7 +110,7 @@ $sdl->finish_job('Moves Scheduler');
 // Quit and close log
 
 $db->close();
-$sdl->log('<b>Finished Scheduler in <font color=#009900>'.round((microtime()+time())-$starttime, 4).' secs</font>'."\n".'Executed Queries: <font color=#ff0000>'.$db->i_query.'</font></b>');
+$sdl->log('<b>Finished Scheduler in <font color=#009900>'.round((microtime()+time())-$starttime, 4).' secs</font><br>Executed Queries: <font color=#ff0000>'.$db->i_query.'</font></b>');
 
 ?>
 

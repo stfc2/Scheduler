@@ -65,7 +65,7 @@ $db = new sql($config['server'].":".$config['port'], $config['game_database'], $
 
 $game = new game();
 
-$sdl->log("\n\n\n".'<b>-------------------------------------------------------------</b>'."\n".
+$sdl->log('<br><br><br><b>-------------------------------------------------------------</b><br>'.
           '<b>Starting SixHours-Script at '.date('d.m.y H:i:s', time()).'</b>');
 
 if(($cfg_data = $db->queryrow('SELECT * FROM config')) === false) {
@@ -231,6 +231,6 @@ $sdl->finish_job('Check miners on Borg planets');
 // Quit and close log
 
 $db->close();
-$sdl->log('<b>Finished SixHours-Script in <font color=#009900>'.round((microtime()+time())-$starttime, 4).' secs</font>'."\n".'Executed Queries: <font color=#ff0000>'.$db->i_query.'</font></b>');
+$sdl->log('<b>Finished SixHours-Script in <font color=#009900>'.round((microtime()+time())-$starttime, 4).' secs</font><br>Executed Queries: <font color=#ff0000>'.$db->i_query.'</font></b>');
 
 ?>
