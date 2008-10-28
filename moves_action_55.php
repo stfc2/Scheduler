@@ -369,12 +369,14 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                             $i++;
                     }
 
-$this->log(MV_M_NOTICE, 'Troops that will return aboard: Lev1 '.$atk_alive[0].' Lev2 '.$atk_alive[1].' Lev3 '.$atk_alive[2].' Lev4 '.$atk_alive[3]);
+                    $this->log(MV_M_NOTICE, 'Troops that will return aboard: Lev1 '.$atk_alive[0].
+                        ' Lev2 '.$atk_alive[1].' Lev3 '.$atk_alive[2].' Lev4 '.$atk_alive[3]);
 
                     // We pick ALL transporter of the fleets and then distribute
 
                     $sql = 'SELECT s.ship_id, s.fleet_id
-                            FROM (ships s, ship_templates st)
+                            FROM (ships s)
+                            INNER JOIN (ship_templates st) ON s.template_id = st.id
                             WHERE s.fleet_id IN ('.$this->fleet_ids_str.') AND
                                   st.ship_torso = '.SHIP_TYPE_TRANSPORTER;
 
@@ -382,6 +384,7 @@ $this->log(MV_M_NOTICE, 'Troops that will return aboard: Lev1 '.$atk_alive[0].' 
                         $this->log(MV_M_DATABASE, 'Could not query fleets transporter data! CONTINUE');
                     }
 
+                    // 27/10/08 - AC: First of all, loads all available transports
                     $space_per_fleets = array();
 
                     while($_ship = $this->db->fetchrow($q_ftrans)) {
@@ -397,10 +400,8 @@ $this->log(MV_M_NOTICE, 'Troops that will return aboard: Lev1 '.$atk_alive[0].' 
                         $new_load = array(0, 0, 0, 0);
 
                         for($i = 0; $i < 4; ++$i) {
-                            $j = $i + 1;
-
                             if($atk_alive[$i] > 0) {
-                                $new_load[$i] = ($atk_alive[$i] > $still_free) ? ($still_free - $atk_alive[$i]) : $atk_alive[$i];
+                                $new_load[$i] = ($atk_alive[$i] > $still_free) ? $still_free : $atk_alive[$i];
 
                                 $atk_alive[$i] -= $new_load[$i];
                                 $still_free -= $new_load[$i];
@@ -420,6 +421,68 @@ $this->log(MV_M_NOTICE, 'Troops that will return aboard: Lev1 '.$atk_alive[0].' 
                             $this->log(MV_M_DATABASE, 'Could not update fleets units data! CONTINUE');
                         }
                     }
+
+                    // 27/10/08- AC: If there are still some extra troops on ground
+                    $n_atk_still_to_board = array_sum($atk_alive);
+                    if($n_atk_still_to_board > 0) {
+                        $this->log(MV_M_NOTICE,
+                            'There are still: Lev1 '.$atk_alive[0].
+                                            ' Lev2 '.$atk_alive[1].
+                                            ' Lev3 '.$atk_alive[2].
+                                            ' Lev4 '.$atk_alive[3].
+                                            ' troops to embark!');
+
+                        // Extra troops didn't really leave the ships so we have to remove the losses
+                        $sql = 'SELECT ss.ship_id,
+                                       st.min_unit_1, st.max_unit_1,
+                                       st.min_unit_2, st.max_unit_2,
+                                       st.min_unit_3, st.max_unit_3,
+                                       st.min_unit_4, st.max_unit_4
+                                FROM ships ss, ship_templates st
+                                WHERE ss.template_id = st.id AND
+                                      ss.fleet_id IN ('.$this->fleet_ids_str.')';
+
+                        if(!$q_ships = $this->db->query($sql)) {
+                            $this->log(MV_M_DATABASE, 'Could not query fleets ships data! CONTINUE');
+                        }
+
+                        // Distribute troops on available ships
+                        while($ship = $this->db->fetchrow($q_ships)) {
+                            $new_crew = array(0, 0, 0, 0);
+
+                            // For each type of troops
+                            for($i = 0; $i < 4; ++$i) {
+                                $j = $i + 1;
+
+                                // Are there still some troops?
+                                if($atk_alive[$i] > 0) {
+                                    $new_crew[$i] = ($atk_alive[$i] > $ship['max_unit_'.$j]) ? $ship['max_unit_'.$j] : $atk_alive[$i];
+                                    $atk_alive[$i] -= $new_crew[$i];
+                                }
+                                // Then use min level
+                                else
+                                    $new_crew[$i] = $ship['min_unit_'.$j];
+
+                                $n_atk_still_to_board -= $new_crew[$i];
+                            }
+
+                            // Update ship's crew
+                            $sql = 'UPDATE ships
+                                    SET unit_1 = '.$new_crew[0].',
+                                        unit_2 = '.$new_crew[1].',
+                                        unit_3 = '.$new_crew[2].',
+                                        unit_4 = '.$new_crew[3].'
+                                    WHERE ship_id ='.$ship['ship_id'];
+
+                            if(!$this->db->query($sql)) {
+                                $this->log(MV_M_DATABASE, 'Could not update ship crew data! CONTINUE');
+                            }
+
+                            // If we have finished boarding phase, we are ready to takeoff ;)
+                            if($n_atk_still_to_board == 0)
+                                break;
+                        }
+                    }
                 } // alive troops doesn't exceed max planet units
                 else {
                     for($i = 0; $i <= 3; ++$i)
@@ -436,9 +499,22 @@ $this->log(MV_M_NOTICE, 'Troops that will return aboard: Lev1 '.$atk_alive[0].' 
                     if(!$this->db->query($sql)) {
                         return $this->log(MV_M_DATABASE, 'Could not update ship fleets unit transport data! SKIP');
                     }
+
+                    // 27/10/08 - AC: Delete also extra troops on ships...
+                    $sql = 'UPDATE ships ss, ship_templates st
+                            SET ss.unit_1 = st.min_unit_1,
+                                ss.unit_2 = st.min_unit_2,
+                                ss.unit_3 = st.min_unit_3,
+                                ss.unit_4 = st.min_unit_4
+                            WHERE ss.template_id = st.id AND
+                                  ss.fleet_id IN ('.$this->fleet_ids_str.')';
+
+                    if(!$this->db->query($sql))
+                        return $this->log(MV_M_DATABASE, 'Could not update attacking ships to minimum crew! SKIP');
                 }
 
-$this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_units[0].' Lev2 '.$planet_units[1].' Lev3 '.$planet_units[2].' Lev4 '.$planet_units[3]);
+                $this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_units[0].
+                    ' Lev2 '.$planet_units[1].' Lev3 '.$planet_units[2].' Lev4 '.$planet_units[3]);
 
                 $sql = 'DELETE FROM scheduler_instbuild
                         WHERE planet_id = '.$this->move['dest'];
@@ -663,7 +739,7 @@ $this->log(MV_M_NOTICE, 'Troops that will remain on the planet: Lev1 '.$planet_u
                             planet_surrender=0
                         WHERE planet_id = '.$this->move['dest'];
 
-                $this->log('SQL Debug', ''.$sql.'');
+                //$this->log('SQL Debug', ''.$sql.'');
 
                 if(!$this->db->query($sql)) {
                     return $this->log(MV_M_DATABASE, 'Could not update planets data! SKIP');
