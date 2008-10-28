@@ -247,7 +247,7 @@ class scheduler {
 			$fp = fopen(TICK_LOG_FILE, 'a');
 		else
 			$fp = fopen($file, 'a');
-		fwrite($fp, $message."\n");
+		fwrite($fp, $message."<br>\n");
 		echo str_replace('\n','<br>',$message.'\n');
 		fclose($fp);
 	}

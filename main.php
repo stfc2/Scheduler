@@ -62,7 +62,7 @@ $db = new sql($config['server'].":".$config['port'], $config['game_database'], $
 
 $game = new game();
 
-$sdl->log("\n\n\n".'<b>-------------------------------------------------------------</b>'."\n".
+$sdl->log('<br><br><br><b>-------------------------------------------------------------</b><br>'.
           '<b>Starting Scheduler at '.date('d.m.y H:i:s', time()).'</b>');
 
 if(($cfg_data = $db->queryrow('SELECT * FROM config')) === false) {
@@ -76,12 +76,12 @@ $LAST_TICK_TIME = ($cfg_data['tick_time']-TICK_DURATION*60);
 $STARDATE = $cfg_data['stardate'];
 
 if($cfg_data['tick_stopped']) {
-    $sdl->log('Finished Scheduler in '.round((microtime()+time())-$starttime, 4).' secs\nTick has been stopped (Unlock in table "config")');
+    $sdl->log('Finished Scheduler in '.round((microtime()+time())-$starttime, 4).' secs<br>Tick has been stopped (Unlock in table "config")');
     exit;
 }
 
 if(empty($ACTUAL_TICK)) {
-    $sdl->log('Finished Scheduler in '.round((microtime()+time())-$starttime, 4).' secs\n- Fatal: empty($ACTUAL_TICK) == true');
+    $sdl->log('Finished Scheduler in '.round((microtime()+time())-$starttime, 4).' secs<br>- Fatal: empty($ACTUAL_TICK) == true');
     exit;
 }
 
@@ -498,7 +498,7 @@ while($research = $db->fetchrow($q_research)) {
                     WHERE planet_id = '.$research['planet_id'];
 
             if(!$db->query($sql)) {
-                $sdl->log('<b>Error:</b> Query sched_research @ user failed:\n '.$sql.' \nTICK EXECUTION CONTINUED');
+                $sdl->log('<b>Error:</b> Query sched_research @ user failed:<br> '.$sql.' <br>TICK EXECUTION CONTINUED');
             }
 
        	}
@@ -601,7 +601,7 @@ if(!$db->query('UPDATE config SET tick_id = tick_id + 1, shipwreck_id=shipwreck_
     $sdl->log('- Could not update tick ID, Tick stopped, sent mail to admin@nonsolotaku.it');
     mail('admin@nonsolotaku.it','STFC2: Tickstop','Tick '.$ACTUAL_TICK.' has been stopped.\nError message:\n'.$db->raise_error().'\n\nGreetings, STGC Scheduler');
     $db->raise_error();
-    $sdl->log('Tick '.$ACTUAL_TICK.' has (presumably) halted.\nError message:\n'.$db->error['message'].'\n\nFehlerquelle: " UPDATE config SET tick_id = tick_id + 1, tick_securehash = "'.md5($ACTUAL_TICK).'" "\n\nGreetings, STGC Scheduler');
+    $sdl->log('Tick '.$ACTUAL_TICK.' has (presumably) halted.<br>Error message:<br>'.$db->error['message'].'<br><br>Error Source: " UPDATE config SET tick_id = tick_id + 1, tick_securehash = "'.md5($ACTUAL_TICK).'" "<br><br>Greetings, STGC Scheduler');
     $db->query('UPDATE config SET tick_stopped = 1');
     exit;
 }
@@ -668,7 +668,7 @@ while($planet = $db->fetchrow($q_planets)) {
         if ($chance>90) array_push($victim,0);
 
         $rand_building=rand(0,count($victim)-1);
-        echo'\nBuilding:'.count($victim).' of 12, randomly chosen:'.$rand_building;
+        $sdl->log('Building:'.count($victim).' of 12, randomly chosen:'.$rand_building.'<br>');
         if ($planet['building_'.$rand_building]>1)
         {
             $log_data=array(
@@ -2233,7 +2233,7 @@ $sdl->finish_job('Resolve ghost fleet');
 // Quit and close log
 
 $db->close();
-$sdl->log('<b>Finished Scheduler in <font color=#009900>'.round((microtime()+time())-$starttime, 4).' secs</font>'."\n".'Executed Queries: <font color=#ff0000>'.$db->i_query.'</font></b>');
+$sdl->log('<b>Finished Scheduler in <font color=#009900>'.round((microtime()+time())-$starttime, 4).' secs</font><br>Executed Queries: <font color=#ff0000>'.$db->i_query.'</font></b>');
 
 ?>
 
