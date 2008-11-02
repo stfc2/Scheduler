@@ -118,6 +118,171 @@ $sdl->finish_job('Recalculate colony ship limits');
 
 
 
+// 31/10/08 - AC After 3 months owned by Settlers, planets returns inhabitated and becomes of D class.
+$sdl->start_job('Exausted Colony planets');
+
+$today = time();
+$oneWeek = (7 * 24 * 60 * 60);
+$threeMonths = $oneWeek * 12;
+
+// Select ALL exausted planets
+$sql = 'SELECT planet_id FROM planets
+        WHERE planet_owner = '.INDEPENDENT_USERID.' AND
+              '.$today.'  - planet_owned_date > '.$threeMonths;
+
+if(($exausted_planets = $db->queryrowset($sql)) === false) {
+	$sdl->log('<b>Error:</b> Could not query exausted planets!');
+}
+
+// Remove them to the settlers
+$sql = 'UPDATE planets SET planet_name = "Inesplorato",
+                           planet_type = "d",
+                           planet_owner = 0,
+                           planet_points = 0,
+                           research_1 = 0,
+                           research_2 = 0,
+                           research_3 = 0,
+                           research_4 = 0,
+                           research_5 = 0,
+                           resource_1 = 0,
+                           resource_2 = 0,
+                           resource_3 = 0,
+                           resource_4 = 0,
+                           add_1 = 0,
+                           add_2 = 0,
+                           add_3 = 0,
+                           add_4 = 0,
+                           max_resources = 0,
+                           max_worker = 0,
+                           max_units = 0,
+                           min_security_troops = 0,
+                           planet_insurrection_time = 0,
+                           building_1 = 0,
+                           building_2 = 0,
+                           building_3 = 0,
+                           building_4 = 0,
+                           building_5 = 0,
+                           building_6 = 0,
+                           building_7 = 0,
+                           building_8 = 0,
+                           building_9 = 0,
+                           building_10 = 0,
+                           building_11 = 0,
+                           building_12 = 0,
+                           building_13 = 0,
+                           unit_1 = 0,
+                           unit_2 = 0,
+                           unit_3 = 0,
+                           unit_4 = 0,
+                           unit_5 = 0,
+                           unit_6 = 0,
+                           workermine_1 = 0,
+                           workermine_2 = 0,
+                           workermine_3 = 0,
+                           catresearch_1 = 0,
+                           catresearch_2 = 0,
+                           catresearch_3 = 0,
+                           catresearch_4 = 0,
+                           catresearch_5 = 0,
+                           catresearch_6 = 0,
+                           catresearch_7 = 0,
+                           catresearch_8 = 0,
+                           catresearch_9 = 0,
+                           catresearch_10 = 0,
+                           unittrainid_1 = 0,
+                           unittrainid_2 = 0,
+                           unittrainid_3 = 0,
+                           unittrainid_4 = 0,
+                           unittrainid_5 = 0,
+                           unittrainid_6 = 0,
+                           unittrainid_7 = 0,
+                           unittrainid_8 = 0,
+                           unittrainid_9 = 0,
+                           unittrainid_10 = 0,
+                           unittrainnumber_1 = 0,
+                           unittrainnumber_2 = 0,
+                           unittrainnumber_3 = 0,
+                           unittrainnumber_4 = 0,
+                           unittrainnumber_5 = 0,
+                           unittrainnumber_6 = 0,
+                           unittrainnumber_7 = 0,
+                           unittrainnumber_8 = 0,
+                           unittrainnumber_9 = 0,
+                           unittrainnumber_10 = 0,
+                           unittrainnumberleft_1 = 0,
+                           unittrainnumberleft_2 = 0,
+                           unittrainnumberleft_3 = 0,
+                           unittrainnumberleft_4 = 0,
+                           unittrainnumberleft_5 = 0,
+                           unittrainnumberleft_6 = 0,
+                           unittrainnumberleft_7 = 0,
+                           unittrainnumberleft_8 = 0,
+                           unittrainnumberleft_9 = 0,
+                           unittrainnumberleft_10 = 0,
+                           unittrainendless_1 = 0,
+                           unittrainendless_2 = 0,
+                           unittrainendless_3 = 0,
+                           unittrainendless_4 = 0,
+                           unittrainendless_5 = 0,
+                           unittrainendless_6 = 0,
+                           unittrainendless_7 = 0,
+                           unittrainendless_8 = 0,
+                           unittrainendless_9 = 0,
+                           unittrainendless_10 = 0,
+                           unittrain_actual = 0,
+                           unittrainid_nexttime = 0,
+                           unittrain_error = 0,
+                           building_queue = 0,
+                           planet_altname = "",
+                           planet_surrender = 0
+        WHERE planet_owner = '.INDEPENDENT_USERID.' AND
+              '.$today.'  - planet_owned_date > '.$threeMonths;
+
+if(!$db->query($sql))
+{
+	$sdl->log('<b>Error:</b> Could not remove exausted planet to the settlers!');
+}
+
+$planets_ids = array();
+$planets_num = 0;
+
+foreach($exausted_planets as $i => $cur_planet) {
+	$planets_ids[] = $cur_planet['planet_id'];
+	$planets_num++;
+
+	// Recalculate rateo for each planet
+	$rateo_1 = round(($PLANETS_DATA[$planet_type][0] + ((400 - mt_rand(0, 800))*0.001)), 2);
+	if($rateo_1 < 0.1) $rateo_1 = 0.1;
+	$rateo_2 = round(($PLANETS_DATA[$planet_type][1] + ((350 - mt_rand(0, 700))*0.001)), 2);
+	if($rateo_2 < 0.1) $rateo_2 = 0.1;
+	$rateo_3 = round(($PLANETS_DATA[$planet_type][2] + ((300 - mt_rand(0, 600))*0.001)), 2);
+	if($rateo_3 < 0.1) $rateo_3 = 0.1;
+	$rateo_4 = $PLANETS_DATA[$planet_type][3];
+
+	$sql = 'UPDATE planets SET rateo_1 = '.$rateo_1.',
+	                           rateo_2 = '.$rateo_2.',
+	                           rateo_3 = '.$rateo_3.',
+	                           rateo_4 = '.$rateo_4.'
+	        WHERE planet_id = '.$cur_planet['planet_id'];
+
+	if(!$db->query($sql))
+	{
+		$sdl->log('<b>Error:</b> Could set new rateo values to planet <b>#'.$cur_planet['planet_id'].'</b>');
+	}
+}
+
+$sql = 'DELETE FROM planet_details WHERE planet_id IN ('.implode(',', $planets_ids).') AND log_code = 300';
+if(!$db->query($sql)) {
+	$sdl->log('<b>Error:</b> Could not delete settlers moods!');
+}
+
+if($planets_num != 0)
+	$sdl->log('Exausted Colony planet: <b>'.$planets_num.'</b> returned inhabitated');
+
+$sdl->finish_job('Exausted Colony planets');
+
+
+
 // Check of Settler Planets OMG!!! LOT OF TIME USED!!!
 $sdl->start_job('Colony DB checkup');
 $sql = 'SELECT planet_id FROM planets WHERE planet_owner = '.INDEPENDENT_USERID;
