@@ -104,12 +104,12 @@ if(!$limit = $db->queryrow($sql)) {
 	$limit['user_points'] = 2000;
 }
 
-// Chi sta SOPRA la soglia puà fare solo una colonizzatrice per volta!!!
+// Who is ABOVE the threshold can have only one colony ship at a time!!!
 $sql = 'UPDATE user SET user_max_colo = 1 WHERE user_points > '.$limit['user_points'];
 if(!$db->query($sql))
 	$sdl->log('<b>Error:</b> Cannot set user_max_colo to 1! CONTINUED');
 
-//Chi è uguale o minore della soglia, può fare quante colonizzatrici desidera!!!
+//Who is equal to or smaller than the threshold, can do as many colony ship as he want!!!
 $sql = 'UPDATE user SET user_max_colo = 0 WHERE user_points <= '.$limit['user_points'];
 if(!$db->query($sql))
 	$sdl->log('<b>Error:</b> Cannot set user_max_colo to 0! CONTINUED');
@@ -124,6 +124,7 @@ $sdl->start_job('Exausted Colony planets');
 $today = time();
 $oneWeek = (7 * 24 * 60 * 60);
 $threeMonths = $oneWeek * 12;
+$planet_type = 'd';
 
 // Select ALL exausted planets
 $sql = 'SELECT planet_id FROM planets
@@ -136,7 +137,7 @@ if(($exausted_planets = $db->queryrowset($sql)) === false) {
 
 // Remove them to the settlers
 $sql = 'UPDATE planets SET planet_name = "Inesplorato",
-                           planet_type = "d",
+                           planet_type = "'.$planet_type.'",
                            planet_owner = 0,
                            planet_points = 0,
                            research_1 = 0,
@@ -271,14 +272,14 @@ foreach($exausted_planets as $i => $cur_planet) {
 	}
 }
 
-$sql = 'DELETE FROM planet_details WHERE planet_id IN ('.implode(',', $planets_ids).') AND log_code = 300';
-if(!$db->query($sql)) {
-	$sdl->log('<b>Error:</b> Could not delete settlers moods!');
+if($planets_num != 0) {
+	$sql = 'DELETE FROM planet_details WHERE planet_id IN ('.implode(',', $planets_ids).') AND log_code = 300';
+	if(!$db->query($sql)) {
+		$sdl->log('<b>Error:</b> Could not delete settlers moods!');
+	}
+
+	$sdl->log('Exausted Colony planet: <b>'.$planets_num.'</b> returned uninhabited');
 }
-
-if($planets_num != 0)
-	$sdl->log('Exausted Colony planet: <b>'.$planets_num.'</b> returned inhabitated');
-
 $sdl->finish_job('Exausted Colony planets');
 
 
