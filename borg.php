@@ -391,7 +391,87 @@ class Borg extends NPC
 		$messages=array('Resistance is futile.','Resistance is futile.','La resistenza &egrave; inutile.');
 		$titles=array('<b>We are Borg</b>','<b>We are Borg</b>','<b>Noi siamo i Borg</b>');
 
-		$this->CheckSensors($ACTUAL_TICK,$titles,$messages);
+		//$this->CheckSensors($ACTUAL_TICK,$titles,$messages);
+
+		/**
+		 * 13/11/08 - AC: Stop sending ONLY messages to nasty players! ^^
+		 */
+		$this->sdl->start_job('Sensors monitor', TICK_LOG_FILE_NPC);
+		$msgs_number=0;
+		$sql='SELECT * FROM `scheduler_shipmovement`
+		      WHERE user_id>9 AND 
+		            move_status=0 AND
+		            move_exec_started!=1 AND
+		            move_finish>'.$ACTUAL_TICK.' AND
+		            dest="'.$this->bot['planet_id'].'"';
+		$attackers=$this->db->query($sql);
+		while($attacker = $this->db->fetchrow($attackers))
+		{
+			$this->sdl->log('The User '.$attacker['user_id'].' is trying to attack bot planet', TICK_LOG_FILE_NPC);
+			$send_message = false;
+
+			// Choose a target
+			$sql='SELECT p.planet_owner,p.planet_name,p.planet_id,u.user_points FROM (planets p)
+			      INNER JOIN (user u) ON u.user_id = p.planet_owner
+			      WHERE p.planet_owner ='.$attacker['user_id'].' LIMIT 0 , 1';
+			$target=$this->db->queryrow($sql);
+
+			// Check if a fleet is already on fly
+			$sql = 'SELECT `fleet_id`, `move_id`, `planet_id` FROM `ship_fleets`
+			        WHERE `user_id` = '.$this->bot['user_id'].' AND `fleet_name` = "'.$target['planet_name'].'"
+			        LIMIT 0,1';
+			$fleet = $this->db->queryrow($sql);
+
+			// If the fleet does not exists
+			if(empty($fleet['fleet_id'])) {
+				// Create a new fleet
+				if($target['user_points'] > BORG_BIGPLAYER)
+					$fleet_id = $this->CreateFleet($target['planet_name'],$this->bot['ship_template2'],1);
+				else
+					$fleet_id = $this->CreateFleet($target['planet_name'],$this->bot['ship_template1'],3);
+
+				// Send it to the planet
+				$this->SendBorgFleet($ACTUAL_TICK,$fleet_id, $target['planet_id']);
+				$send_message = true;
+			}
+			// If the fleet exists but it is not moving and it is not at planet
+			else if($fleet['planet_id'] != $target['planet_id'] && $target['move_id'] == 0) {
+				// Send it to the planet
+				$send_message = $this->SendBorgFleet($ACTUAL_TICK,$fleet['fleet_id'], $target['planet_id']);
+			}
+
+			if($send_message) {
+				$msgs_number++;
+
+				// Recover language of the sender
+				$sql = 'SELECT language FROM user WHERE user_id='.$attacker['user_id'];
+				if(!($language = $this->db->queryrow($sql)))
+					$this->sdl->log('<b>Error:</b> Cannot read user language!',
+						TICK_LOG_FILE_NPC);
+
+				switch($language['language'])
+				{
+					case 'GER':
+						$text=$messages[1];
+						$title=$titles[1];
+					break;
+					case 'ITA':
+						$text=$messages[2];
+						$title=$titles[2];
+					break;
+					default:
+						$text=$messages[0];
+						$title=$titles[0];
+					break;
+				}
+
+				$this->MessageUser($this->bot['user_id'],$attacker['user_id'],$title,
+					str_replace("<TARGETPLANET>",$target['planet_name'],$text));
+			}
+		}
+		$this->sdl->log('Number of "messages" sent:'.$msgs_number, TICK_LOG_FILE_NPC);
+		$this->sdl->finish_job('Sensors monitor', TICK_LOG_FILE_NPC);
+
 		// ########################################################################################
 		// ########################################################################################
 		//Ships creation
