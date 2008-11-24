@@ -1817,6 +1817,14 @@ else {
                 else {
                     $sql = 'UPDATE user
                             SET user_alliance_status = '.ALLIANCE_STATUS_OWNER.'
+                                user_alliance_rights1 = 1,
+                                user_alliance_rights2 = 1,
+                                user_alliance_rights3 = 1,
+                                user_alliance_rights4 = 1,
+                                user_alliance_rights5 = 1,
+                                user_alliance_rights6 = 1,
+                                user_alliance_rights7 = 1,
+                                user_alliance_rights8 = 1
                             WHERE user_id = '.$other_admin['user_id'];
 
                     $db->query($sql);
