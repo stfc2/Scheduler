@@ -1259,7 +1259,7 @@ else {
         $dest_sum_sensors = (!empty($friendly_ships['sum_sensors'])) ? (int)$friendly_ships['sum_sensors'] : 0;
         $dest_sum_cloak = (!empty($friendly_ships['sum_cloak'])) ? (int)$friendly_ships['sum_cloak'] : 0;
 
-        $visiblity = GetVisibility($move_sum_sensors, $move_sum_cloak, $move['n_ships'], ($dest_sum_sensors + ($move['dest_building_7'] + 1) * 200), $dest_sum_cloak);
+        $visibility = GetVisibility($move_sum_sensors, $move_sum_cloak, $move['n_ships'], $dest_sum_sensors, $dest_sum_cloak, ($move['dest_building_7'] + 1) * 200);
         $travelled = 100 / ($move['move_finish'] - $move['move_begin']) * ($ACTUAL_TICK - $move['move_begin']);
 
         if($travelled < ($visibility +     ( (100 - $visibility) / 4) ) ) $move['n_ships'] = 0;
@@ -1268,8 +1268,8 @@ else {
         $sql = 'UPDATE planets
                 SET planet_next_attack = '.(time() + ($move['move_finish'] - $ACTUAL_TICK) * 300).',
                     planet_attack_ships = '.$move['n_ships'].',
-                    planet_attack_type= '.$move['action_code'].'
-                WHERE planet_id= '.$move['dest'];
+                    planet_attack_type = '.$move['action_code'].'
+                WHERE planet_id = '.$move['dest'];
 
         if(!$db->query($sql)) {
             $sdl->log('- Warning: Could not update planet attacked data! CONTINUED');
