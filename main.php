@@ -55,7 +55,6 @@ include($game_path . 'include/text_races.php');
 include($game_path . 'include/race_data.php');
 include($game_path . 'include/ship_data.php');
 include($game_path . 'include/libs/moves.php');
-//include($game_path . 'include/libs/world.php'); // Needed by NPC BOT
 
 $sdl = new scheduler();
 $db = new sql($config['server'].":".$config['port'], $config['game_database'], $config['user'], $config['password']); // create sql-object for db-connection
@@ -561,30 +560,6 @@ $sdl->finish_job('Resourcetrade Scheduler');
 
 
 
-// ########################################################################################
-// ########################################################################################
-/*BOT
-ini_set('memory_limit', '500M');
-define('FILE_PATH_hg',$game_path);
-define('TICK_LOG_FILE_NPC', $game_path.'logs/NPC_BOT_tick_'.date('d-m-Y', time()).'.log');
-include('NPC_BOT.php');
-include('ferengi.php');
-include('borg.php');
-include('settlers.php');
-$sdl->start_job('Ramona comes over - oh women are so wonderful');
-$quark = new Ferengi($db,$sdl);
-$quark->Execute(1,"Normal operation in the test round",0,"#DEEB24");
-$sdl->finish_job('Ramona comes over - oh women are so wonderful');
-$sdl->start_job('SevenOfNine is coming - oh borg are not so beautiful');
-$borg = new Borg($db,$sdl);
-$borg->Execute(1);
-$sdl->finish_job('SevenOfNine is coming - oh borg are not so beautiful');
-$sdl->start_job('Mayflower is coming - settlers are the real workforce');
-$settlers = new Settlers($db,$sdl);
-$settlers->Execute(1);
-$sdl->finish_job('Mayflower is coming - settlers are the real workforce');
-define('TICK_LOG_FILE_NPC','');
-*/
 // ########################################################################################
 // ########################################################################################
 // Update Tick-ID
@@ -1259,8 +1234,10 @@ else {
         $dest_sum_sensors = (!empty($friendly_ships['sum_sensors'])) ? (int)$friendly_ships['sum_sensors'] : 0;
         $dest_sum_cloak = (!empty($friendly_ships['sum_cloak'])) ? (int)$friendly_ships['sum_cloak'] : 0;
 
-        $visibility = GetVisibility($move_sum_sensors, $move_sum_cloak, $move['n_ships'], $dest_sum_sensors, $dest_sum_cloak, ($move['dest_building_7'] + 1) * 200);
-        $travelled = 100 / ($move['move_finish'] - $move['move_begin']) * ($ACTUAL_TICK - $move['move_begin']);
+        $flight_duration = $move['move_finish'] - $move['move_begin'];
+        $visibility = GetVisibility($move_sum_sensors, $move_sum_cloak, $move['n_ships'],
+            $dest_sum_sensors, $dest_sum_cloak, ($move['dest_building_7'] + 1) * 200,$flight_duration);
+        $travelled = 100 / $flight_duration * ($ACTUAL_TICK - $move['move_begin']);
 
         if($travelled < ($visibility +     ( (100 - $visibility) / 4) ) ) $move['n_ships'] = 0;
         if($travelled < ($visibility + 2 * ( (100 - $visibility) / 4) ) ) $move['action_code'] = 0;
