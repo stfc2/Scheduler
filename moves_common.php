@@ -536,7 +536,7 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
 			     .$this->move['total_distance'].', '
 			     .$this->move['total_distance'].', '
 			     .$this->move['tick_speed'].', '
-			     .$this->CURRENT_TICK.', '.(CURRENT_TICK + ( (CURRENT_TICK + 1) - $this->move['move_begin'] ) ).', '.$this->move['n_ships'].', 11)';
+			     .$this->CURRENT_TICK.', '.($this->CURRENT_TICK + ( ($this->CURRENT_TICK + 1) - $this->move['move_begin'] ) ).', '.$this->move['n_ships'].', 11)';
 			     
 		    if(!$this->db->query($sql)) {
 			return $this->log(MV_M_DATABASE, 'Could not create new movement for scout return! SKIP');
