@@ -755,10 +755,10 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
                 // If the attack was on a settlers planet, we get rid of the moods data!
 
-                if($this->flags['is_indipendent']) {
+                if($this->dest['user_id'] == INDEPENDENT_USERID) {
                     $this->log(MV_M_NOTICE, 'Colony: Settlers taken over!!! They gonna be no more...');
 
-                    $sql = 'DELETE planet_details WHERE planet_id = '.$this->dest['planet_id'].' AND log_code = 300';
+                    $sql = 'DELETE FROM planet_details WHERE planet_id = '.$this->dest['planet_id'].' AND log_code = 300';
 
                     if(!$this->db->query($sql)) {
                         $this->log(MV_M_DATABASE, 'Could not delete settlers moods! CONTINUE!');   

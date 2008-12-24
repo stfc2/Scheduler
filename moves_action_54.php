@@ -339,6 +339,9 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                         unit_4 = '.$new_dest['unit_4'].',
                         unit_5 = '.$new_dest['unit_5'].',
                         unit_6 = '.$new_dest['unit_6'].',
+                        workermine_1 = '.(($new_dest['building_2'] + 1) * 100).',
+                        workermine_2 = '.(($new_dest['building_3'] + 1) * 100).',
+                        workermine_3 = '.(($new_dest['building_4'] + 1) * 100).',
                         '.$queryadd.'
                         recompute_static=1
                     WHERE planet_id = '.$this->move['dest'];
@@ -374,18 +377,19 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                 break;
             }
 
-	    // If the attack was on a settlers planet, they will get a little mad!
-    
-	    if($this->flags['is_indipendent']) {
-		$this->log(MV_M_NOTICE, 'Colony: Settlers being attacked!!! They gonna be mad!');
-	
-		$sql = 'UPDATE planet_details SET mood_race'.$cur_user['user_race'].' = mood_race'.$cur_user['user_race'].' - 30 
-		        WHERE planet_id = '.$this->dest['planet_id'].' AND log_code = 300';
-	
-	        if(!$this->db->query($sql)) {
-			$this->log(MV_M_DATABASE, 'Could not update settlers moods! CONTINUE!');   
-		}
-	    }
+            // If the attack was on a settlers planet, they will get a little mad!
+
+            if($this->dest['user_id'] == INDEPENDENT_USERID) {
+                $this->log(MV_M_NOTICE, 'Colony: Settlers being attacked!!! They gonna be mad!');
+
+                $sql = 'UPDATE planet_details
+                        SET mood_race'.$this->move['user_race'].' = mood_race'.$this->move['user_race'].' - 30 
+                        WHERE planet_id = '.$this->dest['planet_id'].' AND log_code = 300';
+
+                if(!$this->db->query($sql)) {
+                    $this->log(MV_M_DATABASE, 'Could not update settlers moods! CONTINUE!');
+                }
+            }
 
             $this->flags['keep_move_alive'] = true;
         }
