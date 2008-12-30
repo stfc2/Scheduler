@@ -186,6 +186,8 @@ class moves_common {
     }
 
     function do_ship_combat(&$atk_fleet_ids_str, &$dfd_fleet_ids_str, $combat_level) {
+        global $config;
+
         if(empty($atk_fleet_ids_str)) $atk_fleet_ids_str = '-1';
         if(empty($dfd_fleet_ids_str)) $dfd_fleet_ids_str = '-1';
 
@@ -214,7 +216,8 @@ class moves_common {
         $bin_output = array();
 
         $cmd_line = MV_COMBAT_BIN_PATH.' '.$atk_fleet_ids_str.' '.$dfd_fleet_ids_str.' '.$this->move['dest'].' '.$n_large_orbital_defense.' '.$n_small_orbital_defense;
-        exec($cmd_line, $bin_output);
+        $auth_line = ' '.$config['game_database'].' '.$config['user'].' '.$config['password'];
+        exec($cmd_line.$auth_line, $bin_output);
 
         if($bin_output[0][0] == '0') {
             return $this->log(MV_M_ERROR, 'Combat Binary exited with an error ('.substr($bin_output[0], 1).' - '.$cmd_line.')');
@@ -463,7 +466,7 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
                     $this->log(MV_M_NOTICE, 'Doing combat in AR-loop #'.$i);
 
                     if($this->do_ship_combat(implode(',', $atk_fleet_ids), $this->fleet_ids_str, MV_COMBAT_LEVEL_OUTER) == MV_EXEC_ERROR) {
-                        $this->log(MV_M_DATABASE, 'Move Direct: Something went wrong with this fight!');
+                        $this->log(MV_M_CRITICAL, 'Move Direct: Something went wrong with this fight!');
                         return MV_EXEC_ERROR;
                     }
 
