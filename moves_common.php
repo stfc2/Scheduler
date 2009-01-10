@@ -52,7 +52,7 @@ define('MV_COMBAT_BIN_PATH', $script_path . 'stfc-moves-combat/bin/moves_combat'
 function commonlog($message,$message2,$move_id=0)
 {
     $fp = fopen(TICK_LOG_FILE, 'a');
-        fwrite($fp, $message." (move_id: <b>".$move_id."</b>) ".$message2."\n");
+        fwrite($fp, $message." (move_id: <b>".$move_id."</b>) ".$message2."<br>\n");
         echo str_replace('\n','<br>',$message." ".$message2."\n");
         fclose($fp);
 }
