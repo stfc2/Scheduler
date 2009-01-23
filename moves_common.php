@@ -195,9 +195,12 @@ class moves_common {
         $academy_is_working = false;
         $academy_next_tick = 0;
 
-        $sql = 'SELECT * FROM planets WHERE planet_id = '.$this->move['dest'];
+        $sql = 'SELECT unittrainid_1, unittrainid_2, unittrainid_3, unittrainid_4, unittrainid_5,
+                       unittrainid_6, unittrainid_7, unittrainid_8, unittrainid_9, unittrainid_10,
+                       unittrain_actual, unittrainid_nexttime, building_6, research_4
+                FROM planets WHERE planet_id = '.$this->move['dest'];
         if(!($planet_info = $this->db->queryrow($sql))) {
-            $this->log(MV_M_DATABASE, 'moves_common.check_academy_status: error reading planet info');
+            $this->log(MV_M_DATABASE, 'Error reading academy queues info of planet <b>'.$this->move['dest'].'</b>');
         }
         else
         {
@@ -227,11 +230,13 @@ class moves_common {
                         WHERE planet_id = '.$this->move['dest'];
                 if (!$this->db->query($sql))
                 {
-                    $this->log(MV_M_DATABASE, 'moves_common.check_academy_status: error updating planet '.$this->move['dest'].' info');
+                    $this->log(MV_M_DATABASE, 'Error emptying academy working queues of planet <b>'.$this->move['dest'].'</b>');
                 }
             }
             else
             {
+                $sqlpart = '';
+
                 // Ok, we have to check all the academy slots
                 for ($index = 1; $index < 11; $index++)
                 {
@@ -240,37 +245,36 @@ class moves_common {
                     if ($planet_info['unittrainid_'.$index] == 2 && $no_unit_2)
                     {
                         // Gotcha! Get out from the queue!
-                        $sql = 'UPDATE planets
-                                SET unittrainid_'.$index.' = 0, unittrainnumber_'.$index.' = 0,
-                                    unittrainnumberleft_'.$index.' = 0, unittrainendless_'.$index.' = 0
-                                WHERE planet_id = '.$this->move['dest'];
-                        if (!$this->db->query($sql))
-                        {
-                            $this->log(MV_M_DATABASE, 'moves_common.check_academy_status: error updating planet '.$this->move['dest'].' info');
-                        }
                         $planet_info['unittrainid_'.$index] = 0;
-                        $planet_info['unittrainnumber_'.$index] = 0; 
-                        $planet_info['unittrainnumberleft_'.$index] = 0; 
-                        $planet_info['unittrainendless_'.$index] = 0; 
+                        $sqlpart .= 'unittrainid_'.$index.' = 0,
+                            unittrainnumber_'.$index.' = 0,
+                            unittrainnumberleft_'.$index.' = 0,
+                            unittrainendless_'.$index.' = 0,';
                     }
 
                     if ($planet_info['unittrainid_'.$index] == 3 && $no_unit_3)
                     {
                         // Gotcha! Get out from the queue!
-                        $sql = 'UPDATE planets
-                                SET unittrainid_'.$index.' = 0, unittrainnumber_'.$index.' = 0,
-                                    unittrainnumberleft_'.$index.' = 0, unittrainendless_'.$index.' = 0
-                                WHERE planet_id = '.$this->move['dest'];
-                        if (!$this->db->query($sql))
-                        {
-                            $this->log(MV_M_DATABASE, 'moves_common.check_academy_status: error updating planet '.$this->move['dest'].' info');
-                        }
                         $planet_info['unittrainid_'.$index] = 0;
-                        $planet_info['unittrainnumber_'.$index] = 0; 
-                        $planet_info['unittrainnumberleft_'.$index] = 0; 
-                        $planet_info['unittrainendless_'.$index] = 0; 
+                        $sqlpart .= 'unittrainid_'.$index.' = 0,
+                            unittrainnumber_'.$index.' = 0,
+                            unittrainnumberleft_'.$index.' = 0,
+                            unittrainendless_'.$index.' = 0,';
                     }
                 }
+
+                // There is something to remove from the queue?
+                if($sqlpart != '')
+                {
+                    $sql = 'UPDATE planets
+                            SET '.rtrim($sqlpart,',').'
+                            WHERE planet_id = '.$this->move['dest'];
+                    if (!$this->db->query($sql))
+                    {
+                        $this->log(MV_M_DATABASE, 'Error updating planet <b>'.$this->move['dest'].'</b> academy queues info');
+                    }
+                }
+
                 // Check the active slot. If the active slot is now empty, go check for the next working slot and make it active.
                 $active_slot = $planet_info['unittrain_actual'];
                 $tries = 0;
@@ -288,7 +292,7 @@ class moves_common {
                                 WHERE planet_id = '.$this->move['dest'];
                         if (!$this->db->query($sql))
                         {
-                            $this->log(MV_M_DATABASE, 'moves_common.check_academy_status: error updating planet '.$this->move['dest'].' info');
+                            $this->log(MV_M_DATABASE, 'Error clearing OLD academy active slot of planet <b>'.$this->move['dest'].'</b>');
                         }
                         continue;
                     }
@@ -307,7 +311,7 @@ class moves_common {
                             WHERE planet_id = '.$this->move['dest'];
                     if (!$this->db->query($sql))
                     {
-                        $this->log(MV_M_DATABASE, 'moves_common.check_academy_status: error updating planet '.$this->move['dest'].' info');
+                        $this->log(MV_M_DATABASE, 'Error updating NEW academy active slot of planet <b>'.$this->move['dest'].'</b>');
                     }
                 }
             }
