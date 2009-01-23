@@ -360,6 +360,12 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                 return $this->log(MV_M_DATABASE, 'Could not update move data! SKIP');
             }
 
+            $this->check_academy_status(); // Gonna check the academy queue after bombing
+
+            $this->check_shipyard_status(); // Gonna check the shipyard status after bombing
+
+            $this->check_spacedock_status(); // Gonna check the ships in spacedock after bombing
+
             $status_code = ($bomb_i > 0) ? 2 : 1;
 
             // #############################################################################
