@@ -83,7 +83,7 @@ class moves_common {
         'skip_action' => false,
         'keep_move_alive' => false,
 
-        'combat_happened' => false,
+        'combat_happened' => false
     );
 
     var $action_data = array();
@@ -378,7 +378,7 @@ class moves_common {
         if(empty($dfd_fleet_ids_str)) $dfd_fleet_ids_str = '-1';
 
         // When $combat_level == MV_COMBAT_LEVEL_PLANETARY the owner is always attacked
-        //			--> fight with all orbitals
+        //                        --> fight with all orbitals
 
         if($combat_level == MV_COMBAT_LEVEL_OUTER) {
             $n_large_orbital_defense = $n_small_orbital_defense = 0;
@@ -605,151 +605,85 @@ class moves_common {
             $this->db->free_result($q_ar_uid);
 $this->log(MV_M_NOTICE,'AR-user(s): <b>'.count($ar_user).'</b>');
 
-            // 160408 DC ---- Scouts does not trigger AR Fleets attack
-            $scout_counter = 0;
-            foreach($this->n_ships as $n_ships) {
-                $scout_counter += $n_ships;
-            }
-            foreach($this->fleet_ids as $fleet_id) {
-                $sql = 'SELECT count(st.ship_torso) AS num_scout FROM (ships s, ship_templates st)
-                        WHERE s.fleet_id = '.$fleet_id.' AND st.id = s.template_id AND st.ship_torso = '.SHIP_TYPE_SCOUT;
-                $check_scout = $this->db->queryrow($sql);
-                $scout_counter -= $check_scout['num_scout'];
-            }
-            if ($scout_counter != 0) {
-            //160408 DC -----
-                for($i = 0; $i < count($ar_user); ++$i) {
-                    $this->log(MV_M_NOTICE, 'Entering AR-loop #'.$i);
+            for($i = 0; $i < count($ar_user); ++$i) {
+                $this->log(MV_M_NOTICE, 'Entering AR-loop #'.$i);
 
-                    $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
-                            FROM (ship_fleets f)
-                            INNER JOIN user u ON u.user_id = f.user_id
-                            WHERE f.planet_id = '.$this->move['dest'].' AND
-                                  f.user_id = '.$ar_user[$i].' AND
-                                  f.alert_phase = '.ALERT_PHASE_RED;
+                $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
+                        FROM (ship_fleets f)
+                        INNER JOIN user u ON u.user_id = f.user_id
+                        WHERE f.planet_id = '.$this->move['dest'].' AND
+                              f.user_id = '.$ar_user[$i].' AND
+                              f.alert_phase = '.ALERT_PHASE_RED;
 
 $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
 
-                    if(($atk_fleets = $this->db->queryrowset($sql)) === false) {
-                        return $this->log(MV_M_DATABASE, 'Could not query attacker fleets in AR! SKIP');
-                    }
-
-                    $atk_fleet_ids = array();
-
-                    foreach($atk_fleets as $ihh => $cur_fleet) {
-                        $atk_fleet_ids[] = $cur_fleet['fleet_id'];
-                    }
-
-                    $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
-                            FROM (ship_fleets f)
-                            INNER JOIN user u ON u.user_id = f.user_id
-                            WHERE f.fleet_id IN ('.$this->fleet_ids_str.')';
-
-                    if(($dfd_fleets = $this->db->queryrowset($sql)) === false) {
-                        return $this->log(MV_M_DATABASE, 'Could not query defender fleets in AR! SKIP');
-                    }
-
-                    $this->log(MV_M_NOTICE, 'Doing combat in AR-loop #'.$i);
-
-                    if($this->do_ship_combat(implode(',', $atk_fleet_ids), $this->fleet_ids_str, MV_COMBAT_LEVEL_OUTER) == MV_EXEC_ERROR) {
-                        $this->log(MV_M_CRITICAL, 'Move Direct: Something went wrong with this fight!');
-                        return MV_EXEC_ERROR;
-                    }
-
-                    $this->log(MV_M_NOTICE, 'Combat done in AR-loop #'.$i);
-
-                    // If the attacker has won (the fleet AR)
-                    // the move can then be terminated immediately
-
-                    if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
-                        $this->flags['skip_action'] = true;
-                    }
-
-                    $log1_data = array(40, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], MV_CMB_ATTACKER, ($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER), 0,0, $atk_fleets, $dfd_fleets, null, $ar_user[$i]);
-                    $log2_data = array(40, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], MV_CMB_DEFENDER, ($this->cmb[MV_CMB_WINNER] == MV_CMB_DEFENDER), 0,0, $atk_fleets, $dfd_fleets, null, $ar_user[$i]);
-
-                    $log1_data[10] = $this->cmb[MV_CMB_KILLS_EXT];
-                    $log2_data[10] = $this->cmb[MV_CMB_KILLS_EXT];
-
-                    // #############################################################################
-                    // 03/04/08 - AC: Retrieve player language
-                    //  !! ACTUALLY WE ARE USING THE SAME LANGUAGE ALSO FOR ALLIES LOGBOOK ENTRY !!
-                    switch($this->move['language'])
-                    {
-                        case 'GER':
-                            $log_title1 = 'AR-Flottenverband hat Schiffe bei '.$this->dest['planet_name'].' angegriffen';
-                            $log_title2 = 'Flottenverband wurde bei '.$this->dest['planet_name'].' angegriffen';
-                        break;
-                        case 'ITA':
-                            $log_title1 = 'Flotta in AR ha attaccato navi presso '.$this->dest['planet_name'];
-                            $log_title2 = 'Associazione flotta attaccata presso '.$this->dest['planet_name'];
-                        break;
-                        default:
-                            $log_title1 = 'AR fleet has attacked ships at '.$this->dest['planet_name'];
-                            $log_title2 = 'Fleet association was attacked at '.$this->dest['planet_name'];
-                        break;
-                    }
-
-                    add_logbook_entry($ar_user[$i], LOGBOOK_TACTICAL_2, $log_title1, $log1_data);
-                    add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $log_title2, $log2_data);
-
-                    $this->flags['combat_happened'] = true;
-
-                    $this->log(MV_M_NOTICE, 'Leaving AR-loop #'.$i);
+                if(($atk_fleets = $this->db->queryrowset($sql)) === false) {
+                    return $this->log(MV_M_DATABASE, 'Could not query attacker fleets in AR! SKIP');
                 }
-            }
-            // 170408 DC ---- Report AR fleets evaded
-            else
-            {
-                if (count($ar_user) > 0) {
-                    $this->log(MV_M_NOTICE,'Scouts evaded AR-Fleet, attack avoided');
-                    $log1_data = array($this->move['action_code'], $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id']);
-                    switch($this->move['language'])
-                    {
-                        case 'ITA':
-                            $log_title1 = 'Scout in arrivo presso '.$this->dest['planet_name'].' obbligati a tornare indietro da forze ostili in allarme rosso.';
-                        break;
-                        default:
-                            $log_title1 = 'Scout aproaching at '.$this->dest['planet_name'].' forced to get back by hostile forces';
-                        break;
-                    }
-                    add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $log_title1, $log1_data);
 
-                    // DC --- Scouts evades AR Fleet and come back to home
+                $atk_fleet_ids = array();
+
+                foreach($atk_fleets as $ihh => $cur_fleet) {
+                    $atk_fleet_ids[] = $cur_fleet['fleet_id'];
+                }
+
+                $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
+                        FROM (ship_fleets f)
+                        INNER JOIN user u ON u.user_id = f.user_id
+                        WHERE f.fleet_id IN ('.$this->fleet_ids_str.')';
+
+                if(($dfd_fleets = $this->db->queryrowset($sql)) === false) {
+                    return $this->log(MV_M_DATABASE, 'Could not query defender fleets in AR! SKIP');
+                }
+
+                $this->log(MV_M_NOTICE, 'Doing combat in AR-loop #'.$i);
+
+                if($this->do_ship_combat(implode(',', $atk_fleet_ids), $this->fleet_ids_str, MV_COMBAT_LEVEL_OUTER) == MV_EXEC_ERROR) {
+                    $this->log(MV_M_CRITICAL, 'Move Direct: Something went wrong with this fight!');
+                    return MV_EXEC_ERROR;
+                }
+
+                $this->log(MV_M_NOTICE, 'Combat done in AR-loop #'.$i);
+
+                // If the attacker has won (the fleet AR)
+                // the move can then be terminated immediately
+
+                if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                     $this->flags['skip_action'] = true;
-		
-                    $sql = 'INSERT INTO scheduler_shipmovement (user_id, move_status, move_exec_started,
-                                        start, dest, total_distance, remaining_distance, tick_speed,
-                                        move_begin, move_finish, n_ships, action_code)
-                            VALUES ('.$this->move['user_id'].', 0, 0,
-                                    '.$this->move['dest'].','.$this->move['start'].',
-                                    '.$this->move['total_distance'].','.$this->move['total_distance'].',
-                                    '.$this->move['tick_speed'].',
-                                    '.$this->CURRENT_TICK.',
-                                    '.($this->CURRENT_TICK + ($this->move['move_finish'] - $this->move['move_begin'])).',
-                                    '.$this->move['n_ships'].', 11)';
-			     
-                    if(!$this->db->query($sql)) {
-                        return $this->log(MV_M_DATABASE, 'Could not create new movement for scout return! SKIP');
-                    }
-
-                    $new_move_id = $this->db->insert_id();
-
-                    if(!$new_move_id) {
-                        return $this->log(MV_M_ERROR, 'Could not get new move id! SKIP');
-                    }
-
-                    $sql = 'UPDATE ship_fleets
-                            SET move_id = '.$new_move_id.'
-                            WHERE fleet_id IN ('.$this->fleet_ids_str.')';
-
-                   if(!$this->db->query($sql)) {
-                       return $this->log(MV_M_DATABASE, 'Could not update fleets movement data! SKIP');
-                   }
-                   // ----
                 }
+
+                $log1_data = array(40, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], MV_CMB_ATTACKER, ($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER), 0,0, $atk_fleets, $dfd_fleets, null, $ar_user[$i]);
+                $log2_data = array(40, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], MV_CMB_DEFENDER, ($this->cmb[MV_CMB_WINNER] == MV_CMB_DEFENDER), 0,0, $atk_fleets, $dfd_fleets, null, $ar_user[$i]);
+
+                $log1_data[10] = $this->cmb[MV_CMB_KILLS_EXT];
+                $log2_data[10] = $this->cmb[MV_CMB_KILLS_EXT];
+
+                // #############################################################################
+                // 03/04/08 - AC: Retrieve player language
+                //  !! ACTUALLY WE ARE USING THE SAME LANGUAGE ALSO FOR ALLIES LOGBOOK ENTRY !!
+                switch($this->move['language'])
+                {
+                    case 'GER':
+                        $log_title1 = 'AR-Flottenverband hat Schiffe bei '.$this->dest['planet_name'].' angegriffen';
+                        $log_title2 = 'Flottenverband wurde bei '.$this->dest['planet_name'].' angegriffen';
+                    break;
+                    case 'ITA':
+                        $log_title1 = 'Flotta in AR ha attaccato navi presso '.$this->dest['planet_name'];
+                        $log_title2 = 'Associazione flotta attaccata presso '.$this->dest['planet_name'];
+                    break;
+                    default:
+                        $log_title1 = 'AR fleet has attacked ships at '.$this->dest['planet_name'];
+                        $log_title2 = 'Fleet association was attacked at '.$this->dest['planet_name'];
+                    break;
+                }
+
+                add_logbook_entry($ar_user[$i], LOGBOOK_TACTICAL_2, $log_title1, $log1_data);
+                add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $log_title2, $log2_data);
+
+                $this->flags['combat_happened'] = true;
+
+                $this->log(MV_M_NOTICE, 'Leaving AR-loop #'.$i);
             }
-            //170408 DC ----
         }
 
         // #############################################################################
@@ -764,63 +698,86 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
             if($this->_action_main() != MV_EXEC_OK) {
                 return $this->log(MV_M_ERROR, 'Could not exec successfully _action_main()! SKIP');
             }
-	    else {
-	    
-		// DC ---- Here we go, first steps into "Fog of War"
-		// DC  We never have been here before?
-		// DC  500 = I was already here 
-		$sql = 'SELECT COUNT(*) AS been_there FROM planet_details'
-		.' WHERE planet_id = '.$this->dest['planet_id']
-		.' AND log_code = 500'
-		.' AND user_id = '.$this->move['user_id'];
-		if(!$_flag = $this->db->queryrow($sql)) $this->log(MV_M_DATABASE, 'Could not query planet details db! SKIP!');
-		if($_flag['been_there'] < 1) {
-		// DC ---- Ok, we never have been here before
-		// DC First, let's mark this planet as a know one
-			$sql = 'INSERT INTO planet_details (planet_id, system_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
-				. ' VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.time().', 500)';
-			if(!$this->db->query($sql)) $this->log(MV_M_DATABASE, 'Could not update planet details db! SKIP!');
-		// Galaxy II: Share the exploration data with allies
-			$sql = 'SELECT user_id FROM user WHERE user_alliance = '.$this->move['user_alliance'].' AND user_id <> '.$this->move['user_id'];
-			if(!$share_ally = $this->db->query($sql)) {
-				return $this->log(MV_M_DATABASE, 'Could not read alliance members data!');
-			}
-			while($fetch_ally = $this->db->fetchrow($share_ally)) {
-				$sql_ally = 'INSERT INTO planet_details (planet_id, system_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
-				.'VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$fetch_ally['user_id'].', '.$this->move['user_alliance'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.time().', 500)';
-				if(!$this->db->query($sql_ally)) {
-					return $this->log(MV_M_DATABASE, 'Could not INSERT survey planet data!');
-				}
-				
-			}
-		// DC Now, if the planet is unsettled...
-			if(empty($this->dest['user_id'])) {
-		// DC Maybe we did boldly go where nobody has boldly gone before?
-				$sql = 'SELECT COUNT(*) AS first_here FROM planet_details WHERE planet_id = '.$this->dest['planet_id'].' AND log_code = 1';
-				if(!$_flag = $this->db->queryrow($sql)) $this->log(MV_M_DATABASE, 'Could not query planet details db! SKIP!');
-				if($_flag['first_here'] == 0) {
-		// DC Yeah, we made it!
-					$sql = 'INSERT INTO planet_details (planet_id, system_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
-						. 'VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.time().', 1)';		
-					if(!$this->db->query($sql)) $this->log(MV_M_DATABASE, 'Could not update planet details db! SKIP!');
-				}
-				else {
-		// DC Bad luck, we are seconds...
-					$sql = 'INSERT INTO planet_details (planet_id, system_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
-						. 'VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.time().', 2)';		
-					if(!$this->db->query($sql)) $this->log(MV_M_DATABASE, 'Could not update planet details db! SKIP!');
-				}
-			}
-		}
-	
-		// DC ----
-	    
-	    }
-	    
-        }
+            else {
 
-	
-	
+                // DC ---- Here we go, first steps into "Fog of War"
+                // DC  We never have been here before?
+                // DC  500 = I was already here
+                $sql = 'SELECT COUNT(*) AS been_there FROM planet_details
+                        WHERE planet_id = '.$this->dest['planet_id'].' AND
+                              log_code = 500 AND
+                              user_id = '.$this->move['user_id'];
+                if(($_flag = $this->db->queryrow($sql)) === false) {
+                    $this->log(MV_M_DATABASE, 'Could not query planet details db! CONTINUE');
+                    $_flag['been_there'] = 1;
+                }
+
+                if($_flag['been_there'] < 1) {
+                    /* 23/01/09 - AC: Just to be sure to assign the same timestamp to all the infos ^^ */
+                    $timestamp = time();
+ 
+                    // DC ---- Ok, we never have been here before
+                    // DC First, let's mark this planet as a know one
+                    $sql = 'INSERT INTO planet_details
+                                   (planet_id, system_id, user_id, alliance_id,
+                                    source_uid, source_aid, timestamp, log_code)
+                            VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].',
+                                    '.$this->move['user_alliance'].',
+                                    '.$this->move['user_id'].',
+                                    '.$this->move['user_alliance'].', '.$timestamp.', 500)';
+                    if(!$this->db->query($sql))
+                        return $this->log(MV_M_DATABASE, 'Could not update planet details db! SKIP!');
+
+                    // Galaxy II: Share the exploration data with allies
+                    $sql = 'SELECT user_id FROM user
+                            WHERE user_alliance = '.$this->move['user_alliance'].' AND
+                                  user_id <> '.$this->move['user_id'];
+                    if(!$share_ally = $this->db->query($sql)) {
+                        return $this->log(MV_M_DATABASE, 'Could not read alliance members data! SKIP');
+                    }
+                    while($fetch_ally = $this->db->fetchrow($share_ally)) {
+                        $sql_ally = 'INSERT INTO planet_details
+                                            (planet_id, system_id, user_id, alliance_id,
+                                             source_uid, source_aid, timestamp, log_code)
+                                     VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$fetch_ally['user_id'].',
+                                             '.$this->move['user_alliance'].', '.$this->move['user_id'].',
+                                             '.$this->move['user_alliance'].', '.$timestamp.', 500)';
+                        if(!$this->db->query($sql_ally)) {
+                            return $this->log(MV_M_DATABASE, 'Could not INSERT survey planet data! SKIP');
+                        }
+                    }
+                    // DC Now, if the planet is unsettled...
+                    if(empty($this->dest['user_id'])) {
+                        // DC Maybe we did boldly go where nobody has boldly gone before?
+                        $sql = 'SELECT COUNT(*) AS first_here FROM planet_details
+                                WHERE planet_id = '.$this->dest['planet_id'].' AND log_code = 1';
+                        if(($_flag = $this->db->queryrow($sql)) === false)
+                            return $this->log(MV_M_DATABASE, 'Could not query planet details db! SKIP!');
+                        if($_flag['first_here'] == 0) {
+                            // DC Yeah, we made it!
+                            $first_or_not = 1;
+                        }
+                        else {
+                            // DC Bad luck, we are seconds...
+                            $first_or_not = 2;
+                        }
+
+                        $sql = 'INSERT INTO planet_details
+                                       (planet_id, system_id, user_id, alliance_id,
+                                        source_uid, source_aid, timestamp, log_code)
+                                VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].',
+                                        '.$this->move['user_alliance'].', '.$this->move['user_id'].',
+                                        '.$this->move['user_alliance'].', '.$timestamp.', '.$first_or_not.')';
+
+                        if(!$this->db->query($sql))
+                            $this->log(MV_M_DATABASE, 'Could not update planet details db! CONTINUE');
+                    }
+                }
+                // DC ----
+
+            }
+
+        }
 
         // #############################################################################
         // Clean-Up
