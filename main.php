@@ -1817,8 +1817,8 @@ else {
                     $sdl->log('<b>Notice:</b> Could not find another alliance admin - possible alliance without president! CONTINUED');
                 }
                 else {
-                    $sql = 'UPDATE user
-                            SET user_alliance_status = '.ALLIANCE_STATUS_OWNER.'
+                    $sql = 'UPDATE user, alliance
+                            SET user_alliance_status = '.ALLIANCE_STATUS_OWNER.', alliance_owner = '.$other_admin['user_id'].',
                                 user_alliance_rights1 = 1,
                                 user_alliance_rights2 = 1,
                                 user_alliance_rights3 = 1,
@@ -1827,7 +1827,7 @@ else {
                                 user_alliance_rights6 = 1,
                                 user_alliance_rights7 = 1,
                                 user_alliance_rights8 = 1
-                            WHERE user_id = '.$other_admin['user_id'];
+                            WHERE user_id = '.$other_admin['user_id'].' AND alliance_id = '.$user['alliance_id'];
 
                     $db->query($sql);
                 }
