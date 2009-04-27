@@ -531,9 +531,9 @@ class Ferengi extends NPC
 						$sql = $this->db->query('SELECT * FROM treuhandkonto WHERE code="'.$schulden['id'].'"');
 						$treffer=$this->db->num_rows();
 						if($treffer>1){
-							$this->sdl->log('<b>(Error:1000)Programming error:</b>Apparently, there are several escrow accounts on the same schulden_table --'.$sql, TICK_LOG_FILE_NPC);
+							$this->sdl->log('<b>(Error:1000)Programming error:</b>Apparently, there are several trust accounts on the same schulden_table --'.$sql, TICK_LOG_FILE_NPC);
 						}else if($treffer<=0){
-							$this->sdl->log('<b>(Error:2000)Bug:</b>Apparently, there is no escrow account to the schulden_table -- '.$sql, TICK_LOG_FILE_NPC);
+							$this->sdl->log('<b>(Error:2000)Bug:</b>Apparently, there is no trust account to the schulden_table -- '.$sql, TICK_LOG_FILE_NPC);
 						}else if($treffer==1){
 							$treuhand=$this->db->fetchrow($sql);
 							//Now we look whether everything were already paid
