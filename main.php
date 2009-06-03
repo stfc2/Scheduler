@@ -581,6 +581,42 @@ if(!$db->query('UPDATE config SET tick_id = tick_id + 1, shipwreck_id=shipwreck_
     exit;
 }
 
+// ########################################################################################
+// ########################################################################################
+// Update trace center with soldiers transactions
+
+$sdl->start_job('Soldier Transactions');
+$transactions=0;
+$sql='SELECT * FROM FHB_cache_trupp_trade WHERE tick<='.$ACTUAL_TICK;
+$sql=$db->query($sql);
+while($cache_trade = $db->fetchrow($sql))
+{
+    $transactions++;
+    $db->lock('FHB_Handels_Lager');
+
+    $update_action='UPDATE FHB_Handels_Lager
+                    SET unit_1=unit_1+'.$cache_trade['unit_1'].',
+                        unit_2=unit_2+'.$cache_trade['unit_2'].',
+                        unit_3=unit_3+'.$cache_trade['unit_3'].',
+                        unit_4=unit_4+'.$cache_trade['unit_4'].',
+                        unit_5=unit_5+'.$cache_trade['unit_5'].',
+                        unit_6=unit_6+'.$cache_trade['unit_6'].'
+                    WHERE id=1';
+    if(!$db->query($update_action))
+        $sdl->log('<b>Error:</b> Could not update Handelslager - '.$update_action);
+
+    $db->unlock('FHB_Handels_Lager');
+
+    $delete_action='DELETE FROM FHB_cache_trupp_trade WHERE id='.$cache_trade['id'];
+    if(!$db->query($delete_action))
+        $sdl->log('<b>Error:</b> Could not delete cache troops trade #'.$cache_trade['id']);
+}
+$sdl->log('Transactions: '.$transactions);
+$sdl->finish_job('Soldier Transactions');
+
+
+
+
 
 // ########################################################################################
 // ########################################################################################
@@ -1236,7 +1272,7 @@ else {
 
         $flight_duration = $move['move_finish'] - $move['move_begin'];
         $visibility = GetVisibility($move_sum_sensors, $move_sum_cloak, $move['n_ships'],
-            $dest_sum_sensors, $dest_sum_cloak, ($move['dest_building_7'] + 1) * 200,$flight_duration);
+            $dest_sum_sensors, $dest_sum_cloak, ($move['dest_building_7'] + 1) * PLANETARY_SENSOR_VALUE,$flight_duration);
         $travelled = 100 / $flight_duration * ($ACTUAL_TICK - $move['move_begin']);
 
         if($travelled < ($visibility +     ( (100 - $visibility) / 4) ) ) $move['n_ships'] = 0;
