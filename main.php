@@ -193,7 +193,7 @@ while (($planet=$db->fetchrow($academyquery))==true)
 			
 			// 2pre1: The SQL Query for 2. prepare, because the data under 1. can change:
 			if ($planet['unittrainid_'.($planet['unittrain_actual'])]<7 && $planet['unittrainid_'.($planet['unittrain_actual'])]>0)
-			$sql[]='unit_'.($planet['unittrainid_'.($planet['unittrain_actual'])]).'=unit_'.($planet['unittrainid_'.($planet['unittrain_actual'])]).'+1';
+			$sql[]='unit_'.($planet['unittrainid_'.($planet['unittrain_actual'])]).'=unit_'.($planet['unittrainid_'.($planet['unittrain_actual'])]).'+10';
 			
 			// 1. For the next unit jump + new time set:
 			// if left<=0
@@ -622,6 +622,7 @@ $sdl->finish_job('Soldier Transactions');
 // ########################################################################################
 // Shipdestruction (Wrecking) // Formerly RUST
 
+/*
 if ($cfg_data['shipwreck_id'] > SHIP_RUST_CHECK)
 {
 $sdl->start_job('Shipdestruction (Wrecking)');
@@ -637,7 +638,7 @@ $sdl->finish_job('Shipdestruction (Wrecking)');
 }
 else
 $sdl->log('<font color=#0000ff>Shipdestruction (Wrecking) [Skipped '.$cfg_data['shipwreck_id'].'/'.(SHIP_RUST_CHECK).']</font><br>');
-
+*/
 
 
 
@@ -928,7 +929,7 @@ else {
 					add_3 = '.$add_3.',
 					add_4 = '.$add_4.',
 					recompute_static = 0,
-					max_resources = '.($PLANETS_DATA[$planet['planet_type']][6]+($planet['building_12']*50000*$RACE_DATA[$planet['user_race']][20])).',
+					max_resources = '.($PLANETS_DATA[$planet['planet_type']][6]+($planet['building_12']*200000*$RACE_DATA[$planet['user_race']][20])).',
 					max_worker = '.($PLANETS_DATA[$planet['planet_type']][7]+($planet['research_1']*$RACE_DATA[$planet['user_race']][20]*500)).',
 					max_units = '.($PLANETS_DATA[$planet['planet_type']][7]+($planet['research_1']*$RACE_DATA[$planet['user_race']][20]*500)).'
 				WHERE planet_id = '.$planet['planet_id'];
