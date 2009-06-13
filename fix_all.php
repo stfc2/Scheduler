@@ -225,17 +225,17 @@ $sdl->finish_job('Buildings / Research level fix');
 
 $sdl->start_job('Rioters planets take over by the settlers');
 
-  $sql = 'SELECT * FROM planets WHERE ( planet_surrender < '.$ACTUAL_TICK.' AND planet_surrender > 0 )';
+$sql = 'SELECT * FROM planets WHERE ( planet_surrender < '.$ACTUAL_TICK.' AND planet_surrender > 0 )';
 
-  if(($query_s_p = $db->query($sql)) === false) {
-	message(DATABASE_ERROR, 'Could not query surrending plantes');
-  }
+if(($query_s_p = $db->query($sql)) === false) {
+    $sdl->log('<b>Error:</b> Could not query surrending planets');
+}
   
-  while($surrending_planets = $db->fetchrow($query_s_p)) {
+while($surrender = $db->fetchrow($query_s_p)) {
   
-	$sql = 'UPDATE planets
-		SET planet_owner='.INDEPENDENT_USERID.',
-	        planet_owned_date = '.time().',
+    $sql = 'UPDATE planets
+            SET planet_owner='.INDEPENDENT_USERID.',
+                planet_owned_date = '.time().',
                 resource_1 = 10000,
                 resource_2 = 10000,
                 resource_3 = 10000,
@@ -275,44 +275,44 @@ $sdl->start_job('Rioters planets take over by the settlers');
                 unittrainid_nexttime=0,
                 building_queue=0,
                 planet_surrender=0
-		WHERE planet_id = '.$surrending_planets['planet_id'];
+             WHERE planet_id = '.$surrender['planet_id'];
 		
-	$sdl->log($sql);
-
 	if(!$db->query($sql)) {
-		message(DATABASE_ERROR, 'Could not delete switch user');
+		$sdl->log('<b>Error:</b> Could not delete switch user');
 	}
 	
-// DC ---- History record in planet_details, with label '30'
-
-	$sql = 'SELECT user_race, user_alliance from user WHERE user_id = '.$surrending_planets['planet_owner'];
+    // DC ---- History record in planet_details, with label '30'
+	$sql = 'SELECT user_race, user_alliance FROM user WHERE user_id = '.$surrender['planet_owner'];
 	
 	$_temp = $db->queryrow($sql);
 	
-	$sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
-		.'VALUES ('.$surrending_planets['planet_id'].', '.$surrending_planets['planet_owner'].', '.( (isset($_temp['user_alliance'])) ? $_temp['user_alliance'] : 0).', '.$surrending_planets['planet_owner'].', '.( (isset($_temp['user_alliance'])) ? $_temp['user_alliance'] : 0).', '.time().', 30)';
+    $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
+            VALUES ('.$surrender['planet_id'].',
+                    '.$surrender['planet_owner'].',
+                    '.$_temp['user_alliance'].',
+                    '.$surrender['planet_owner'].',
+                    '.$_temp['user_alliance'].', '.time().', 30)';
 
-        if(!$db->query($sql)) {
-            $sdl->log('<b>Error:</b> Could not update planet details <b>'.$surrending_planets['planet_id'].'</b>! CONTINUED');	
-        }
+    if(!$db->query($sql)) {
+        $sdl->log('<b>Error:</b> Could not insert new planet details 30 for <b>'.$surrender['planet_id'].'</b>! CONTINUED');	
+    }
 
-// DC ---- Colony mood record, vith label '300'
+    // DC ---- Colony mood record, with label '300'
+    $sql = 'INSERT INTO planet_details (planet_id, user_id, timestamp, log_code)
+            VALUES ('.$surrender['planet_id'].', '.INDEPENDENT_USERID.', '.time().', 300)';
 
-	$sql = 'INSERT INTO planet_details (planet_id, user_id, timestamp, log_code) VALUES ('.$planet['planet_id'].', '.INDEPENDENT_USERID.', '.time().', 300)';
-	
-	if(!$db->query($sql)) {
-            $sdl->log('<b>Error:</b> Could not update planet details <b>'.$surrending_planets['planet_id'].'</b>! CONTINUED');	
-        }
-	
-	$sql = 'UPDATE planet_details SET mood_race'.$_temp['user_race'].' = mood_race'.$_temp['user_race'].' + 50 WHERE planet_id = '.$surrending_planets['planet_id'].' AND log_code = 300';
-	
-	$sdl->log('SQL UPDATE: '.$sql);
-	
-	if(!$db->query($sql)) {
-            $sdl->log('<b>Error:</b> Could not update planet details <b>'.$surrending_planets['planet_id'].'</b>! CONTINUED');	
-        }	
-		
-  }
+    if(!$db->query($sql)) {
+        $sdl->log('<b>Error:</b> Could not insert new planet details 300 for <b>'.$surrender['planet_id'].'</b>! CONTINUED');	
+    }
+
+	$sql = 'UPDATE planet_details
+            SET mood_race'.$_temp['user_race'].' = mood_race'.$_temp['user_race'].' + 50
+            WHERE planet_id = '.$surrender['planet_id'].' AND log_code = 300';
+
+    if(!$db->query($sql)) {
+        $sdl->log('<b>Error:</b> Could not update planet details <b>'.$surrender['planet_id'].'</b>! CONTINUED');	
+    }	
+}
 
 $sdl->finish_job('Rioters planets take over by the settlers');
 
