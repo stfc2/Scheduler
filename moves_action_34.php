@@ -219,13 +219,15 @@ class moves_action_34 extends moves_common {
 
             $allied = false;
 
-
+            // Players has a private pact?
             if(!empty($diplomacy['ud_id'])) $allied = true;
 
+            // Players are in the same alliance?
             if( ($diplomacy['alliance_id'] != 0) && ($diplomacy['alliance_id'] == $this->move['user_alliance']) ) $allied = true;
 
+            // Player's alliances are sharing a Cooperation pact?
             if(!empty($diplomacy['ad_id'])) {
-                if($diplomacy['type'] == 2) {
+                if($diplomacy['type'] == 3) {
                     if($diplomacy['status'] == 0) $allied = true;
                 }
             }
