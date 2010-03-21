@@ -611,7 +611,7 @@ if(!$db->query('UPDATE config SET tick_id = tick_id + 1, shipwreck_id=shipwreck_
 // ########################################################################################
 // Shipdestruction (Wrecking) // Formerly RUST
 
-if ($cfg_data['shipwreck_id'] > SHIP_RUST_CHECK)
+/*if ($cfg_data['shipwreck_id'] > SHIP_RUST_CHECK)
 {
 $sdl->start_job('Shipdestruction (Wrecking)');
 $sql = 'UPDATE ships s LEFT JOIN ship_templates t ON t.id=s.template_id SET s.hitpoints=s.hitpoints-t.value_5/100 WHERE s.hitpoints>t.value_5/2 AND s.fleet_id>0 AND s.next_refit <='.$ACTUAL_TICK;
@@ -626,7 +626,7 @@ $sdl->finish_job('Shipdestruction (Wrecking)');
 }
 else
 $sdl->log('<font color=#0000ff>Shipdestruction (Wrecking) [Skipped '.$cfg_data['shipwreck_id'].'/'.(SHIP_RUST_CHECK).']</font><br>');
-
+*/
 
 
 
