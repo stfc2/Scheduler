@@ -70,7 +70,7 @@ $sql = 'SELECT DISTINCT f.user_id,
               f.alert_phase >= '.ALERT_PHASE_YELLOW;
 
 if(!$q_st_uid = $this->db->query($sql)) {
-    return $this->log('MySQL', 'Could not query stationated fleets user data! SKIP');
+    return $this->log(MV_M_DATABASE, 'Could not query stationated fleets user data! SKIP');
 }
 
 $st_user = array();
@@ -260,7 +260,7 @@ if($n_st_user > 0) {
             switch($lang['language'])
             {
                 case 'GER':
-                    $log_title = 'Verbündeten bei '.$this->dest['planet_name'].' verteidigt';
+                    $log_title = 'Verb&uuml;ndeten bei '.$this->dest['planet_name'].' verteidigt';
                 break;
                 case 'ITA':
                     $log_title = 'Difesa alleata presso '.$this->dest['planet_name'];
