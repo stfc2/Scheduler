@@ -201,6 +201,66 @@ class moves_action_34 extends moves_common {
         $this->fleet['max_units'] = $n_transporter['n_transporter'] * MAX_TRANSPORT_UNITS;
 
 
+        /* START OF RULE TO AVOID ROUTES BETWEEN SITTER AND SITTED */
+        /* !! THIS SHOULD BE REMOVED AS SOON AS EVERY PROHIBITED ROUTE WILL BE REMOVED !! */
+        $route_blocked = false;
+
+        $sql = 'SELECT user_sitting_id1, user_sitting_id2, user_sitting_id3,
+                       user_sitting_id4, user_sitting_id5
+                FROM user
+                WHERE user_id = '.$this->move['user_id'];
+
+        if(($move_sitters = $this->db->queryrow($sql)) === false) {
+            return $this->log(MV_M_DATABASE, 'Could not query sitters data of the move owner');
+        }
+
+        $sql = 'SELECT user_sitting_id1, user_sitting_id2, user_sitting_id3,
+                       user_sitting_id4, user_sitting_id5
+                FROM user
+                WHERE user_id = '.$this->dest['user_id'];
+
+        if(($dest_sitters = $this->db->queryrow($sql)) === false) {
+            return $this->log(MV_M_DATABASE, 'Could not query sitters data of the dest owner');
+        }
+
+        if(($move_sitters['user_sitting_id1'] == $this->dest['user_id']) ||
+           ($move_sitters['user_sitting_id2'] == $this->dest['user_id']) ||
+           ($move_sitters['user_sitting_id3'] == $this->dest['user_id']) ||
+           ($move_sitters['user_sitting_id4'] == $this->dest['user_id']) ||
+           ($move_sitters['user_sitting_id5'] == $this->dest['user_id'])) {
+           $route_blocked = true;
+            return $this->log(MV_M_NOTICE, 'Trade route between sitter <b>'.$this->dest['user_id'].'</b> and sitted <b>'.$this->move['user_id'].'</b> are forbidden!!!');
+        }
+
+        if(($dest_sitters['user_sitting_id1'] == $this->move['user_id']) ||
+           ($dest_sitters['user_sitting_id2'] == $this->move['user_id']) ||
+           ($dest_sitters['user_sitting_id3'] == $this->move['user_id']) ||
+           ($dest_sitters['user_sitting_id4'] == $this->move['user_id']) ||
+           ($dest_sitters['user_sitting_id5'] == $this->move['user_id'])) {
+           $route_blocked = true;
+            return $this->log(MV_M_NOTICE, 'Trade route between sitter <b>'.$this->move['user_id'].'</b> and sitted <b>'.$this->dest['user_id'].'</b> are forbidden!!!');
+        }
+
+        if($route_blocked) {
+            switch($this->move['language'])
+            {
+                case 'GER':
+                    $message='Hallo '.$this->move['user_name'].',<br>Handelswege zwischen Sitter und sitted Konto sind verboten.<br>Diese Nachricht wurde automatisch generiert, Beschwerden beim STFC2-Team bringen nichts.<br>~ Sitting-Abuse-Automatik';
+                    $title='Routesperre';
+                break;
+                case 'ITA':
+                    $message='Ciao '.$this->move['user_name'].',<br>non le rotte commerciali tra account sitter e sittato non sono ammesse.<br>Questo messaggio &egrave; stato generato automaticamente, lamentele al team di STFC2 sono inutili.<br>~ Abuso Sitting Automatico';
+                    $title='Rotta bloccata';
+                break;
+                default:
+                    $message='Hello '.$this->move['user_name'].',<br>trade routes between sitter and sitted account are forbidden.<br>This message was automatically generated, complaints to the STFC2 team bring nothing.<br>~Automatic Abuse Sitting';
+                    $title='Route blocked';
+                break;
+            }
+            SystemMessage($this->move['user_id'],$title,$message);
+        }
+
+        /* END OF RULE TO AVOID ROUTES BETWEEN SITTER AND SITTED */
 
         $this->do_unloading();
 
