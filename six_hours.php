@@ -139,6 +139,7 @@ if(($exausted_planets = $db->queryrowset($sql)) === false) {
 $sql = 'UPDATE planets SET planet_name = "Inesplorato",
                            planet_type = "'.$planet_type.'",
                            planet_owner = 0,
+                           planet_owner_enum = 0,
                            planet_points = 0,
                            research_1 = 0,
                            research_2 = 0,
