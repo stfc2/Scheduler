@@ -98,6 +98,7 @@ class Borg extends NPC
 				            `attacked_user3` MEDIUMINT( 8 ) UNSIGNED NOT NULL ,
 				            `attacked_user4` MEDIUMINT( 8 ) UNSIGNED NOT NULL ,
 				            `last_attacked` MEDIUMINT( 8 ) UNSIGNED NOT NULL DEFAULT  \'0\',
+				            `wrath_size` MEDIUMINT( 8 ) UNSIGNED NOT NULL DEFAULT  \'30\',
 				            PRIMARY KEY (  `id` )
 				        ) ENGINE = MYISAM';
 
@@ -133,7 +134,7 @@ class Borg extends NPC
 				                          user_registration_ip, user_birthday, user_gender, plz, country,
 				                          user_enable_sig,user_message_sig,
 				                         user_signature)
-				         VALUES (1, "Borg(NPG)", "BorgBot", "'.md5("borgcube").'", "borg@nonsolotaku.it",
+				         VALUES (1, "Borg(NPG)", "BorgBot", "'.md5("borgcube").'", "borg@stfc.it",
 				                 1, '.BORG_RACE.', "", "skin1/", '.time().',
 				                 "127.0.0.1", "23.05.2008", "", 16162 , "Italia",
 				                 1, "<br><br><p><b>We are the Borg, resistance is futile</b></p>",
@@ -208,6 +209,107 @@ class Borg extends NPC
 					}
 				} // end while
 			} // end planet creation
+			// Check ownership of the BOT's planet
+			else {
+				$sql = 'SELECT planet_owner FROM planets
+					        WHERE planet_id = '.$this->bot['planet_id'];
+
+				$botplanetowner = $this->db->queryrow($sql);
+				// Owner are still BORG?
+				if($botplanetowner['planet_owner'] != $this->bot['user_id'])
+				{
+					// The wrath of Borgs begin
+					$this->sdl->log("SevenOfNine has lost her homeplanet, her wrath begins!",TICK_LOG_FILE_NPC);
+
+					$this->sdl->log('The User '.$botplanetowner['planet_owner'].' will have a bad day', TICK_LOG_FILE_NPC);
+
+					// Choose a target
+					$sql='SELECT p.planet_owner,p.planet_name,p.planet_id,u.user_points FROM (planets p)
+					      INNER JOIN (user u) ON u.user_id = p.planet_owner
+					      WHERE p.planet_owner ='.$botplanetowner['planet_owner'].' LIMIT 0 , 1';
+					$target=$this->db->queryrow($sql);
+
+					// Check if a fleet is already on fly
+					$sql = 'SELECT `fleet_id`, `move_id`, `planet_id` FROM `ship_fleets`
+					        WHERE `user_id` = '.$this->bot['user_id'].' AND `fleet_name` = "'.$target['planet_name'].'"
+					        LIMIT 0,1';
+					$fleet = $this->db->queryrow($sql);
+
+					// If the fleet does not exists
+					if(empty($fleet['fleet_id'])) {
+						// Create a new fleet
+						$fleet_id = $this->CreateFleet($target['planet_name'],$this->bot['ship_template2'],
+							$this->bot['wrath_size']);
+
+						// Increase wrath size
+						$sql = 'UPDATE borg_bot SET wrath_size = wrath_size + 30';
+						if(!$this->db->query($sql))
+							$this->sdl->log('<b>Error:</b> cannot increase Borg wrath', TICK_LOG_FILE_NPC);
+
+						// Send it to the planet
+						$this->SendBorgFleet($ACTUAL_TICK,$fleet_id, $target['planet_id']);
+					}
+					// If the fleet exists but it is not moving and it is not at planet
+					else if($fleet['planet_id'] != $target['planet_id'] && $target['move_id'] == 0) {
+						// Send it to the planet
+						$this->SendBorgFleet($ACTUAL_TICK,$fleet['fleet_id'], $target['planet_id']);
+					}
+
+					// Now think to reconquer the homeplanet
+					$sql='SELECT p.planet_owner,p.planet_name,p.planet_id,u.user_points FROM (planets p)
+					      INNER JOIN (user u) ON u.user_id = p.planet_owner
+					      WHERE p.planet_id ='.$this->bot['planet_id'];
+					$target=$this->db->queryrow($sql);
+
+					// Check if a fleet is already on fly
+					$sql = 'SELECT `fleet_id`, `move_id`, `planet_id` FROM `ship_fleets`
+					        WHERE `user_id` = '.$this->bot['user_id'].' AND `fleet_name` = "Borg Wrath"
+					        LIMIT 0,1';
+					$fleet = $this->db->queryrow($sql);
+
+					// If the fleet does not exists
+					if(empty($fleet['fleet_id'])) {
+						// Create a new fleet
+						$fleet_id = $this->CreateFleet("Borg Wrath",$this->bot['ship_template2'],30);
+
+						//$sql='SELECT planet_id FROM planets
+						//      WHERE planet_owner ='.$this->bot['user_id'].' LIMIT 0 , 1';
+						//$start=$this->db->queryrow($sql);
+
+						// Fix the origin since the bot has lost is home planet
+						//$sql = 'UPDATE ships_fleets SET planet_id = '.$start['planet_id'].' WHERE fleet_id = '.$fleet_id;
+						//if(!$this->db->query($sql))
+						//	$this->sdl->log('<b>Error:</b> Cannot update Borg wrath fleet data', TICK_LOG_FILE_NPC);
+
+						// Send it to the planet
+						$this->SendBorgFleet($ACTUAL_TICK,$fleet_id, $this->bot['planet_id']);
+					}
+					// If the fleet exists but it is not moving and it is not at planet
+					else if($fleet['planet_id'] != $this->bot['planet_id'] && $target['move_id'] == 0) {
+
+						// Borg are tired?
+						if($this->bot['wrath_num'] <= 1)
+						{
+							// Send it to the planet
+							$this->SendBorgFleet($ACTUAL_TICK,$fleet['fleet_id'], $this->bot['planet_id']);
+
+							// Increase wrath num
+							$sql = 'UPDATE borg_bot SET wrath_num = wrath_num + 1';
+							if(!$this->db->query($sql))
+								$this->sdl->log('<b>Error:</b> cannot increase wrath num', TICK_LOG_FILE_NPC);
+						}
+					}
+				}
+				else
+				{
+					$this->sdl->log("SevenOfNine hasn't lost her homeplanet.",TICK_LOG_FILE_NPC);
+
+					// Set wrath size at default value
+					$sql = 'UPDATE borg_bot SET wrath_size = 30';
+					if(!$this->db->query($sql))
+						$this->sdl->log('<b>Error:</b> cannot restore Borg wrath', TICK_LOG_FILE_NPC);
+				}
+			}
 
 			//Bot shows whether the ship already has templates
 			$reload=0;
