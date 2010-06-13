@@ -57,7 +57,7 @@ class Settlers extends NPC
 			//Check whether the bot already lives
 			if($this->bot['user_id']==0)
 			{
-				$this->sdl->log('We need to create SevenOfNine', TICK_LOG_FILE_NPC);
+				$this->sdl->log('We need to create TheSettlers!', TICK_LOG_FILE_NPC);
 
 				$sql = 'INSERT INTO user (user_id, user_active, user_name, user_loginname, user_password,
 				                          user_email, user_auth_level, user_race, user_gfxpath, user_skinpath,
@@ -71,7 +71,7 @@ class Settlers extends NPC
 
 				if(!$this->db->query($sql))
 				{
-					$this->sdl->log('<b>Error:</b> Bot: Could not create SevenOfNine', TICK_LOG_FILE_NPC);
+					$this->sdl->log('<b>Error:</b> Bot: Could not create TheSettlers', TICK_LOG_FILE_NPC);
 				}
 			} // end user bot creation
 		}else{
@@ -82,8 +82,8 @@ class Settlers extends NPC
 		// ########################################################################################
 		// ########################################################################################
 		// Messages answer
-		$messages=array('Bot system.','Bot system.','Bot system.');
-		$titles=array('--','--','--');
+		$messages=array('Bot system.','Bot system.','Se desiderate avere contatti con noi, dovrete scendere direttamente su uno dei nostri pianeti.<br><br>A presto.');
+		$titles=array('--','--','Grazie per averci contattato.');
 
 		$this->ReplyToUser($titles,$messages);
 		// ########################################################################################
@@ -93,7 +93,142 @@ class Settlers extends NPC
 		$this->ReadLogbook();
 		// ########################################################################################
 		// ########################################################################################
-
+		// Ok, only three (3) Settlers' planets per run are going to wake up. More planets means more overhead.
+		
+		$this->sdl->start_job('Mayflower Planets Building Control', TICK_LOG_FILE_NPC);
+		
+		$sql='SELECT * FROM planets WHERE planet_owner = '.INDEPENDENT_USERID.' ORDER BY npc_last_action ASC LIMIT 0, 3';
+		
+		if(($setpoint = $this->db->query($sql)) === false)
+			{
+				$this->sdl->log('<b>Error:</b> Bot: Could not read planets DB', TICK_LOG_FILE_NPC);
+			}
+		else
+		{
+			while($planet_to_serve = $this->db->fetchrow($setpoint))
+			{
+				if($planet_to_serve['building_5'] < 9) 
+				{
+					$sql = 'UPDATE planets SET building_5 = 9, npc_last_action = '.$ACTUAL_TICK.' WHERE planet_id = '.$planet_to_serve['planet_id'];
+					$this->sdl->log('SQL 1'.$sql, TICK_LOG_FILE_NPC);
+					$this->db->query($sql);
+					continue;
+				}
+				if($planet_to_serve['building_1'] < 9) 
+				{
+					$sql = 'UPDATE planets SET building_1 = 9, npc_last_action = '.$ACTUAL_TICK.' WHERE planet_id = '.$planet_to_serve['planet_id'];
+					$this->sdl->log('SQL 1.1 '.$sql, TICK_LOG_FILE_NPC);
+					$this->db->query($sql);
+					continue;
+				}
+				if($planet_to_serve['building_2'] < 9) 
+				{
+					$sql = 'UPDATE planets SET building_2 = 9, npc_last_action = '.$ACTUAL_TICK.', recompute_static = 1 WHERE planet_id = '.$planet_to_serve['planet_id'];
+					$this->sdl->log('SQL 1.2'.$sql, TICK_LOG_FILE_NPC);
+					$this->db->query($sql);
+					continue;
+				}if($planet_to_serve['building_3'] < 9) 
+				{
+					$sql = 'UPDATE planets SET building_3 = 9, npc_last_action = '.$ACTUAL_TICK.', recompute_static = 1 WHERE planet_id = '.$planet_to_serve['planet_id'];
+					$this->sdl->log('SQL 1.3'.$sql, TICK_LOG_FILE_NPC);
+					$this->db->query($sql);
+					continue;
+				}if($planet_to_serve['building_4'] < 9) 
+				{
+					$sql = 'UPDATE planets SET building_4 = 9, npc_last_action = '.$ACTUAL_TICK.', recompute_static = 1 WHERE planet_id = '.$planet_to_serve['planet_id'];
+					$this->sdl->log('SQL 1.4'.$sql, TICK_LOG_FILE_NPC);
+					$this->db->query($sql);
+					continue;
+				}
+				// Funge la funzione StartBuild????
+				// Sviluppiamo le strutture sul pianeta: Controllo
+			    /*
+				if($planet_to_serve['building_1'] < 9) 
+				{
+					$this->StartBuild($ACTUAL_TICK, 0, $planet_to_serve['planet_id'];
+					continue;
+				}
+				// Metalli
+				elseif($planet_to_serve['building_2'] < 9)
+				{
+					$this->StartBuild($ACTUAL_TICK, 1, $planet_to_serve['planet_id'];
+					continue;
+				}
+				// Minerali
+				elseif($planet_to_serve['building_3'] < 9)
+				{
+					$this->StartBuild($ACTUAL_TICK, 2, $planet_to_serve['planet_id'];
+					continue;
+				}
+				// Dilitio
+				elseif($planet_to_serve['building_4'] < 9)
+				{
+					$this->StartBuild($ACTUAL_TICK, 3, $planet_to_serve['planet_id'];
+					continue;
+				}
+				*/
+				
+				//A questo punto, avendo ricostruito il controllo e le miniere, i Settler guadagnano in automatico l'Accademia al liv 5.
+				if($planet_to_serve['building_6'] < 5) 
+				{
+					$sql = 'UPDATE planets SET building_6 = 5, npc_last_action = '.$ACTUAL_TICK.', recompute_static = 1 WHERE planet_id = '.$planet_to_serve['planet_id'];
+					$this->sdl->log('SQL 2'.$sql, TICK_LOG_FILE_NPC);
+					$this->db->query($sql);
+					continue;
+				}
+				//Adesso lo Spazioporto
+				if($planet_to_serve['building_7']< 3) 
+				{
+					$sql = 'UPDATE planets SET building_7 = 3, npc_last_action = '.$ACTUAL_TICK.', recompute_static = 1 WHERE planet_id = '.$planet_to_serve['planet_id'];
+					$this->sdl->log('SQL 3'.$sql, TICK_LOG_FILE_NPC);
+					$this->db->query($sql);
+					continue;
+				}
+				//ed ora il Cantiere
+				if($planet_to_serve['building_8'] < 1) 
+				{
+					$sql = 'UPDATE planets SET building_8 = 1, npc_last_action = '.$ACTUAL_TICK.', recompute_static = 1 WHERE planet_id = '.$planet_to_serve['planet_id'];
+					$this->sdl->log('SQL 4'.$sql, TICK_LOG_FILE_NPC);
+					$this->db->query($sql);
+					continue;
+				}
+				//Difese orbitali leggere
+				if($planet_to_serve['building_10'] < 14) 
+				{
+					$sql = 'UPDATE planets SET building_10 = 14, npc_last_action = '.$ACTUAL_TICK.', recompute_static = 1 WHERE planet_id = '.$planet_to_serve['planet_id'];
+					$this->sdl->log('SQL 5'.$sql, TICK_LOG_FILE_NPC);
+					$this->db->query($sql);
+					continue;
+				}
+				//Difese orbitali pesanti
+				if($planet_to_serve['building_13'] < 14) 
+				{
+					$sql = 'UPDATE planets SET building_13 = 14, npc_last_action = '.$ACTUAL_TICK.', recompute_static = 1 WHERE planet_id = '.$planet_to_serve['planet_id'];
+					$this->sdl->log('SQL 6'.$sql, TICK_LOG_FILE_NPC);
+					$this->db->query($sql);
+					continue;
+				}
+				// Ci sono abbastanza lavoratori nelle miniere?
+				if($planet_to_serve['workermine_1'] < 1000 || $planet_to_serve['workermine_2'] < 1000 || $planet_to_serve['workermine_3'] < 1000)
+				{
+					$sql = 'UPDATE planets SET workermine_1 = 1000, workermine_2 = 1000, workermine_3 = 1000, npc_last_action = '.$ACTUAL_TICK.', recompute_static = 1 WHERE planet_id = '.$planet_to_serve['planet_id'];
+					$this->sdl->log('SQL 7'.$sql, TICK_LOG_FILE_NPC);
+					$this->db->query($sql);
+					continue;
+				}
+				
+				$sql = 'UPDATE planets SET npc_last_action = '.$ACTUAL_TICK.' WHERE planet_id = '.$planet_to_serve['planet_id'];
+				$this->sdl->log('SQL E'.$sql, TICK_LOG_FILE_NPC);
+				$this->db->query($sql);
+				
+			}
+		}
+		
+		$this->sdl->finish_job('Mayflower Planets Building Control', TICK_LOG_FILE_NPC);
+		
+		// ########################################################################################
+		// ########################################################################################
+		
 		$this->sdl->log('<b>Finished Scheduler in <font color=#009900>'.round((microtime()+time())-$starttime, 4).' secs</font><br>Executed Queries: <font color=#ff0000>'.$this->db->i_query.'</font></b>', TICK_LOG_FILE_NPC);
 	}
 }
