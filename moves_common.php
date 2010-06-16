@@ -440,7 +440,7 @@ class moves_common {
         if(empty($dfd_fleet_ids_str)) $dfd_fleet_ids_str = '-1';
 
         // When $combat_level == MV_COMBAT_LEVEL_PLANETARY the owner is always attacked
-        //			--> fight with all orbitals
+        //                        --> fight with all orbitals
 
         if($combat_level == MV_COMBAT_LEVEL_OUTER) {
             $n_large_orbital_defense = $n_small_orbital_defense = 0;
@@ -667,9 +667,9 @@ class moves_common {
             $this->db->free_result($q_ar_uid);
 $this->log(MV_M_NOTICE,'AR-user(s): <b>'.count($ar_user).'</b>');
 
-            for($i = 0; $i < count($ar_user); ++$i) {            
-            	$this->log(MV_M_NOTICE, 'Entering AR-loop #'.$i);
-            	
+            for($i = 0; $i < count($ar_user); ++$i) {
+                $this->log(MV_M_NOTICE, 'Entering AR-loop #'.$i);
+
                 $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
                         FROM (ship_fleets f)
                         INNER JOIN user u ON u.user_id = f.user_id
@@ -682,11 +682,11 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
                 if(($atk_fleets = $this->db->queryrowset($sql)) === false) {
                     return $this->log(MV_M_DATABASE, 'Could not query attacker fleets in AR! SKIP');
                 }
-                
+
                 $atk_fleet_ids = array();
-                
+
                 foreach($atk_fleets as $ihh => $cur_fleet) {
-                	$atk_fleet_ids[] = $cur_fleet['fleet_id'];
+                    $atk_fleet_ids[] = $cur_fleet['fleet_id'];
                 }
 
                 $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
@@ -696,16 +696,16 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
 
                 if(($dfd_fleets = $this->db->queryrowset($sql)) === false) {
                     return $this->log(MV_M_DATABASE, 'Could not query defender fleets in AR! SKIP');
-                }  
-                
-            	$this->log(MV_M_NOTICE, 'Doing combat in AR-loop #'.$i);                           
-                
-                if($this->do_ship_combat(implode(',', $atk_fleet_ids), $this->fleet_ids_str, MV_COMBAT_LEVEL_OUTER) == MV_EXEC_ERROR) {
-                        $this->log(MV_M_CRITICAL, 'Move Direct: Something went wrong with this fight!');
-                	return MV_EXEC_ERROR;
                 }
-                
-            	$this->log(MV_M_NOTICE, 'Combat done in AR-loop #'.$i);                
+
+                $this->log(MV_M_NOTICE, 'Doing combat in AR-loop #'.$i);
+
+                if($this->do_ship_combat(implode(',', $atk_fleet_ids), $this->fleet_ids_str, MV_COMBAT_LEVEL_OUTER) == MV_EXEC_ERROR) {
+                    $this->log(MV_M_CRITICAL, 'Move Direct: Something went wrong with this fight!');
+                    return MV_EXEC_ERROR;
+                }
+
+                $this->log(MV_M_NOTICE, 'Combat done in AR-loop #'.$i);
 
                 // If the attacker has won (the fleet AR)
                 // the move can then be terminated immediately
@@ -716,7 +716,7 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
 
                 $log1_data = array(40, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], MV_CMB_ATTACKER, ($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER), 0,0, $atk_fleets, $dfd_fleets, null, $ar_user[$i]);
                 $log2_data = array(40, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], MV_CMB_DEFENDER, ($this->cmb[MV_CMB_WINNER] == MV_CMB_DEFENDER), 0,0, $atk_fleets, $dfd_fleets, null, $ar_user[$i]);
-                
+
                 $log1_data[10] = $this->cmb[MV_CMB_KILLS_EXT];
                 $log2_data[10] = $this->cmb[MV_CMB_KILLS_EXT];
 
