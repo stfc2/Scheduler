@@ -300,7 +300,7 @@ $sdl->finish_job('Academy Scheduler v3-blackeye');
 
 $sdl->start_job('Shiprepair Scheduler');
 
-$sql = 'SELECT s.*,t.value_5 FROM (ships s) LEFT JOIN (ship_templates t) ON s.template_id=t.id
+$sql = 'SELECT s.*,t.ship_torso, t.value_5, t.max_torp FROM (ships s) LEFT JOIN (ship_templates t) ON s.template_id=t.id
 			WHERE s.ship_repair>0 AND s.ship_repair<= '.$ACTUAL_TICK;
 
 if(($q_ship = $db->query($sql)) === false) {
@@ -311,7 +311,7 @@ else
 	while($ship = $db->fetchrow($q_ship)) {
 		// DC ---- Ships in Refitting does not get repaired
 		if ($ship['ship_untouchable'] == SHIP_IN_REFIT)
-			$sql = 'UPDATE ships SET ship_repair=0, ship_untouchable=0 WHERE ship_id='.$ship['ship_id'];
+			$sql = 'UPDATE ships SET ship_repair=0, ship_untouchable=0'.($ship['ship_torso'] > 4 ? ', torp = '.$ship['max_torp'] : '' ).' WHERE ship_id='.$ship['ship_id'];
 		else
 			$sql = 'UPDATE ships SET hitpoints='.$ship['value_5'].', ship_repair=0, ship_untouchable=0 WHERE ship_id='.$ship['ship_id'];
 		// DC ----
@@ -362,12 +362,12 @@ else
 {
     $sdl->log('<b>The ship <b>#'.$ship['ship_id'].'</b> on planet <b>#'.((-1)*$ship['fleet_id']).'</b> was dismantled successfully!');
 
-$sql = 'UPDATE planets SET resource_1=resource_1+'.$res[0].', resource_2=resource_2+'.$res[1].', resource_3=resource_3+'.$res[2].',
-					unit_1=unit_1+'.$unit[0].',unit_2=unit_2+'.$unit[1].',unit_3=unit_3+'.$unit[2].',unit_4=unit_4+'.$unit[3].',unit_5=unit_5+'.$unit[4].',unit_6=unit_6+'.$unit[5].'
-			WHERE planet_id='.((-1)*$ship['fleet_id']).' LIMIT 1';
-if(!$db->query($sql)) {
-    $sdl->log('<b>Error:</b> Could not update planets data: <b>'.$sql.'</b>');
-}
+    $sql = 'UPDATE planets SET resource_1=resource_1+'.$res[0].', resource_2=resource_2+'.$res[1].', resource_3=resource_3+'.$res[2].',
+                               unit_1=unit_1+'.$unit[0].',unit_2=unit_2+'.$unit[1].',unit_3=unit_3+'.$unit[2].',unit_4=unit_4+'.$unit[3].',unit_5=unit_5+'.$unit[4].',unit_6=unit_6+'.$unit[5].'
+            WHERE planet_id='.((-1)*$ship['fleet_id']).' LIMIT 1';
+    if(!$db->query($sql)) {
+        $sdl->log('<b>Error:</b> Could not update planets data: <b>'.$sql.'</b>');
+    }
 }
 
 }
@@ -383,7 +383,7 @@ $sdl->finish_job('Shipscrap Scheduler');
 $sdl->start_job('Shipyard Scheduler');
 
 $sql = 'SELECT ssb.*,
-               st.id AS template_id, st.value_5 AS template_value_5, st.value_9 AS template_value_9,
+               st.id AS template_id, st.value_5 AS template_value_5, st.value_9 AS template_value_9, st.rof AS template_rof, st.max_torp AS template_max_torp,
                p.planet_owner as user_id, p.building_7
         FROM (scheduler_shipbuild ssb)
         INNER JOIN (planets p) ON p.planet_id = ssb.planet_id
