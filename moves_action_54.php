@@ -266,10 +266,10 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
         }
     }
     else {
-        $sql = 'SELECT SUM(st.value_3) AS sum_planetary_weapons
+    	$sql = 'SELECT SUM(st.value_3) AS sum_planetary_weapons
                 FROM (ships s)
                 INNER JOIN ship_templates st ON st.id = s.template_id
-                WHERE s.fleet_id IN ('.$this->fleet_ids_str.')';
+                WHERE s.fleet_id IN ('.$this->fleet_ids_str.') AND s.torp >= 5';
 
         if(($plweapons = $this->db->queryrow($sql)) === false) {
             return $this->log(MV_M_DATABASE, 'Could not query fleets planetary weapons data! SKIP');
@@ -307,6 +307,14 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
         else {
             if(!isset($this->action_data[0])) {
                 return $this->log(MV_M_ERROR, 'action_54: Could not find required action_data parameter 0! SKIP');
+            }
+
+            // Updating torpedo stocks on ships
+
+            $sql = 'UPDATE ships SET torp = torp - 5 WHERE fleet_id IN ('.$this->fleet_ids_str.') AND torp >= 5';
+
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update torpedo data after attack! SKIP');
             }
 
             $focus = (int)$this->move['action_data'][0];
@@ -359,6 +367,12 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             if(!$this->db->query($sql)) {
                 return $this->log(MV_M_DATABASE, 'Could not update move data! SKIP');
             }
+
+            $this->check_academy_status(); // Gonna check the academy queue after bombing
+
+            $this->check_shipyard_status(); // Gonna check the shipyard status after bombing
+
+            $this->check_spacedock_status(); // Gonna check the ships in spacedock after bombing
 
             $status_code = ($bomb_i > 0) ? 2 : 1;
 
