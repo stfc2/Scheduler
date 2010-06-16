@@ -38,16 +38,25 @@ class moves_action_24 extends moves_common {
                 $col_title = 'Kolonisation von ';
                 $col_fail = ' fehlgeschlagen';
                 $col_success = ' erfolgreich';
+                $ter_title =   'Terraforming von ';
+                $ter_fail =    ' fehlgeschlagen';
+                $ter_success = ' erfolgreich';
             break;
             case 'ITA':
                 $col_title = 'Colonizzazione di ';
                 $col_fail = ' fallita';
                 $col_success = ' riuscita';
+                $ter_title =   'Terraforming di ';
+                $ter_fail =    ' fallito';
+                $ter_success = ' riuscito';
             break;
             default:
                 $col_title = 'Colonization of ';
                 $col_fail = ' failed';
-                $col_success = ' successfully';
+                $col_success = ' successful';
+                $ter_title =   'Terraforming of ';
+                $ter_fail =    ' failed';
+                $ter_success = ' succeesful';
             break;
         }
 
@@ -124,6 +133,152 @@ class moves_action_24 extends moves_common {
             add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $col_title.$this->dest['planet_name'].$col_fail, $log_data);
 
             return MV_EXEC_OK;
+        }
+
+
+        // #############################################################################
+        // Terraforming planet!!!
+
+        //if($this->move['user_id'] == 390) {
+        if((bool)$this->action_data[1]) {
+
+            // Pre-Terraforming Check
+            $sql='SELECT resource_3 FROM ship_fleets WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+            if(($dilicheck = $this->db->queryrow($sql)) === false) {
+                $this->log(MV_M_DATABASE, 'Could not query fleets cargo data! Assumed zero.');	
+                $dilithium = 0;
+            }
+            else {
+                $dilithium = $dilicheck['resource_3'];
+            }
+
+            if($dilithium < 250000) {
+                $log_data[8] = -3;
+                add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $ter_title.$this->dest['planet_name'].$ter_fail, $log_data);
+
+                return MV_EXEC_OK;
+            }
+
+            $check_clear = true;
+
+            $sql='SELECT planet_type, planet_owner, planet_distance_id FROM planets WHERE planet_id = '.$this->move['dest'];
+            if(($_check = $this->db->queryrow($sql)) === false) {
+                $this->log(MV_M_DATABASE, 'Could not query terraforming planet data! Assumed invalid.');
+                $check_clear = false;
+            }
+            elseif($_check['planet_owner'] != 0) $check_clear = false;
+            elseif($_check['planet_type'] != 'd')$check_clear = false;
+
+            if(!$check_clear) {
+                $log_data[8] = -4;
+                add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $ter_title.$this->dest['planet_name'].$ter_fail, $log_data);
+
+                return MV_EXEC_OK;
+            }
+
+            // Ok, it seems like all is GREEN, let's do it.
+
+            switch($_check['planet_distance_id']) {
+                case 0:
+                case 1:
+                    $type_probabilities = array(
+                        'c' => 60,
+                        'g' => 9,
+                        'k' => 25,
+                        'i' => 3,
+                        'm' => 1,
+                        'n' => 1,
+                        'y' => 1
+                    );
+                break;
+                case 2:
+                case 3:
+                    $type_probabilities = array(
+                        'c' => 5,
+                        'e' => 29,
+                        'f' => 38,
+                        'g' => 2,
+                        'k' => 20,
+                        'm' => 3,
+                        'n' => 2,
+                        'y' => 1
+                    );
+                break;
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                    $type_probabilities = array(
+                        'h' => 45,
+                        'j' => 20,
+                        'k' => 9,
+                        'l' => 25,
+                        'y' => 1
+                    );
+                break;
+            }
+
+            $type_array = array();
+
+            foreach($type_probabilities as $type => $probability) {
+                for($i = 0; $i < $probability; ++$i) {
+                    $type_array[] = $type;
+                }
+            }
+
+            $planet_type = $type_array[array_rand($type_array)];
+
+            global $PLANETS_DATA;
+
+            // Random variance of the constants basis of the planet
+            $rateo_1 = round(($PLANETS_DATA[$planet_type][0] + ((200 - mt_rand(0, 350))*0.001)), 2);
+            if($rateo_1 < 0.1) $rateo_1 = 0.1;
+            $rateo_2 = round(($PLANETS_DATA[$planet_type][1] + ((200 - mt_rand(0, 350))*0.001)), 2);
+            if($rateo_2 < 0.1) $rateo_2 = 0.1;
+            $rateo_3 = round(($PLANETS_DATA[$planet_type][2] + ((200 - mt_rand(0, 350))*0.001)), 2);
+            if($rateo_3 < 0.1) $rateo_3 = 0.1;
+            $rateo_4 = $PLANETS_DATA[$planet_type][3] + 0.05;
+
+            $sql = 'UPDATE planets SET
+                           planet_type = "'.$planet_type.'",
+                           rateo_1 = '.$rateo_1.',
+                           rateo_2 = '.$rateo_2.',
+                           rateo_3 = '.$rateo_3.',
+                           rateo_4 = '.$rateo_4.',
+                           recompute_static = 1
+                    WHERE planet_id = '.$this->move['dest'];
+
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update planets data! SKIP');
+            }
+
+            $sql = 'UPDATE ship_fleets
+                    SET planet_id = '.$this->move['dest'].',
+                        move_id = 0,
+                        resource_3 = resource_3 - 250000
+                    WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update fleets data! SKIP');
+            }
+
+            $log_data[8] = 2;
+
+            add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $ter_title.$this->dest['planet_name'].$ter_success, $log_data);
+
+            // #############################################################################
+            // Add History Record in planet details; log_code = 31 
+
+            $sql = 'INSERT INTO planet_details (planet_id, planet_type, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
+                    VALUES ('.$this->move['dest'].', "'.$planet_type.'",'.$this->move['user_id'].', '.$this->move['user_alliance'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.time().', 31)';
+
+            if(!$this->db->query($sql)) {
+                $this->log(MV_M_DATABASE, 'Could not update planet details data!');
+            }
+
+
+            return MV_EXEC_OK;
+
         }
 
 
