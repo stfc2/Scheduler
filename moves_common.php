@@ -185,6 +185,254 @@ class moves_common {
                 st.value_1, st.value_2, st.value_3, st.value_4, st.value_5, st.value_6, st.value_7, st.value_8, st.value_10, st.value_11, st.value_12, st.name, st.ship_torso, st.ship_class, st.race';
     }
 
+    function check_academy_status() {
+        // Checks if the training queues of a planet are consistent with the structures of the planet itself.
+        // It's poorly written and with abuse of the continue, but that day I was so that ...
+
+        $no_academy = false;
+        $no_unit_3 = false;
+        $no_unit_2 = false;
+        $academy_is_working = false;
+        $academy_next_tick = 0;
+
+        $sql = 'SELECT unittrainid_1, unittrainid_2, unittrainid_3, unittrainid_4, unittrainid_5,
+                       unittrainid_6, unittrainid_7, unittrainid_8, unittrainid_9, unittrainid_10,
+                       unittrain_actual, unittrainid_nexttime, building_6, research_4
+                FROM planets WHERE planet_id = '.$this->move['dest'];
+        if(!($planet_info = $this->db->queryrow($sql))) {
+            $this->log(MV_M_DATABASE, 'Error reading academy queues info of planet <b>'.$this->move['dest'].'</b>');
+        }
+        else
+        {
+            $academy_level = $planet_info['building_6'];
+            if ($academy_level == 0) $no_academy = true;
+            if ($academy_level < 5) $no_unit_2 = true;
+            if ($academy_level < 9) $no_unit_3 = true;
+            if ($planet_info['unittrain_actual'] != 0) $academy_is_working = true;
+            if ($planet_info['unittrainid_nexttime'] != 0)
+                $academy_next_tick = $planet_info['unittrainid_nexttime']; // Can't remember the meaning of this...
+
+            if ($no_academy)
+            {
+                // No academy at all, so i reset all academy fields. Big overhead but little risks.
+                $sql = 'UPDATE planets
+                        SET unittrainid_1 = 0, unittrainnumber_1 = 0, unittrainnumberleft_1 = 0, unittrainendless_1 = 0,
+                            unittrainid_2 = 0, unittrainnumber_2 = 0, unittrainnumberleft_2 = 0, unittrainendless_2 = 0,
+                            unittrainid_3 = 0, unittrainnumber_3 = 0, unittrainnumberleft_3 = 0, unittrainendless_3 = 0,
+                            unittrainid_4 = 0, unittrainnumber_4 = 0, unittrainnumberleft_4 = 0, unittrainendless_4 = 0,
+                            unittrainid_5 = 0, unittrainnumber_5 = 0, unittrainnumberleft_5 = 0, unittrainendless_5 = 0,
+                            unittrainid_6 = 0, unittrainnumber_6 = 0, unittrainnumberleft_6 = 0, unittrainendless_6 = 0,
+                            unittrainid_7 = 0, unittrainnumber_7 = 0, unittrainnumberleft_7 = 0, unittrainendless_7 = 0,
+                            unittrainid_8 = 0, unittrainnumber_8 = 0, unittrainnumberleft_8 = 0, unittrainendless_8 = 0,
+                            unittrainid_9 = 0, unittrainnumber_9 = 0, unittrainnumberleft_9 = 0, unittrainendless_9 = 0,
+                            unittrainid_10 = 0, unittrainnumber_10 = 0, unittrainnumberleft_10 = 0, unittrainendless_10 = 0,
+                            unittrain_actual = 0, unittrainid_nexttime = 0, unittrain_error = 0
+                        WHERE planet_id = '.$this->move['dest'];
+                if (!$this->db->query($sql))
+                {
+                    $this->log(MV_M_DATABASE, 'Error emptying academy working queues of planet <b>'.$this->move['dest'].'</b>');
+                }
+            }
+            else
+            {
+                $sqlpart = '';
+
+                // Ok, we have to check all the academy slots
+                for ($index = 1; $index < 11; $index++)
+                {
+                    if ($planet_info['unittrainid_'.$index] == 0) continue;
+
+                    if ($planet_info['unittrainid_'.$index] == 2 && $no_unit_2)
+                    {
+                        // Gotcha! Get out from the queue!
+                        $planet_info['unittrainid_'.$index] = 0;
+                        $sqlpart .= 'unittrainid_'.$index.' = 0,
+                            unittrainnumber_'.$index.' = 0,
+                            unittrainnumberleft_'.$index.' = 0,
+                            unittrainendless_'.$index.' = 0,';
+                    }
+
+                    if ($planet_info['unittrainid_'.$index] == 3 && $no_unit_3)
+                    {
+                        // Gotcha! Get out from the queue!
+                        $planet_info['unittrainid_'.$index] = 0;
+                        $sqlpart .= 'unittrainid_'.$index.' = 0,
+                            unittrainnumber_'.$index.' = 0,
+                            unittrainnumberleft_'.$index.' = 0,
+                            unittrainendless_'.$index.' = 0,';
+                    }
+                }
+
+                // There is something to remove from the queue?
+                if($sqlpart != '')
+                {
+                    $sql = 'UPDATE planets
+                            SET '.rtrim($sqlpart,',').'
+                            WHERE planet_id = '.$this->move['dest'];
+                    if (!$this->db->query($sql))
+                    {
+                        $this->log(MV_M_DATABASE, 'Error updating planet <b>'.$this->move['dest'].'</b> academy queues info');
+                    }
+                }
+
+                // Check the active slot. If the active slot is now empty, go check for the next working slot and make it active.
+                $active_slot = $planet_info['unittrain_actual'];
+                $tries = 0;
+
+                while (($planet_info['unittrainid_'.$active_slot] == 0) && $academy_is_working)
+                {
+                    $tries++; 
+
+                    if ($tries > 9)
+                    {
+                        $academy_is_working = false;
+                        $sql = 'UPDATE planets
+                                SET unittrain_actual = 0, unittrainid_nexttime = 0,
+                                    unittrain_error = 0
+                                WHERE planet_id = '.$this->move['dest'];
+                        if (!$this->db->query($sql))
+                        {
+                            $this->log(MV_M_DATABASE, 'Error clearing OLD academy active slot of planet <b>'.$this->move['dest'].'</b>');
+                        }
+                        continue;
+                    }
+
+                    $active_slot++;
+                    if($active_slot > 10) $active_slot = 1;
+
+                    if($planet_info['unittrainid_'.$active_slot] == 0) continue;
+
+                    $academy_next_tick = $this->CURRENT_TICK+UnitTimeTicksScheduler($planet_info['unittrainid_'.$active_slot],
+                        $planet_info['research_4'],$this->dest['user_race']);
+
+                    $sql = 'UPDATE planets
+                            SET unittrain_actual = '.$active_slot.', unittrainid_nexttime = '.$academy_next_tick.',
+                                unittrain_error = 0
+                            WHERE planet_id = '.$this->move['dest'];
+                    if (!$this->db->query($sql))
+                    {
+                        $this->log(MV_M_DATABASE, 'Error updating NEW academy active slot of planet <b>'.$this->move['dest'].'</b>');
+                    }
+                }
+            }
+        }
+    }
+
+    function check_spacedock_status() {
+        // Checks if the number of ships that may be present in a spacedock is consistent with the level of the structure
+
+        global $MAX_SPACEDOCK_SHIPS;
+
+        $sql = 'SELECT building_7 FROM planets WHERE planet_id = '.$this->move['dest'];
+        if(!($planet_info = $this->db->queryrow($sql)))
+        {
+            $this->log(MV_M_DATABASE, 'moves_common.check_spacedock_status: error reading planet info');
+        }
+        else
+        {
+            $sql = 'SELECT COUNT(*) AS num_ships FROM ships WHERE fleet_id = -'.$this->move['dest'];
+            if(!($ship_docked = $this->db->queryrow($sql))) 
+            {
+                $this->log(MV_M_DATABASE, 'moves_common.check_spacedock_status: error reading docked ships info');
+            }
+            else
+            {
+                if ($ship_docked['num_ships'] > $MAX_SPACEDOCK_SHIPS[$planet_info['building_7']])
+                {
+                    $ships_to_delete = $ship_docked['num_ships'] - $MAX_SPACEDOCK_SHIPS[$planet_info['building_7']];
+                    $sql = 'DELETE FROM ships WHERE fleet_id = -'.$this->move['dest'].' LIMIT '.$ships_to_delete;
+                    $this->log(MV_M_NOTICE, 'moves_common.check_spacedock_status: delete query = '.$sql);
+                    $this->db->query($sql);
+                    $ships_deleted = $this->db->affected_rows();
+                    if($ships_to_delete != $ships_deleted)
+                    {
+                        $this->log(MV_M_DATABASE, 'moves_common.check_spacedock_status: error deleting ships. Expected '.$ships_to_delete.', MySQL reported '.$ships_deleted);
+                    }
+                }
+            }
+        }
+    }
+
+    function check_shipyard_status() {
+        //If the level of the shipyard reaches zero, delete all the ships (if any) in the construction queue
+
+        $sql = 'SELECT building_8 FROM planets WHERE planet_id = '.$this->move['dest'];
+        if(!($planet_info = $this->db->queryrow($sql)))
+        {
+            $this->log(MV_M_DATABASE, 'moves_common.check_shipyard_status: error reading planet info');
+        }
+        else
+        {
+            if ($planet_info['building_8'] == 0)
+            {
+                $sql = 'DELETE FROM scheduler_shipbuild WHERE planet_id = '.$this->move['dest'];
+                $this->db->query($sql);
+            }
+        }
+    }
+
+    function get_distance($s_system, $d_system) {
+        global $SYSTEM_WIDTH;
+
+        /*
+        $s_system[0] -> global X-Coordinate
+        $s_system[1] -> global Y-Coordinate
+        */
+
+        if($s_system[0] == $d_system[0]) {
+            $distance = abs( ( ($s_system[1] - $d_system[1]) * $SYSTEM_WIDTH) );
+        }
+        elseif($s_system[1] == $d_system[1]) {
+            $distance = abs( ( ($s_system[0] - $d_system[0]) * $SYSTEM_WIDTH) );
+        }
+        else {
+            $triangle_a = ($s_system[1] - $d_system[1]);
+            $triangle_b = ($s_system[0] - $d_system[0]);
+
+            $distance = ( sqrt( ( ($triangle_a * $triangle_a) + ($triangle_b * $triangle_b) ) ) * $SYSTEM_WIDTH );
+        }
+
+        return $distance;
+    }
+
+    function get_structure_points($player_id, $dest) {
+        // Calculate the points structure for the planet
+
+        global $MAX_POINTS;
+
+        $points = $MAX_POINTS[0];
+
+        // Mother system of the player
+        $sql = 'SELECT system_id FROM planets WHERE planet_owner = '.$player_id.' AND planet_owner_enum = 0';
+        if(!($mosystem = $this->db->queryrow($sql))) {
+            return $this->log(MV_M_DATABASE, 'Could not read capital planet data! SKIP');
+        }
+
+        $sql = 'SELECT system_global_x, system_global_y FROM starsystems WHERE system_id = '.$mosystem['system_id'];
+        if(!($mocoord = $this->db->queryrow($sql))) {
+            return $this->log(MV_M_DATABASE, 'Could not read capital starsystem data! SKIP');
+        }
+
+        // Destination system
+        $sql = 'SELECT system_id FROM planets WHERE planet_id = '.$dest;
+        if(!($destsystem = $this->db->queryrow($sql))) {
+            return $this->log(MV_M_DATABASE, 'Could not read destination planet data! SKIP');
+        }
+
+        $sql = 'SELECT system_global_x, system_global_y FROM starsystems WHERE system_id = '.$destsystem['system_id'];
+        if(!($destcoord = $this->db->queryrow($sql))) {
+            return $this->log(MV_M_DATABASE, 'Could not read destination starsystem data! SKIP');
+        }
+
+        $distance = $this->get_distance(array($mocoord['system_global_x'], $mocoord['system_global_y']),
+                                        array($destcoord['system_global_x'], $destcoord['system_global_y']));
+        $distance = round($distance, 2);
+
+        if($distance > MAX_BOUND_RANGE) $points = $MAX_POINTS[2];
+
+        return $points; 
+    }
+
     function do_ship_combat(&$atk_fleet_ids_str, &$dfd_fleet_ids_str, $combat_level) {
         global $config;
 
