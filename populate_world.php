@@ -23,7 +23,7 @@
 // include game definitions, path url and so on
 include('config.script.php');
 
-$PLANETS_PER_QUADRANT = 25; // 09/05/08 AC: Increased number of generated planets
+$PLANETS_PER_QUADRANT = 10;
 
 include($game_path . 'include/sql.php');
 include($game_path . 'include/global.php');
