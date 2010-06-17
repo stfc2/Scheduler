@@ -62,7 +62,7 @@ $db = new sql($config['server'].":".$config['port'], $config['game_database'], $
 $game = new game();
 
 $sdl->log('<br><br><br><b>-------------------------------------------------------------</b><br>'.
-          '<b>Starting Scheduler at '.date('d.m.y H:i:s', time()).'</b>');
+          '<b>Starting Fried-Egg 1.1a Scheduler at '.date('d.m.y H:i:s', time()).', running on '.$config['server'].', DB '.$config['game_database'].'</b>.');
 
 if(($cfg_data = $db->queryrow('SELECT * FROM config')) === false) {
     $sdl->log('- Fatal: Could not query tick data! ABORTED');
@@ -299,7 +299,7 @@ $sdl->finish_job('Academy Scheduler v3-blackeye');
 
 $sdl->start_job('Shiprepair Scheduler');
 
-$sql = 'SELECT s.*,t.value_5 FROM (ships s) LEFT JOIN (ship_templates t) ON s.template_id=t.id
+$sql = 'SELECT s.*,t.ship_torso, t.value_5, t.max_torp FROM (ships s) LEFT JOIN (ship_templates t) ON s.template_id=t.id
 			WHERE s.ship_repair>0 AND s.ship_repair<= '.$ACTUAL_TICK;
 
 if(($q_ship = $db->query($sql)) === false) {
@@ -310,7 +310,7 @@ else
 	while($ship = $db->fetchrow($q_ship)) {
 		// DC ---- Ships in Refitting does not get repaired
 		if ($ship['ship_untouchable'] == SHIP_IN_REFIT)
-			$sql = 'UPDATE ships SET ship_repair=0, ship_untouchable=0 WHERE ship_id='.$ship['ship_id'];
+			$sql = 'UPDATE ships SET ship_repair=0, ship_untouchable=0'.($ship['ship_torso'] > 4 ? ', torp = '.$ship['max_torp'] : '' ).' WHERE ship_id='.$ship['ship_id'];
 		else
 			$sql = 'UPDATE ships SET hitpoints='.$ship['value_5'].', ship_repair=0, ship_untouchable=0 WHERE ship_id='.$ship['ship_id'];
 		// DC ----
@@ -382,7 +382,7 @@ $sdl->finish_job('Shipscrap Scheduler');
 $sdl->start_job('Shipyard Scheduler');
 
 $sql = 'SELECT ssb.*,
-               st.id AS template_id, st.value_5 AS template_value_5, st.value_9 AS template_value_9,
+               st.id AS template_id, st.value_5 AS template_value_5, st.value_9 AS template_value_9, st.rof AS template_rof, st.max_torp AS template_max_torp,
                p.planet_owner as user_id, p.building_7
         FROM (scheduler_shipbuild ssb)
         INNER JOIN (planets p) ON p.planet_id = ssb.planet_id
@@ -444,8 +444,8 @@ else {
                 continue;
             }
 
-            $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
-                    VALUES (-'.$shipbuild['planet_id'].', '.$shipbuild['user_id'].', '.$shipbuild['ship_type'].', '.$shipbuild['template_value_9'].', '.$shipbuild['template_value_5'].', '.$game->TIME.', '.$shipbuild['unit_1'].', '.$shipbuild['unit_2'].', '.$shipbuild['unit_3'].', '.$shipbuild['unit_4'].')';
+            $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4, rof, torp)
+                    VALUES (-'.$shipbuild['planet_id'].', '.$shipbuild['user_id'].', '.$shipbuild['ship_type'].', '.$shipbuild['template_value_9'].', '.$shipbuild['template_value_5'].', '.$game->TIME.', '.$shipbuild['unit_1'].', '.$shipbuild['unit_2'].', '.$shipbuild['unit_3'].', '.$shipbuild['unit_4'].', '.$shipbuild['template_rof'].', '.$shipbuild['template_max_torp'].')';
 
             if(!$db->query($sql)) {
                 $sdl->log(' - <b>Warning:</b> Could not insert new ship data! CONTINUED AND JUMP TO NEXT');
@@ -622,8 +622,7 @@ $sdl->finish_job('Soldier Transactions');
 // ########################################################################################
 // Shipdestruction (Wrecking) // Formerly RUST
 
-/*
-if ($cfg_data['shipwreck_id'] > SHIP_RUST_CHECK)
+/*if ($cfg_data['shipwreck_id'] > SHIP_RUST_CHECK)
 {
 $sdl->start_job('Shipdestruction (Wrecking)');
 $sql = 'UPDATE ships s LEFT JOIN ship_templates t ON t.id=s.template_id SET s.hitpoints=s.hitpoints-t.value_5/100 WHERE s.hitpoints>t.value_5/2 AND s.fleet_id>0 AND s.next_refit <='.$ACTUAL_TICK;
@@ -1587,84 +1586,6 @@ $sdl->finish_job('Alliance Taxes');
 
 // ########################################################################################
 // ########################################################################################
-// Ferengi Taxes
-
-$sdl->start_job('Ferengi Taxes');
-
-if (time()-$cfg_data['last_paytime']>3600*24)
-{
-    $sdl->log('Start Payment');
-    $ferengi_players=$db->queryrow('SELECT COUNT(user_id) AS num FROM user WHERE user_active=1 AND user_auth_level=1 AND user_race=5');
-    if ($ferengi_players['num']>0 && $cfg_data['ferengitax_1']/$ferengi_players['num']+$cfg_data['ferengitax_2']/$ferengi_players['num']+$cfg_data['ferengitax_3']/$ferengi_players['num']>300)
-    {
-        $sdl->log('Start Payment2');
-        $db->query('UPDATE config SET ferengitax_1=0, ferengitax_2=0, ferengitax_3=0, last_paytime='.time());
-
-        $resource[0]=$cfg_data['ferengitax_1']/$ferengi_players['num']*5;
-        $resource[1]=$cfg_data['ferengitax_2']/$ferengi_players['num']*5;
-        $resource[2]=$cfg_data['ferengitax_3']/$ferengi_players['num']*5;
-
-        $player_qry=$db->query('SELECT u.user_id,u.user_name,u.user_capital, u.language, p.planet_owner, p.system_id AS planet_system,s.system_global_x,s.system_global_y
-                                FROM (user u)
-                                LEFT JOIN (planets p) ON p.planet_id = u.user_capital
-                                LEFT JOIN (starsystems s) ON s.system_id = p.system_id
-                                WHERE u.user_active=1 AND u.user_id=p.planet_owner AND u.user_race=5
-        ');
-
-        $sdl->log('Pay: '.$ferengi_players['num'].' ('.$db->num_rows().') Players with '.$cfg_data['ferengitax_1'].'/'.$cfg_data['ferengitax_2'].'/'.$cfg_data['ferengitax_3'].'!');
-
-
-        while(($user = $db->fetchrow($player_qry))==true)
-        {
-            $sdl->log('1');
-            $log_data=array(
-                'resource_1' => round($resource[0],0),
-                'resource_2' => round($resource[1],0),
-                'resource_3' => round($resource[2],0),
-            );
-            $sdl->log('2');
-
-            /* 16/05/08 - AC: Add logbook title translation */
-            $log_title = 'Ferengi Taxes';
-            switch($user['language'])
-            {
-                case 'GER':
-                    $log_title = 'Ferengisteuer';
-                break;
-                case 'ITA':
-                    $log_title = 'Tasse Ferengi';
-                break;
-            }
-            /* */
-
-            add_logbook_entry($user['user_id'], LOGBOOK_FERENGITAX, $log_title, $log_data);
-            $sdl->log('3');
-            $res=$resource[0]+$resource[1]+$resource[2];
-            $ships=ceil($res/MAX_TRANSPORT_RESOURCES);
-            if (1==$user['planet_system']) $distance=6;
-            else
-            {
-                $distance = get_distance(array(5,7), array($user['system_global_x'], $user['system_global_y']));
-                $velocity = warpf(6);
-                $distance= ceil( ( ($distance / $velocity) / TICK_DURATION ) );
-            }
-
-
-            $db->query('INSERT INTO scheduler_resourcetrade (planet,resource_1,resource_2,resource_3,arrival_time) VALUES ("'.$user['user_capital'].'","'.$resource[0].'","'.$resource[1].'","'.$resource[2].'","'.($ACTUAL_TICK+$distance).'")');
-            //send_fake_transporter(array(FERENGI_TRADESHIP_ID=>$ships), FERENGI_USERID,5 ,$user['user_capital']);
-            $sdl->log('4: '.$distance);
-
-            $sdl->log('5');
-            $sdl->log('Paid '.$user['user_name'].' ('.$user['user_id'].')!');
-        }
-    }
-}
-$sdl->finish_job('Ferengi Taxes');
-
-
-
-// ########################################################################################
-// ########################################################################################
 // Remove old Resourcetrade
 $sdl->start_job('Remove old Resourcetrade');
 $sql = 'DELETE FROM resource_trade WHERE timestamp<'.(time()-3600*24*8);
@@ -1829,8 +1750,8 @@ else {
                     $sdl->log('<b>Notice:</b> Could not find another alliance admin - possible alliance without president! CONTINUED');
                 }
                 else {
-                    $sql = 'UPDATE user
-                            SET user_alliance_status = '.ALLIANCE_STATUS_OWNER.'
+                    $sql = 'UPDATE user, alliance
+                            SET user_alliance_status = '.ALLIANCE_STATUS_OWNER.', alliance_owner = '.$other_admin['user_id'].',
                                 user_alliance_rights1 = 1,
                                 user_alliance_rights2 = 1,
                                 user_alliance_rights3 = 1,
@@ -1839,7 +1760,7 @@ else {
                                 user_alliance_rights6 = 1,
                                 user_alliance_rights7 = 1,
                                 user_alliance_rights8 = 1
-                            WHERE user_id = '.$other_admin['user_id'];
+                            WHERE user_id = '.$other_admin['user_id'].' AND alliance_id = '.$user['alliance_id'];
 
                     $db->query($sql);
                 }
@@ -1913,20 +1834,26 @@ else {
         $db->query($sql);
 
 //DC ---- Historycal record for faction vanishing from universe, log_code '28'
-	$sql = 'SELECT planet_id FROM planets WHERE planet_owner = '.$user['user_id'];
-	if($vanishing = $db->query($sql)) {
-		while($_temp = $db->fetchrow($vanishing)) {
+        $sql = 'SELECT planet_id FROM planets WHERE planet_owner = '.$user['user_id'];
+        if($vanishing = $db->query($sql)) {
+            while($_temp = $db->fetchrow($vanishing)) {
 //DC ---- we record no data for identification of vanished player... he/she is gone and forgot
-			$sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
-			.'VALUES ('.$_temp['planet_id'].', 0, 0, 0, 0, '.time().', 28)';
-			$db->query($sql);
-		}
-	}
+                $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
+                        VALUES ('.$_temp['planet_id'].', 0, 0, 0, 0, '.time().', 28)';
+                $db->query($sql);
+            }
+        }
+
+//DC ---- FoW Maintenance: we clean up all log_code 500, 101 and 102
+        $sql = 'DELETE FROM planet_details WHERE user_id = '.$user['user_id'].' AND log_code IN (101, 102, 500)';
+
+        $db->query($sql);
 //DC ----
 
         $sql = 'UPDATE planets
                     SET planet_owner= 0,
                         planet_owned_date = '.time().',
+                        planet_available_points = 0,
                         resource_1 = 10000,
                         resource_2 = 10000,
                         resource_3 = 10000,
@@ -1936,13 +1863,15 @@ else {
                         building_2 = '.mt_rand(0, 9).',
                         building_3 = '.mt_rand(0, 9).',
                         building_4 = '.mt_rand(0, 9).',
-                        building_5 = '.mt_rand(0, 9).',
-                        building_6 = '.mt_rand(0, 9).',
-                        building_7 = '.mt_rand(0, 9).',
-                        building_8 = '.mt_rand(0, 9).',
-                        building_10 = '.mt_rand(5, 15).',
-                        building_11 = '.mt_rand(0, 9).',
-                        building_13 = '.mt_rand(0, 10).',
+                        building_5 = '.mt_rand(3, 9).',
+                        building_6 = 0,
+                        building_7 = '.mt_rand(0, 5).',
+                        building_8 = 0,
+                        building_9 = 0,
+                        building_10 = 0,
+                        building_11 = '.mt_rand(0, 5).',
+                        building_12 = '.mt_rand(0, 5).',
+                        building_13 = 0,
                         unit_1 = '.mt_rand(500, 1500).',
                         unit_2 = '.mt_rand(500, 1000).',
                         unit_3 = '.mt_rand(0, 500).',
