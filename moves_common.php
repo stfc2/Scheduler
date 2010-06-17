@@ -46,7 +46,7 @@ define('MV_COMBAT_LEVEL_PLANETARY', 1); // Attack of the planet (= Colonization)
 define('MV_COMBAT_LEVEL_ORBITAL', 2); // Attack on owned planet, but only ships
 define('MV_COMBAT_LEVEL_OUTER', 3); // Fight beyond the planet between foreign players (or attack by the owner)
 
-define('MV_COMBAT_BIN_PATH', $script_path . 'stfc-moves-combat/bin/moves_combat');
+define('MV_COMBAT_BIN_PATH', $script_path . 'stfc-moves-combat2/bin/moves_combat');
 
 
 function commonlog($message,$message2,$move_id=0)
@@ -186,8 +186,8 @@ class moves_common {
     }
 
     function check_academy_status() {
-        // Controllo che le code di addestramento di un pianeta siano coerenti con le strutture del pianeta stesso.
-        // E' scritta con poco criterio e abuso del continue, però quel giorno mi andava così...
+        // Checks if the training queues of a planet are consistent with the structures of the planet itself.
+        // It's poorly written and with abuse of the continue, but that day I was so that ...
 
         $no_academy = false;
         $no_unit_3 = false;
@@ -319,10 +319,10 @@ class moves_common {
     }
 
     function check_spacedock_status() {
-        // Controllo che il numero di navi eventualmente presenti in un porto sia coerente con il livello della struttura stessa
+        // Checks if the number of ships that may be present in a spacedock is consistent with the level of the structure
 
         global $MAX_SPACEDOCK_SHIPS;
-        
+
         $sql = 'SELECT building_7 FROM planets WHERE planet_id = '.$this->move['dest'];
         if(!($planet_info = $this->db->queryrow($sql)))
         {
@@ -354,7 +354,7 @@ class moves_common {
     }
 
     function check_shipyard_status() {
-        // Se il livello di cantiere sul pianeta e` zero, cancello tutte le (eventuali) navi in coda di costruzione
+        //If the level of the shipyard reaches zero, delete all the ships (if any) in the construction queue
 
         $sql = 'SELECT building_8 FROM planets WHERE planet_id = '.$this->move['dest'];
         if(!($planet_info = $this->db->queryrow($sql)))
@@ -369,6 +369,68 @@ class moves_common {
                 $this->db->query($sql);
             }
         }
+    }
+
+    function get_distance($s_system, $d_system) {
+        global $SYSTEM_WIDTH;
+
+        /*
+        $s_system[0] -> global X-Coordinate
+        $s_system[1] -> global Y-Coordinate
+        */
+
+        if($s_system[0] == $d_system[0]) {
+            $distance = abs( ( ($s_system[1] - $d_system[1]) * $SYSTEM_WIDTH) );
+        }
+        elseif($s_system[1] == $d_system[1]) {
+            $distance = abs( ( ($s_system[0] - $d_system[0]) * $SYSTEM_WIDTH) );
+        }
+        else {
+            $triangle_a = ($s_system[1] - $d_system[1]);
+            $triangle_b = ($s_system[0] - $d_system[0]);
+
+            $distance = ( sqrt( ( ($triangle_a * $triangle_a) + ($triangle_b * $triangle_b) ) ) * $SYSTEM_WIDTH );
+        }
+
+        return $distance;
+    }
+
+    function get_structure_points($player_id, $dest) {
+        // Calculate the points structure for the planet
+
+        global $MAX_POINTS;
+
+        $points = $MAX_POINTS[0];
+
+        // Mother system of the player
+        $sql = 'SELECT system_id FROM planets WHERE planet_owner = '.$player_id.' AND planet_owner_enum = 0';
+        if(!($mosystem = $this->db->queryrow($sql))) {
+            return $this->log(MV_M_DATABASE, 'Could not read capital planet data! SKIP');
+        }
+
+        $sql = 'SELECT system_global_x, system_global_y FROM starsystems WHERE system_id = '.$mosystem['system_id'];
+        if(!($mocoord = $this->db->queryrow($sql))) {
+            return $this->log(MV_M_DATABASE, 'Could not read capital starsystem data! SKIP');
+        }
+
+        // Destination system
+        $sql = 'SELECT system_id FROM planets WHERE planet_id = '.$dest;
+        if(!($destsystem = $this->db->queryrow($sql))) {
+            return $this->log(MV_M_DATABASE, 'Could not read destination planet data! SKIP');
+        }
+
+        $sql = 'SELECT system_global_x, system_global_y FROM starsystems WHERE system_id = '.$destsystem['system_id'];
+        if(!($destcoord = $this->db->queryrow($sql))) {
+            return $this->log(MV_M_DATABASE, 'Could not read destination starsystem data! SKIP');
+        }
+
+        $distance = $this->get_distance(array($mocoord['system_global_x'], $mocoord['system_global_y']),
+                                        array($destcoord['system_global_x'], $destcoord['system_global_y']));
+        $distance = round($distance, 2);
+
+        if($distance > MAX_BOUND_RANGE) $points = $MAX_POINTS[2];
+
+        return $points; 
     }
 
     function do_ship_combat(&$atk_fleet_ids_str, &$dfd_fleet_ids_str, $combat_level) {
@@ -700,81 +762,92 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
             }
             else {
 
-                // DC ---- Here we go, first steps into "Fog of War"
-                // DC  We never have been here before?
-                // DC  500 = I was already here
-                $sql = 'SELECT COUNT(*) AS been_there FROM planet_details
-                        WHERE planet_id = '.$this->dest['planet_id'].' AND
-                              log_code = 500 AND
-                              user_id = '.$this->move['user_id'];
+                // DC ---- "Fog of War 1.1"
+                // DC  log_code 500 = i have visibility of this system
+                // DC  log_code 101 = planet exploration details
+                /* 23/01/09 - AC: Just to be sure to assign the same timestamp to all the infos ^^ */
+                $timestamp = time();
+                $sql = 'SELECT COUNT(*) AS i_see_there FROM planet_details WHERE system_id = '.$this->dest['system_id'].' AND log_code = 500 AND user_id = '.$this->move['user_id'];
+                if(($_flag = $this->db->queryrow($sql)) === false) {
+                    $this->log(MV_M_DATABASE, 'Could not query planet details db! CONTINUE');
+                    $_flag['i_see_there'] = 1;
+                }
+                if($_flag['i_see_there'] < 1) {
+                    // DC ---- We have no visibility set here, so we do now. fixed = 1 because we have a fleet here.
+                    // planet_id will no more used in future
+                    $sql = 'INSERT INTO planet_details
+                                   (planet_id, system_id, user_id, alliance_id,
+                                    source_uid, source_aid, timestamp, validity, fixed, log_code)
+                            VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].',
+                                    '.$this->move['user_alliance'].',
+                                    '.$this->move['user_id'].',
+                                    '.$this->move['user_alliance'].', '.$timestamp.', '.($this->CURRENT_TICK+960).', 1, 500)';
+                    if(!$this->db->query($sql))
+                        return $this->log(MV_M_DATABASE, 'Could not update planet details db! SKIP!');
+                }
+
+                $sql = 'SELECT COUNT(*) AS been_there FROM planet_details WHERE system_id = '.$this->dest['system_id'].' AND log_code = 101 AND user_id = '.$this->move['user_id'];
                 if(($_flag = $this->db->queryrow($sql)) === false) {
                     $this->log(MV_M_DATABASE, 'Could not query planet details db! CONTINUE');
                     $_flag['been_there'] = 1;
                 }
 
                 if($_flag['been_there'] < 1) {
-                    /* 23/01/09 - AC: Just to be sure to assign the same timestamp to all the infos ^^ */
-                    $timestamp = time();
- 
                     // DC ---- Ok, we never have been here before
-                    // DC First, let's mark this planet as a know one
+                    // DC First, let's mark this system as a know one
                     $sql = 'INSERT INTO planet_details
-                                   (planet_id, system_id, user_id, alliance_id,
-                                    source_uid, source_aid, timestamp, log_code)
-                            VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].',
+                                   (system_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
+                            VALUES ('.$this->dest['system_id'].', '.$this->move['user_id'].',
                                     '.$this->move['user_alliance'].',
                                     '.$this->move['user_id'].',
-                                    '.$this->move['user_alliance'].', '.$timestamp.', 500)';
+                                    '.$this->move['user_alliance'].', '.$timestamp.', 101)';
                     if(!$this->db->query($sql))
                         return $this->log(MV_M_DATABASE, 'Could not update planet details db! SKIP!');
 
-                    // Galaxy II: Share the exploration data with allies
-                    $sql = 'SELECT user_id FROM user
-                            WHERE user_alliance = '.$this->move['user_alliance'].' AND
-                                  user_id <> '.$this->move['user_id'];
-                    if(!$share_ally = $this->db->query($sql)) {
-                        return $this->log(MV_M_DATABASE, 'Could not read alliance members data! SKIP');
-                    }
-                    while($fetch_ally = $this->db->fetchrow($share_ally)) {
-                        $sql_ally = 'INSERT INTO planet_details
-                                            (planet_id, system_id, user_id, alliance_id,
-                                             source_uid, source_aid, timestamp, log_code)
-                                     VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$fetch_ally['user_id'].',
-                                             '.$this->move['user_alliance'].', '.$this->move['user_id'].',
-                                             '.$this->move['user_alliance'].', '.$timestamp.', 500)';
-                        if(!$this->db->query($sql_ally)) {
-                            return $this->log(MV_M_DATABASE, 'Could not INSERT survey planet data! SKIP');
-                        }
-                    }
-                    // DC Now, if the planet is unsettled...
-                    if(empty($this->dest['user_id'])) {
-                        // DC Maybe we did boldly go where nobody has boldly gone before?
-                        $sql = 'SELECT COUNT(*) AS first_here FROM planet_details
-                                WHERE planet_id = '.$this->dest['planet_id'].' AND log_code = 1';
-                        if(($_flag = $this->db->queryrow($sql)) === false)
-                            return $this->log(MV_M_DATABASE, 'Could not query planet details db! SKIP!');
-                        if($_flag['first_here'] == 0) {
-                            // DC Yeah, we made it!
-                            $first_or_not = 1;
-                        }
-                        else {
-                            // DC Bad luck, we are seconds...
-                            $first_or_not = 2;
-                        }
+                }
 
+                // DC Now, if the planet is unsettled...
+                if(empty($this->dest['user_id'])) {
+                    // DC Maybe we did boldly go where nobody has boldly gone before?
+                    $sql = 'SELECT COUNT(*) AS first_here, user_id FROM planet_details WHERE planet_id = '.$this->dest['planet_id'].' AND log_code = 1';
+                    if(($_flag = $this->db->queryrow($sql)) === false)
+                        return $this->log(MV_M_DATABASE, 'Could not query planet details db! SKIP!');
+                    if($_flag['first_here'] == 0) {
+                        // DC Yeah, we made it!
                         $sql = 'INSERT INTO planet_details
-                                       (planet_id, system_id, user_id, alliance_id,
-                                        source_uid, source_aid, timestamp, log_code)
+                                           (planet_id, system_id, user_id, alliance_id,
+                                            source_uid, source_aid, timestamp, log_code)
                                 VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].',
                                         '.$this->move['user_alliance'].', '.$this->move['user_id'].',
-                                        '.$this->move['user_alliance'].', '.$timestamp.', '.$first_or_not.')';
+                                        '.$this->move['user_alliance'].', '.$timestamp.', 1)';
 
                         if(!$this->db->query($sql))
                             $this->log(MV_M_DATABASE, 'Could not update planet details db! CONTINUE');
                     }
-                }
+                    else {
+                       if($_flag['user_id'] != $this->move['user_id']) {
+                           // DC Bad luck, we are seconds...
+                           $sql = 'SELECT COUNT(*) AS second_here FROM planet_details WHERE planet_id = '.$this->dest['planet_id'].' AND user_id = '.$this->move['user_id'].' AND log_code = 2';
+                           if(($_flag = $this->db->queryrow($sql)) === false)
+                               return $this->log(MV_M_DATABASE, 'Could not query planet details db! SKIP!');
+                           if($_flag['second_here'] == 0) {
+                               // DC Yeah, we made it!
+                               $sql = 'INSERT INTO planet_details
+                                                  (planet_id, system_id, user_id, alliance_id,
+                                                   source_uid, source_aid, timestamp, log_code)
+                                       VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].',
+                                               '.$this->move['user_alliance'].', '.$this->move['user_id'].',
+                                               '.$this->move['user_alliance'].', '.$timestamp.', 2)';
+
+                               if(!$this->db->query($sql))
+                                   $this->log(MV_M_DATABASE, 'Could not update planet details db! CONTINUE');
+                           }
+                        }
+                    }
+
                 // DC ----
 
+                }
             }
 
         }
