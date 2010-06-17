@@ -1901,15 +1901,20 @@ else {
         $db->query($sql);
 
 //DC ---- Historycal record for faction vanishing from universe, log_code '28'
-	$sql = 'SELECT planet_id FROM planets WHERE planet_owner = '.$user['user_id'];
-	if($vanishing = $db->query($sql)) {
-		while($_temp = $db->fetchrow($vanishing)) {
+        $sql = 'SELECT planet_id FROM planets WHERE planet_owner = '.$user['user_id'];
+        if($vanishing = $db->query($sql)) {
+            while($_temp = $db->fetchrow($vanishing)) {
 //DC ---- we record no data for identification of vanished player... he/she is gone and forgot
-			$sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
-			.'VALUES ('.$_temp['planet_id'].', 0, 0, 0, 0, '.time().', 28)';
-			$db->query($sql);
-		}
-	}
+                $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
+                        VALUES ('.$_temp['planet_id'].', 0, 0, 0, 0, '.time().', 28)';
+                $db->query($sql);
+            }
+        }
+
+//DC ---- FoW Maintenance: we clean up all the data collected by the deleted player
+        $sql = 'DELETE FROM planet_details WHERE user_id = '.$user['user_id']; /*.' AND log_code IN (101, 102, 500)';*/
+
+        $db->query($sql);
 //DC ----
 
         $sql = 'UPDATE planets

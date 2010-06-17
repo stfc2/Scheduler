@@ -341,10 +341,13 @@ class moves_action_24 extends moves_common {
             $this->log(MV_M_DATABASE, 'Could not delete scheduler research data! CONTINUE');
         }
 
+        $structure_pts = $this->get_structure_points($this->move['user_id'], $this->move['dest']);
+
         $sql = 'UPDATE planets
                 SET planet_owner = '.$this->move['user_id'].',
                     planet_owned_date = '.time().',
                     planet_owner_enum = '.($n_planets - 1).',
+                    planet_available_points = '.$structure_pts.',
                     research_1 = 0,
                     research_2 = 0,
                     research_3 = 0,
