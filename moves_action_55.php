@@ -668,6 +668,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                         SET planet_owner = '.$this->move['user_id'].',
                             planet_owned_date = '.time().',
                             planet_owner_enum = '.($n_planets - 1).',
+                            planet_available_points = '.($this->get_structure_points($this->move['user_id'], $this->move['dest'])).',
                             resource_4 = 0,
                             recompute_static = 1,
                             building_1 = '.$building_levels[0].',
