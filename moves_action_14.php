@@ -84,7 +84,7 @@ class moves_action_14 extends moves_common {
 
         for($i = 0; $i < count($wares_names); ++$i) {
 
-            $pwares[$i] = (int)$this->dest[$wares_names[$i]];
+            (float)$pwares[$i] = (float)$this->dest[$wares_names[$i]];
 
         }
 
@@ -118,7 +118,7 @@ class moves_action_14 extends moves_common {
 
             foreach($pwares as $i => $p_value) {
 
-                $value = $fwares[$i] = (int)$rfleet[$wares_names[$i]];
+                (float)$value = (float)$fwares[$i] = (float)$rfleet[$wares_names[$i]];
 
 
 
