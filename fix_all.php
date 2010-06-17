@@ -95,13 +95,6 @@ $db->query('UPDATE planets SET recompute_static=1');
 $sdl->finish_job('Recalculate resources');
 
 
-
-
-
-
-
-
-
 $sdl->start_job('Recalculate security forces');
 $sql = 'SELECT u.user_id FROM user u WHERE u.user_active=1';
 
@@ -157,23 +150,6 @@ $sdl->finish_job('Recalculate security forces');
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 $sdl->start_job('Buildings / Research level fix');
 
 if (isset($MAX_BUILDING_LVL))
@@ -195,9 +171,12 @@ $MAX_BUILDING_LVL[1][12] = 20 + $planet['research_3'];
 for ($t=0;$t<13;$t++)
 {
 
-if ($MAX_BUILDING_LVL[$capital][$t]<$planet['building_'.($t+1)])
+if (($MAX_BUILDING_LVL[$capital][$t] + ($capital == 0 ? $PLANETS_DATA[$planet['planet_type']][14][$t] : 0)) < $planet['building_'.($t+1)])
 {
-if ($MAX_BUILDING_LVL[$capital][$t]>=9) $db->query('UPDATE planets SET building_'.($t+1).'='.$MAX_BUILDING_LVL[$capital][$t].' WHERE planet_id='.$planet['planet_id']);
+	if (($MAX_BUILDING_LVL[$capital][$t] + ($capital == 0 ? $PLANETS_DATA[$planet['planet_type']][14][$t] : 0))>=5) {
+		$db->query('UPDATE planets SET building_'.($t+1).'='.($MAX_BUILDING_LVL[$capital][$t] + ($capital == 0 ? $PLANETS_DATA[$planet['planet_type']][14][$t] : 0)).' WHERE planet_id='.$planet['planet_id']);
+		$sdl->log('On planet '.$planet['planet_id'].' adjusted building_'.($t+1).' to lvl '.($MAX_BUILDING_LVL[$capital][$t] + ($capital == 0 ? $PLANETS_DATA[$planet['planet_type']][14][$t] : 0)));
+	}
 }
 
 
@@ -232,15 +211,29 @@ if(($query_s_p = $db->query($sql)) === false) {
 }
   
 while($surrender = $db->fetchrow($query_s_p)) {
-  
+
+    if($surrender['min_security_troops'] == 0) {
+        $sql = 'UPDATE user SET user_capital = 0, pending_capital_choice = 1, active_planet = 0
+               WHERE user_id = '.$surrender['planet_owner'];
+
+        if(!$db->query($sql)) {
+            $sdl->log('<b>Error:</b> Could not update user_capital status on surrending user '.$surrender['planet_owner']);
+        }
+    }
+
     $sql = 'UPDATE planets
-		SET planet_owner= 0,
+            SET planet_owner = 0,
                 planet_owned_date = '.time().',
                 resource_1 = 10000,
                 resource_2 = 10000,
                 resource_3 = 10000,
                 resource_4 = '.mt_rand(0, 5000).',
-                recompute_static = 1, 
+                recompute_static = 1,
+                research_1 = '.mt_rand(0,5).',
+                research_2 = 0,
+                research_3 = 0,
+                research_4 = 0,
+                research_5 = 0,
                 building_1 = '.mt_rand(0, 9).',
                 building_2 = '.mt_rand(0, 9).',
                 building_3 = '.mt_rand(0, 9).',
@@ -276,16 +269,16 @@ while($surrender = $db->fetchrow($query_s_p)) {
                 building_queue=0,
                 planet_surrender=0
              WHERE planet_id = '.$surrender['planet_id'];
-		
-	if(!$db->query($sql)) {
-		$sdl->log('<b>Error:</b> Could not delete switch user');
-	}
-	
+
+    if(!$db->query($sql)) {
+        $sdl->log('<b>Error:</b> Could not delete switch user');
+    }
+
     // DC ---- History record in planet_details, with label '30'
-	$sql = 'SELECT user_race, user_alliance FROM user WHERE user_id = '.$surrender['planet_owner'];
-	
-	$_temp = $db->queryrow($sql);
-	
+    $sql = 'SELECT user_race, user_alliance FROM user WHERE user_id = '.$surrender['planet_owner'];
+
+    $_temp = $db->queryrow($sql);
+
     $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
             VALUES ('.$surrender['planet_id'].',
                     '.$surrender['planet_owner'].',
@@ -294,27 +287,75 @@ while($surrender = $db->fetchrow($query_s_p)) {
                     '.$_temp['user_alliance'].', '.time().', 30)';
 
     if(!$db->query($sql)) {
-        $sdl->log('<b>Error:</b> Could not insert new planet details 30 for <b>'.$surrender['planet_id'].'</b>! CONTINUED');	
+        $sdl->log('<b>Error:</b> Could not insert new planet details 30 for <b>'.$surrender['planet_id'].'</b>! CONTINUED');
     }
 
-    // DC ---- Colony mood record, with label '300'
-    $sql = 'INSERT INTO planet_details (planet_id, user_id, timestamp, log_code)
-            VALUES ('.$surrender['planet_id'].', '.INDEPENDENT_USERID.', '.time().', 300)';
-
-    if(!$db->query($sql)) {
-        $sdl->log('<b>Error:</b> Could not insert new planet details 300 for <b>'.$surrender['planet_id'].'</b>! CONTINUED');	
-    }
-
-	$sql = 'UPDATE planet_details
-            SET mood_race'.$_temp['user_race'].' = mood_race'.$_temp['user_race'].' + 50
-            WHERE planet_id = '.$surrender['planet_id'].' AND log_code = 300';
-
-    if(!$db->query($sql)) {
-        $sdl->log('<b>Error:</b> Could not update planet details <b>'.$surrender['planet_id'].'</b>! CONTINUED');	
-    }	
+// DC ---- Maybe we have to check shipyard building queue? ...
 }
 
-$sdl->finish_job('Rioters planets return inhabitated');
+$sdl->start_job('Rioters planets return inhabitated');
+
+
+$sdl->start_job('Fog of War Maintenance'); // Facciamo manutenzione alla Nebbia di Guerra
+
+	$sql = 'SELECT * from planet_details WHERE fixed IN (0, 1) AND log_code = 500 AND validity >= '.$ACTUAL_TICK;
+	
+	$sdl->log($sql);
+	
+	if(($fowquery = $db->query($sql)) === false) {
+		message(DATABASE_ERROR, '(fix_all:FoW Maint) Could not query planet details');
+	}
+		
+	while($fow_item = $db->fetchrow($fowquery)) {
+		// Abbiamo in canna un 500 instabile. 
+		// Se c'è un nostro pianeta nel sistema, diventa stabile
+		$sql = 'SELECT COUNT(*) AS result FROM planets pl WHERE system_id = '.$fow_item['system_id'].' AND planet_owner = '.$fow_item['user_id'];
+		$_temp = $db->queryrow($sql);
+		if($_temp['result'] > 0) {
+			$db->query('UPDATE planet_details SET fixed = 2, validity = 0 WHERE id = '.$fow_item['id']);
+			continue;
+		}
+		// Se c'è una nostra flotta nel sistema, rimane instabile ma rinnoviamo la validità
+		$sql = 'SELECT COUNT(*) AS result FROM ship_fleets sf INNER JOIN planets pl ON sf.planet_id = pl.planet_id INNER JOIN user u ON sf.user_id = u.user_id WHERE sf.user_id = '.$fow_item['user_id'].' AND pl.system_id = '.$fow_item['system_id'];
+		$_temp = $db->queryrow($sql);
+		if($_temp['result'] > 0) {
+			$db->query('UPDATE planet_details SET fixed = 1, validity = '.($ACTUAL_TICK+960).' WHERE id = '.$fow_item['id']);
+			continue;
+		}
+		
+		// Il 500 potrebbe essere un pod lasciato da una flotta. Se fixed = 1 lo portiamo a zero
+		if($fow_item['fixed'] == 1) {
+			$db->query('UPDATE planet_details SET fixed = 0 WHERE id = '.$fow_item['id']);
+		}
+	}
+		
+	
+	
+	$timestamp = time();
+	
+	$sql = 'SELECT * FROM planet_details WHERE log_code = 500 AND fixed = 0 AND validity < '.$ACTUAL_TICK;
+	
+	if(($fixquery = $db->query($sql)) === false) {
+		message(DATABASE_ERROR, '(fix_all:FoW Maint) Could not query planet details');
+	}
+	while($fix_item = $db->fetchrow($fixquery)) {
+		$sql = "SELECT p.planet_id, p.planet_name, p.planet_owner, p.planet_points, u.user_alliance FROM planets p LEFT JOIN user u ON p.planet_owner = u.user_id WHERE p.system_id = ".$fix_item['system_id'];
+		if(($detquery = $db->query($sql)) === false) {
+			message(DATABASE_ERROR, '(fix_all:FoW Maint) Could not query planet details');
+		}
+		while($det_item = $db->fetchrow($detquery)) {
+			$sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code, planet_name, planet_owner, owner_alliance, planet_points) VALUES ('
+			       .$det_item['planet_id'].', '.$fix_item['user_id'].', '.$fix_item['alliance_id'].', '.$fix_item['user_id'].', '.$fix_item['alliance_id'].', '.$timestamp.', 102, "'.$det_item['planet_name'].'", '
+			       .$det_item['planet_owner'].', '.(isset($det_item['user_alliance']) ? $det_item['user_alliance'] : 0 ).', '.$det_item['planet_points'].')'; 
+			$db->query($sql);
+		}
+	}
+	
+	$db->query('DELETE FROM planet_details WHERE log_code = 500 AND fixed = 0 AND validity < '.$ACTUAL_TICK);
+
+$sdl->finish_job('Fog of War Maintenance'); // terminates the timer
+
+
 
 
 $sdl->start_job('Logbook cleaning');
