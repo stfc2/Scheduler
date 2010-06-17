@@ -232,7 +232,7 @@ if(($query_s_p = $db->query($sql)) === false) {
 }
   
 while($surrender = $db->fetchrow($query_s_p)) {
-  
+
     $sql = 'UPDATE planets
             SET planet_owner='.INDEPENDENT_USERID.',
                 planet_owned_date = '.time().',
@@ -240,7 +240,7 @@ while($surrender = $db->fetchrow($query_s_p)) {
                 resource_2 = 10000,
                 resource_3 = 10000,
                 resource_4 = '.mt_rand(0, 5000).',
-                recompute_static = 1, 
+                recompute_static = 1,
                 building_1 = '.mt_rand(0, 9).',
                 building_2 = '.mt_rand(0, 9).',
                 building_3 = '.mt_rand(0, 9).',
@@ -276,16 +276,16 @@ while($surrender = $db->fetchrow($query_s_p)) {
                 building_queue=0,
                 planet_surrender=0
              WHERE planet_id = '.$surrender['planet_id'];
-		
-	if(!$db->query($sql)) {
-		$sdl->log('<b>Error:</b> Could not delete switch user');
-	}
-	
+
+    if(!$db->query($sql)) {
+        $sdl->log('<b>Error:</b> Could not delete switch user');
+    }
+
     // DC ---- History record in planet_details, with label '30'
-	$sql = 'SELECT user_race, user_alliance FROM user WHERE user_id = '.$surrender['planet_owner'];
-	
-	$_temp = $db->queryrow($sql);
-	
+    $sql = 'SELECT user_race, user_alliance FROM user WHERE user_id = '.$surrender['planet_owner'];
+
+    $_temp = $db->queryrow($sql);
+
     $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
             VALUES ('.$surrender['planet_id'].',
                     '.$surrender['planet_owner'].',
@@ -294,7 +294,7 @@ while($surrender = $db->fetchrow($query_s_p)) {
                     '.$_temp['user_alliance'].', '.time().', 30)';
 
     if(!$db->query($sql)) {
-        $sdl->log('<b>Error:</b> Could not insert new planet details 30 for <b>'.$surrender['planet_id'].'</b>! CONTINUED');	
+        $sdl->log('<b>Error:</b> Could not insert new planet details 30 for <b>'.$surrender['planet_id'].'</b>! CONTINUED');
     }
 
     // DC ---- Colony mood record, with label '300'

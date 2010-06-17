@@ -266,7 +266,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
         }
     }
     else {
-    	$sql = 'SELECT SUM(st.value_3) AS sum_planetary_weapons
+        $sql = 'SELECT SUM(st.value_3) AS sum_planetary_weapons
                 FROM (ships s)
                 INNER JOIN ship_templates st ON st.id = s.template_id
                 WHERE s.fleet_id IN ('.$this->fleet_ids_str.') AND s.torp >= 5';
