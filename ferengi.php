@@ -20,6 +20,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+define('PICK_RESOURCES_FROM_PLANET',1); // 1 = remove resources from BOT's planet
+                                        // 0 = left BOT's planet untouched
 
 //#######################################################################################
 //#######################################################################################
@@ -1051,7 +1053,7 @@ class Ferengi extends NPC
 
 		/****
 		 **
-		 ** 04/03/08 - AC: Ok, I'm guessed that here we need to update the resource availability of Ramona
+		 ** 04/03/08 - AC: Ok, I've guessed that here we need to update the resource availability of Ramona
 		 **
 		 ****/
 		$this->sdl->start_job('Update Ramona resources svailability', TICK_LOG_FILE_NPC);
@@ -1212,51 +1214,62 @@ class Ferengi extends NPC
 			// DC ----
 
 			/* Pick up resources only if there is a little stock pile */
-			/* 200408 DC ----  Sorry, non more fundings to the CC
-			if($tradecenter['ress_1'] < 350000)
-			{
-				if($resources['resource_1'] > 150000)
-					$pick_r[0] = $resources['resource_1']  /  100;
+			/* 200408 DC ----  Sorry, non more fundings to the CC */
+			/* 220610 AC ----  But it's needed after a galaxy reset */
+			if(PICK_RESOURCES_FROM_PLANET) {
+				if($tradecenter['ress_1'] < 350000)
+				{
+					if($resources['resource_1'] > 150000)
+						$pick_r[0] = $resources['resource_1']  /  100;
+				}
+				if($tradecenter['ress_2'] < 350000)
+				{
+					if($resources['resource_2'] > 150000)
+						$pick_r[1] = $resources['resource_2']  /  100;
+				}
+				if($tradecenter['ress_3'] < 350000)
+				{
+					if($resources['resource_3'] > 150000)
+						$pick_r[2] = $resources['resource_3']  /  125;
+				}
+
+				$this->sdl->log('Add resources: '.$pick_r[0].' -- '.$pick_r[1].' -- '.$pick_r[2], TICK_LOG_FILE_NPC);
+
+				$update_res='UPDATE FHB_Handels_Lager SET
+					unit_1=unit_1+'.$pick_u[0].',unit_2=unit_2+'.$pick_u[1].',unit_3=unit_3+'.$pick_u[2].',
+					unit_4=unit_4+'.$pick_u[3].',unit_5=unit_5+'.$pick_u[4].',unit_6=unit_6+'.$pick_u[5].',
+					ress_1=ress_1+'.$pick_r[0].',ress_2=ress_2+'.$pick_r[1].',ress_3=ress_3+'.$pick_r[2].' WHERE id=1';
+				}
+			else {
+				$this->sdl->log('Picking resources from CC: '.$pick_r[0].' -- '.$pick_r[1].' -- '.$pick_r[2], TICK_LOG_FILE_NPC);
+
+				$update_res='UPDATE FHB_Handels_Lager SET
+					unit_1=unit_1+'.$pick_u[0].',unit_2=unit_2+'.$pick_u[1].',unit_3=unit_3+'.$pick_u[2].',
+					unit_4=unit_4+'.$pick_u[3].',unit_5=unit_5+'.$pick_u[4].',unit_6=unit_6+'.$pick_u[5].',
+					ress_1=ress_1-'.$pick_r[0].',ress_2=ress_2-'.$pick_r[1].',ress_3=ress_3-'.$pick_r[2].' WHERE id=1';
 			}
-			if($tradecenter['ress_2'] < 350000)
-			{
-				if($resources['resource_2'] > 150000)
-					$pick_r[1] = $resources['resource_2']  /  100;
-			}
-			if($tradecenter['ress_3'] < 350000)
-			{
-				if($resources['resource_3'] > 150000)
-					$pick_r[2] = $resources['resource_3']  /  125;
-			}
-			
-			
-			$this->sdl->log('Add resources: '.$pick_r[0].' -- '.$pick_r[1].' -- '.$pick_r[2], TICK_LOG_FILE_NPC);
-			*/
-			$this->sdl->log('Picking resources from CC: '.$pick_r[0].' -- '.$pick_r[1].' -- '.$pick_r[2], TICK_LOG_FILE_NPC);
 
 			/* Update resources and units available in the commercial centre */
-			$update_res='UPDATE FHB_Handels_Lager SET
-				unit_1=unit_1+'.$pick_u[0].',unit_2=unit_2+'.$pick_u[1].',unit_3=unit_3+'.$pick_u[2].',
-				unit_4=unit_4+'.$pick_u[3].',unit_5=unit_5+'.$pick_u[4].',unit_6=unit_6+'.$pick_u[5].',
-				ress_1=ress_1-'.$pick_r[0].',ress_2=ress_2-'.$pick_r[1].',ress_3=ress_3-'.$pick_r[2].' WHERE id=1';
-
 			if(!$this->db->query($update_res)) {
 				$this->sdl->log('<b>Error:</b> Could not update Handelslager - '.$update_res, TICK_LOG_FILE_NPC);
 			}
 			else
 			{
 				/* Remove resources from Ramona's planet */
-				/*
-				$sql='UPDATE planets SET
-					unit_1=unit_1-'.$pick_u[0].',unit_2=unit_2-'.$pick_u[1].',unit_3=unit_3-'.$pick_u[2].',
-					unit_4=unit_4-'.$pick_u[3].',unit_5=unit_5-'.$pick_u[4].',unit_6=unit_6-'.$pick_u[5].',
-					resource_1=resource_1-'.$pick_r[0].',resource_2=resource_2-'.$pick_r[1].',
-					resource_3=resource_3-'.$pick_r[2].'
-					WHERE planet_id = '.$this->bot['planet_id'];
-				*/
-				$sql='UPDATE planets SET
-					unit_1=unit_1-'.$pick_u[0].',unit_2=unit_2-'.$pick_u[1].',unit_3=unit_3-'.$pick_u[2].',
-					unit_4=unit_4-'.$pick_u[3].',unit_5=unit_5-'.$pick_u[4].',unit_6=unit_6-'.$pick_u[5].' WHERE planet_id = '.$this->bot['planet_id'];
+				if(PICK_RESOURCES_FROM_PLANET) {
+					$sql='UPDATE planets SET
+							unit_1=unit_1-'.$pick_u[0].',unit_2=unit_2-'.$pick_u[1].',unit_3=unit_3-'.$pick_u[2].',
+							unit_4=unit_4-'.$pick_u[3].',unit_5=unit_5-'.$pick_u[4].',unit_6=unit_6-'.$pick_u[5].',
+							resource_1=resource_1-'.$pick_r[0].',resource_2=resource_2-'.$pick_r[1].',
+							resource_3=resource_3-'.$pick_r[2].'
+						WHERE planet_id = '.$this->bot['planet_id'];
+				}
+				else {
+					$sql='UPDATE planets SET
+							unit_1=unit_1-'.$pick_u[0].',unit_2=unit_2-'.$pick_u[1].',unit_3=unit_3-'.$pick_u[2].',
+							unit_4=unit_4-'.$pick_u[3].',unit_5=unit_5-'.$pick_u[4].',unit_6=unit_6-'.$pick_u[5].'
+						WHERE planet_id = '.$this->bot['planet_id'];
+				}
 				if(!$this->db->query($sql)) {
 					$this->sdl->log('<b>Error:</b> Could not update Ramona\'s planet - '.$sql, TICK_LOG_FILE_NPC);
 				}
