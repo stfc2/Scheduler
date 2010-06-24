@@ -231,13 +231,14 @@ class Ferengi extends NPC
 			Noch einen schönen Tag w&uuml;nscht Ihnen die Ferengi Handelsgesselschaft<br>
 			I.A. Schreiber der kein Gehalt bekommt',
 			'<center><b>Buongiorno</b></center><br><br>
-			il vostro messaggio non ha alcun effetto con noi. Trattiamo tutto appropriatamente ed
+			il vostro messaggio non ha alcun effetto su di noi. Essi vengono tutti trattati appropriatamente ed
 			immediatamente allo stesso modo.<br>
-			Se pensate di ricattarci o di fare pressione o violenza o altre azioni contro di noi - scordatevelo immediatamente.<br>
-			Dato che siamo ci&ograve; che concerne la difesa militare, e non &egrave; qualcosa da
-			ammettere, le nostre armi sono caricate e le nostre navi da combattimento pronte.<br>
-			Se dovesse avvenire un aggressione, ci sar&agrave; una forte ritorsione con maggiore durezza.<br><br>
-			Se volevate solo dire ciao, prendete questo come un avviso. Se avete riscontrato problemi con
+			Se state pensando di ricattarci, di fare pressione, di usare violenza o di compiere altre azioni ostili 
+			contro di noi - scordatevelo immediatamente.<br>
+			Conosciamo molto bene ci&ograve; che concerne la difesa militare, non &egrave; cosa da
+			nascondere, quindi le nostre armi sono cariche e le nostre navi da combattimento pronte.<br>
+			Se dovesse avvenire un&#146;aggressione, ci sar&agrave; una forte ritorsione con maggiore durezza.<br><br>
+			Se volevate solo dire &quot;ciao&quot;, prendete questo come un avviso. Se invece avete riscontrato problemi con
 			il nostro sistema di consegne, per favore riportatelo all&#146;Amministrazione
 			Galattica (gli amministratori del gioco per intenderci).
 			<br><br>-----------------------------------<br>
@@ -245,8 +246,8 @@ class Ferengi extends NPC
 			Gli scrittori dell&#146;I.A. non sono pagati');
 
 		$titles = array('<b>In reply to your letter</b>',
-						'<b>Antwort auf ihr Schreiben</b>',
-						'<b>Risposta alla sua lettera</b>');
+			'<b>Antwort auf ihr Schreiben</b>',
+			'<b>Risposta alla sua lettera</b>');
 
 		$this->ReplyToUser($titles,$messages);
 
@@ -744,7 +745,7 @@ class Ferengi extends NPC
 													Ricever&agrave; una giusta punizione.<br>
 													<br>--------------------------------------<br>
 													Massimo rispetto dalla Gilda del Commercio Ferengi';
-												$title = '<b>Scambio'.$schulden['code'].' vuoto</b>';
+												$title = '<b>Scambio'.$schulden['code'].' annullato</b>';
 											break;
 										}
 
