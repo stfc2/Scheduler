@@ -103,6 +103,10 @@ if(!$limit = $db->queryrow($sql)) {
 	$sdl->log('<b>Error:</b> Could not query user points data! CONTINUED');
 	$limit['user_points'] = 2000;
 }
+// Are there "big" players present?
+elseif($limit['user_points'] <= 2000) {
+	$limit['user_points'] = 2000;
+}
 
 // Who is ABOVE the threshold can have only one colony ship at a time!!!
 $sql = 'UPDATE user SET user_max_colo = 1 WHERE user_points > '.$limit['user_points'];
