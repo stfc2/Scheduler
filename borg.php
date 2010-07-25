@@ -45,7 +45,7 @@ define (BORG_CHANCE, 80); // Attack is not sistematic, leave a little chance
 
 define (BORG_MINATTACK, 10); // Attack only players with at least n planets
 
-define (BORG_BIGPLAYER, 2000); // Send a cube instead of spheres to player above this points
+define (BORG_BIGPLAYER, 20000); // Send a cube instead of spheres to player above this points
 
 /* ######################################################################################## */
 /* ######################################################################################## */
