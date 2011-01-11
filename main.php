@@ -330,7 +330,7 @@ $sdl->finish_job('Shiprepair Scheduler');
 
 $sdl->start_job('Shipscrap Scheduler');
 
-$sql = 'SELECT s.*,t.value_5,t.buildtime,t.resource_1,t.resource_2,t.resource_3,t.unit_5,t.unit_6 FROM (ships s) LEFT JOIN (ship_templates t) ON s.template_id=t.id
+$sql = 'SELECT s.*,t.id,t.value_5,t.buildtime,t.resource_1,t.resource_2,t.resource_3,t.unit_5,t.unit_6 FROM (ships s) LEFT JOIN (ship_templates t) ON s.template_id=t.id
 			WHERE s.ship_scrap>0 AND s.ship_scrap<= '.$ACTUAL_TICK;
 
 
@@ -360,7 +360,7 @@ if(!$db->query($sql)) {
 }
 else
 {
-    $sdl->log('<b>The ship <b>#'.$ship['ship_id'].'</b> on planet <b>#'.((-1)*$ship['fleet_id']).'</b> was dismantled successfully!');
+    $sdl->log('<b>The ship <b>#'.$ship['ship_id'].'('.$ship['id'].')</b> on planet <b>#'.((-1)*$ship['fleet_id']).'</b> was dismantled successfully!');
 
     $sql = 'UPDATE planets SET resource_1=resource_1+'.$res[0].', resource_2=resource_2+'.$res[1].', resource_3=resource_3+'.$res[2].',
                                unit_1=unit_1+'.$unit[0].',unit_2=unit_2+'.$unit[1].',unit_3=unit_3+'.$unit[2].',unit_4=unit_4+'.$unit[3].',unit_5=unit_5+'.$unit[4].',unit_6=unit_6+'.$unit[5].'
@@ -598,8 +598,8 @@ else {
 }
 
 if(!$db->query('UPDATE config SET tick_id = tick_id + 1, shipwreck_id=shipwreck_id+1, tick_securehash = "'.md5($ACTUAL_TICK).'", stardate = "'.$new_stardate.'"')) {
-    $sdl->log('- Could not update tick ID, Tick stopped, sent mail to admin@nonsolotaku.it');
-    mail('admin@nonsolotaku.it','STFC2: Tickstop','Tick '.$ACTUAL_TICK.' has been stopped.\nError message:\n'.$db->raise_error().'\n\nGreetings, STGC Scheduler');
+    $sdl->log('- Could not update tick ID, Tick stopped, sent mail to admin@stfc.it');
+    mail('admin@stfc.it','STFC2: Tickstop','Tick '.$ACTUAL_TICK.' has been stopped.\nError message:\n'.$db->raise_error().'\n\nGreetings, STGC Scheduler');
     $db->raise_error();
     $sdl->log('Tick '.$ACTUAL_TICK.' has (presumably) halted.<br>Error message:<br>'.$db->error['message'].'<br><br>Error Source: " UPDATE config SET tick_id = tick_id + 1, tick_securehash = "'.md5($ACTUAL_TICK).'" "<br><br>Greetings, STGC Scheduler');
     $db->query('UPDATE config SET tick_stopped = 1');
