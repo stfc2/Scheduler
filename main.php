@@ -560,6 +560,100 @@ unset($trade);
 $sdl->finish_job('Resourcetrade Scheduler');
 
 
+// ########################################################################################
+// ########################################################################################
+// Future Humans
+$sdl->start_job('Future Humans Setup&Maintenance');
+
+$sql = 'SELECT future_ship AS fhtemplate FROM config';
+if(($FHTemplate = $db->queryrow($sql)) === false) {
+    $sdl->log('<b>FH Error: (Critical)</b> Could not read Future Humans Ship Template_id - TICK EXECUTION CONTINUED');
+}
+elseif($FHTemplate['fhtemplate'] == 0)
+{
+    $sql = 'SELECT count(*) AS fhship_check FROM ship_templates WHERE template_id = '.$FHTemplate['fhtemplate'];
+    $result = $db->queryrow($sql);
+    if($result['fhship_check'] == 0)
+    {
+        // We put the Future Humans Ship Template in the DB
+        $sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
+                            component_1, component_2, component_3, component_4, component_5,
+                            component_6, component_7, component_8, component_9, component_10,
+                            value_1, value_2, value_3, value_4, value_5,
+                            value_6, value_7, value_8, value_9, value_10,
+                            value_11, value_12, value_13, value_14, value_15,
+                            resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
+                            min_unit_1, min_unit_2, min_unit_3, min_unit_4,
+                            max_unit_1, max_unit_2, max_unit_3, max_unit_4,
+                            buildtime, rof, max_torp)
+                VALUES ("'.FUTURE_HUMANS_UID.'","'.time().'","Prometeus","Anti-Borg, Multirole, Heavy Assault Ship",12,11,3,
+                        -1,-1,-1,-1,-1,
+                        -1,-1,-1,-1,-1,
+                        "5000","5000","280","21000","15000",
+                        "36","40","48","46","9.99",
+                        "65","0","480","480","0",
+                        "35000","300000","300000","2900","65","15",
+                        "150","100","85","15",
+                        "400","200","150","25",
+                        2000, 3, 500)';
+
+        if(!$db->query($sql)) $sdl->log('<b>FH Error: (Critical)</b> Could not write Future Humans Ship Template - TICK EXECUTION CONTINUED');
+
+        $newtemplateid = $db->queryrow('SELECT id FROM ship_templates WHERE owner = '.FUTURE_HUMANS_UID);
+
+        $db->query('UPDATE config SET future_ship = '.$newtemplateid['id']);
+
+        $sdl->log('Template created with id '.$newtemplateid['id']);
+    }
+}
+
+$sdl->finish_job('Future Humans Setup&Maintenance');
+
+// ########################################################################################
+// ########################################################################################
+// Future Humans Rewards System
+
+$sdl->start_job('Future Humans Rewards');
+
+$sql = 'SELECT future_ship AS fhtemplate FROM config';
+if(($FHTemplate = $db->queryrow($sql)) === false) {
+    $sdl->log('<b>FH Error: (Critical)</b> Could not read Future Humans Ship Template_id - TICK EXECUTION CONTINUED');
+}
+else
+{
+    $sql = 'SELECT id, value_9, value_5, min_unit_1, min_unit_2, min_unit_3, min_unit_4, rof, max_torp FROM ship_templates WHERE id = '.$FHTemplate['fhtemplate'];
+    $template = $db->queryrow($sql);
+    $sql = 'SELECT count(user_id) AS n_ships, user_id, target_planet_id FROM future_human_reward WHERE sent = 0 GROUP BY user_id';
+    $fh_stream = $db->query($sql);
+    while($player_to_serve = $db->fetchrow($fh_stream))
+    {
+        $sql = 'INSERT INTO ship_fleets (fleet_name, user_id, planet_id, n_ships)
+                VALUES ("Reward", '.$player_to_serve['user_id'].', '.$player_to_serve['target_planet_id'].', '.$player_to_serve['n_ships'].')';
+
+        if(!$db->query($sql)) {
+            $sdl->log(' - <b>Warning:</b> Could not create Reward Fleet for user '.$player_to_serve['user_id']);
+            continue;
+        }
+
+        $new_fleet_id = $db->insert_id();
+
+        for($i = 0; $i < $player_to_serve['n_ships']; $i++)
+        {
+            $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4, rof, torp, last_refit_time)
+                    VALUES ('.$new_fleet_id.', '.$player_to_serve['user_id'].', '.$template['id'].', '.$template['value_9'].', '.$template['value_5'].', '.$game->TIME.', '.$template['min_unit_1'].', '.$template['min_unit_2'].', '.$template['min_unit_3'].', '.$template['min_unit_4'].', '.$template['rof'].', '.$template['max_torp'].', '.$game->TIME.')';
+
+            if(!$db->query($sql)) {
+                $sdl->log(' - <b>Warning:</b> Could not Insert '.$player_to_serve['n_ships'].' Reward ship for user '.$player_to_serve['user_id']);
+                continue;
+            }
+        }
+
+        $sql = 'UPDATE future_human_reward SET sent = 1 WHERE user_id = '.$player_to_serve['user_id'];
+        $db->query($sql);
+    }
+}
+
+$sdl->finish_job('Future Humans Rewards');
 
 // ########################################################################################
 // ########################################################################################
@@ -1157,7 +1251,7 @@ $sdl->finish_job('Update Planets');
 $sdl->start_job('Update Planet Attacked Data');
 
 $sql = 'UPDATE planets
-        SET planet_next_attack = 0';
+        SET planet_next_attack = 0, planet_attack_ships = 0, planet_attack_type = 0';
 
 
 if(!$db->query($sql)) {
@@ -1265,7 +1359,7 @@ else {
         $travelled = 100 / $flight_duration * ($ACTUAL_TICK - $move['move_begin']);
 
         if($travelled < ($visibility +     ( (100 - $visibility) / 4) ) ) $move['n_ships'] = 0;
-        if($travelled < ($visibility + 2 * ( (100 - $visibility) / 4) ) ) $move['action_code'] = 0;
+        if(($travelled < ($visibility + 2 * ( (100 - $visibility) / 4) ) ) && $move['action_code'] != 46) $move['action_code'] = 0;
 
         $sql = 'UPDATE planets
                 SET planet_next_attack = '.(time() + ($move['move_finish'] - $ACTUAL_TICK) * 300).',
