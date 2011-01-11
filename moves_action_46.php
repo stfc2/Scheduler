@@ -171,7 +171,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
     }
 
     // 01/07/08 - AC: Count losses for each part
-    for($i = 0; $i < count($atk_fleets); ++$i) {
+    for($i = 0; $i < 5; ++$i) {
         $atk_losses[$i] = $atk_units[$i] - $atk_alive[$i];
         $dfd_losses[$i] = $dfd_units[$i] - $dfd_alive[$i];
     }
@@ -439,18 +439,33 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             $this->log(MV_M_DATABASE, 'Could not delete ship trade data! CONTINUE');
         }
 
+        if($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "n" || $this->dest['planet_type'] == "y") {
+            $def_tech_lev = 9;
+        }
+        elseif($this->dest['planet_type'] == "e" || $this->dest['planet_type'] == "f" || $this->dest['planet_type'] == "g") {
+            $def_tech_lev = 6;
+        }
+        else {
+            $def_tech_lev = 3;
+        }
+
         $sql = 'UPDATE planets
                 SET planet_owner = '.$this->move['user_id'].',
+                    planet_name = "Unimatrix #'.$this->move['dest'].'",
                     planet_owned_date = '.time().',
                     planet_owner_enum = '.($n_planets - 1).',
                     resource_4 = '.$ucmb[1][4].',
+                    planet_next_attack = 0,
+                    planet_attack_ships = 0,
+                    planet_attack_type = 0,
+                    research_3 = '.$def_tech_lev.',
                     recompute_static = 1,
-                    building_1 = '.$building_levels[0].',
+                    building_1 = 9,
                     building_2 = '.$building_levels[1].',
                     building_3 = '.$building_levels[2].',
                     building_4 = '.$building_levels[3].',
-                    building_5 = '.$building_levels[4].',
-                    building_6 = '.$building_levels[5].',
+                    building_5 = 9,
+                    building_6 = 9,
                     building_7 = '.$building_levels[6].',
                     building_8 = '.$building_levels[7].',
                     building_9 = '.$building_levels[8].',
@@ -477,6 +492,10 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                     catresearch_8 = 0,
                     catresearch_9 = 0,
                     catresearch_10 = 0,
+                    unittrainid_1 = 0, unittrainid_2 = 0, unittrainid_3 = 0, unittrainid_4 = 0, unittrainid_5 = 0, unittrainid_6 = 0, unittrainid_7 = 0, unittrainid_8 = 0, unittrainid_9 = 0, unittrainid_10 = 0, 
+                    unittrainnumber_1 = 0, unittrainnumber_2 = 0, unittrainnumber_3 = 0, unittrainnumber_4 = 0, unittrainnumber_5 = 0, unittrainnumber_6 = 0, unittrainnumber_7 = 0, unittrainnumber_8 = 0, unittrainnumber_9 = 0, unittrainnumber_10 = 0, 
+                    unittrainnumberleft_1 = 0, unittrainnumberleft_2 = 0, unittrainnumberleft_3 = 0, unittrainnumberleft_4 = 0, unittrainnumberleft_5 = 0, unittrainnumberleft_6 = 0, unittrainnumberleft_7 = 0, unittrainnumberleft_8 = 0, unittrainnumberleft_9 = 0, unittrainnumberleft_10 = 0, 
+                    unittrainendless_1 = 0, unittrainendless_2 = 0, unittrainendless_3 = 0, unittrainendless_4 = 0, unittrainendless_5 = 0, unittrainendless_6 = 0, unittrainendless_7 = 0, unittrainendless_8 = 0, unittrainendless_9 = 0, unittrainendless_10 = 0, 
                     unittrain_actual = 0,
                     unittrainid_nexttime=0,
                     planet_insurrection_time=0,
@@ -486,17 +505,20 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
         if(!$this->db->query($sql)) {
             return $this->log(MV_M_DATABASE, 'Could not update planets data! SKIP');
         }
-	
 
-// DC ---- Historycal record in planet_details, with label '29'
+
+// DC >>>> Historycal record in planet_details, with label '29'
         $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code, defeat_uid, defeat_aid)
                 VALUES ('.$this->move['dest'].', 0, 0, 0, 0, '.time().', 29,'.$this->dest['user_id'].', '.$this->dest['user_alliance'].')';
 
         if(!$this->db->query($sql)) {
             $this->log(MV_M_DATABASE, 'Could not update planet details data! CONTINUE');
         }
-// DC ----
-
+// DC <<<<
+// DC >>>> Update borg_target table; the $this->dest['user_id'] entry may not exists, so do not check error
+        $sql = 'UPDATE borg_target SET planets_back = planets_back + 1, under_attack = under_attack - 1 WHERE user_id = '.$this->dest['user_id'];
+        $this->db->query($sql);
+// DC <<<<
 
         if(!$this->db->query('SET @i=0')) {
             return $this->log(MV_M_DATABASE, 'Could not set sql iterator variable for planet owner enum (the invading player)! SKIP');
