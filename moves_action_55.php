@@ -830,6 +830,46 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
                 send_premonition_to_user($this->move['user_id']);
 
+                $sql = 'SELECT * FROM borg_target WHERE user_id = '.$this->move['user_id'];
+                $bot_target_data = $this->db->query($sql);
+                $already_acquired = $this->db->num_rows($bot_target_data);
+                if($already_acquired < 1)
+                {
+                    $honor_prize = ($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "n" ? 40 : 15);
+                    $sql='INSERT INTO borg_target (user_id, planets_taken) VALUES ('.$this->move['user_id'].', 1)';
+                    $this->db->query($sql);
+                }
+                else
+                {
+                    $honor_bonus_data = $this->db->fetchrow($bot_target_data);
+                    // Tenere aggiornati i valori qui indicati con quelli presenti in borg.php
+                    if($honor_bonus_data['threat_level'] > 1000.0)
+                        $honor_bonus = 5.0;
+                    elseif($honor_bonus_data['threat_level'] > 750.0)
+                        $honor_bonus = 3.0;
+                    elseif($honor_bonus_data['threat_level'] > 450.0)
+                        $honor_bonus = 2.0;
+                    elseif($honor_bonus_data['threat_level'] > 200.0)
+                        $honor_bonus = 1.5;
+                    else
+                        $honor_bonus = 1.0;
+                    $honor_prize = ($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "n" ? 40 : 15) * $honor_bonus;
+                    $sql='UPDATE borg_target SET planets_taken = planets_taken + 1 WHERE user_id = '.$this->move['user_id'];
+                    $this->db->query($sql);
+                }
+
+                $sql = 'UPDATE user SET user_honor = user_honor + '.$honor_prize.' WHERE user_id = '.$this->move['user_id'];
+                if(!$this->db->query($sql)) {
+                    $this->log(MV_M_DATABASE, 'Could not update user honor data! CONTINUE');
+                }
+                if(isset($this->move['user_alliance'])&& !empty($this->move['user_alliance']))
+                {
+                    $sql = 'UPDATE alliance SET alliance_honor = alliance_honor + '.$honor_prize.' WHERE alliance_id = '.$this->move['user_alliance'];
+                    if(!$this->db->query($sql)) {
+                        $this->log(MV_M_DATABASE, 'Could not update alliance honor data! CONTINUE');
+                    }
+                }
+
                 // #############################################################################
                 // 03/04/08 - AC: Retrieve player language
                 switch($this->move['language'])
