@@ -108,10 +108,10 @@ elseif($limit['user_points'] <= 2000) {
 	$limit['user_points'] = 2000;
 }
 
-// Who is ABOVE the threshold can have only one colony ship at a time!!!
-$sql = 'UPDATE user SET user_max_colo = 1 WHERE user_points > '.$limit['user_points'];
+// Who is ABOVE the threshold can have only five colony ship at a time!!!
+$sql = 'UPDATE user SET user_max_colo = 5 WHERE user_points > '.$limit['user_points'];
 if(!$db->query($sql))
-	$sdl->log('<b>Error:</b> Cannot set user_max_colo to 1! CONTINUED');
+	$sdl->log('<b>Error:</b> Cannot set user_max_colo to 5! CONTINUED');
 
 //Who is equal to or smaller than the threshold, can do as many colony ship as he want!!!
 $sql = 'UPDATE user SET user_max_colo = 0 WHERE user_points <= '.$limit['user_points'];
