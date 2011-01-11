@@ -160,8 +160,54 @@ $sdl->finish_job('Recalculate security forces');
 
 
 
+$sdl->start_job('Unimatrix Zero Maintenance');
+
+$sql = 'SELECT COUNT(*) AS counter FROM planets WHERE planet_owner = '.BORG_USERID;
+$borg_planets = $db->queryrow($sql);
+
+$sql = 'SELECT ship_template3 AS tact_cube, ship_template2 AS standard_cube from borg_bot WHERE user_id = '.BORG_USERID;
+$borg_tp = $db->queryrow($sql);
+
+$sql = 'SELECT fleet_id FROM ship_fleets WHERE fleet_name LIKE "Unimatrix Zero" AND user_id = '.BORG_USERID;
+$borg_fleet = $db->queryrow($sql);
+
+// Tactical Cubes Check
+$sql = 'SELECT COUNT(*) AS counter FROM ships WHERE user_id = '.BORG_USERID.' AND template_id = '.$borg_tp['tact_cube']; // Tactical Cubes are only in Unimatrix Zero Fleet
+$borg_tact_num = $db->queryrow($sql);
+$tactical_counter = round((($borg_planets['counter'] - 1) / 35), 0) + 1;
+$sdl->log('Unimatrix Zero Tact Cube count is: '.$tactical_counter);
+if($tactical_counter > $borg_tact_num['counter'])
+{
+	// We add ONE Tactical Cube
+	$sql = 'SELECT value_5, value_9, max_torp, rof FROM ship_templates WHERE id = '.$borg_tp['tact_cube'];
+	$borg_tact_tp = $db->queryrow($sql);
+	$sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, last_refit_time)
+	        VALUES ('.$borg_fleet['fleet_id'].', '.BORG_USERID.', '.$borg_tp['tact_cube'].', '.$borg_tact_tp['value_9'].', '.$borg_tact_tp['value_5'].', '.time().', '.$borg_tact_tp['max_torp'].', '.$borg_tact_tp['rof'].', '.time().')';
+	$db->query($sql);
+}
+
+//Standard Cubes Check
+$sql = 'SELECT COUNT(*) AS counter FROM ships WHERE user_id = '.BORG_USERID.' AND fleet_id = '.$borg_fleet['fleet_id'].' AND template_id = '.$borg_tp['standard_cube']; 
+$borg_std_num = $db->queryrow($sql);
+$standard_counter = round((($borg_planets['counter'] - 1) / 5), 0);
+$sdl->log('Unimatrix Zero Standard Cube count is: '.$standard_counter);
+if($standard_counter > $borg_std_num['counter'])
+{
+	// We add up to FIVE Cubes
+	$to_add_counter = $standard_counter - $borg_std_num['counter'];
+	if($to_add_counter > 5) $to_add_counter = 5;
+	$sql = 'SELECT value_5, value_9, max_torp, rof FROM ship_templates WHERE id = '.$borg_tp['standard_cube'];
+	$borg_std_tp = $db->queryrow($sql);
+	for($i = 0; $i < $to_add_counter; $i++)
+	{
+		$sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, last_refit_time)
+		        VALUES ('.$borg_fleet['fleet_id'].', '.BORG_USERID.', '.$borg_tp['standard_cube'].', '.$borg_std_tp['value_9'].', '.$borg_std_tp['value_5'].', '.time().', '.$borg_std_tp['max_torp'].', '.$borg_std_tp['rof'].', '.time().')';
+		$db->query($sql);
+	}
+}
 
 
+$sdl->finish_job('Unimatrix Zero Maintenance');
 
 
 
