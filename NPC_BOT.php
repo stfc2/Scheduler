@@ -76,7 +76,7 @@ class NPC
 
 		return true;
 	}
-	
+
 	function ChangePassword()
 	{
 		$this->sdl->start_job('PW change', TICK_LOG_FILE_NPC);
@@ -192,7 +192,7 @@ class NPC
 		$this->sdl->finish_job('Sensors monitor', TICK_LOG_FILE_NPC);
 	}
 
-	function CreateFleet($name,$template,$num)
+	function CreateFleet($name,$template,$num,$planet_id = $this->bot['planet_id'])
 	{
 		$this->sdl->log('Check fleet "'.$name.'" composition', TICK_LOG_FILE_NPC);
 		$query='SELECT fleet_id FROM `ship_fleets` WHERE fleet_name="'.$name.'" AND user_id='.$this->bot['user_id'].' LIMIT 0, 1';
@@ -200,7 +200,7 @@ class NPC
 		if($this->db->num_rows()<=0)
 		{
 			$sql = 'INSERT INTO ship_fleets (fleet_name, user_id, planet_id, move_id, n_ships)
-				VALUES ("'.$name.'", '.$this->bot['user_id'].', '.$this->bot['planet_id'].', 0, '.$num.')';
+				VALUES ("'.$name.'", '.$this->bot['user_id'].', '.$planet_id.', 0, '.$num.')';
 			if(!$this->db->query($sql))
 				$this->sdl->log('<b>Error:</b> Could not insert new fleet data', TICK_LOG_FILE_NPC);
 			$fleet_id = $this->db->insert_id();
@@ -212,10 +212,11 @@ class NPC
 				$this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql, TICK_LOG_FILE_NPC);
 
 			$sql= 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time,
-			                          unit_1, unit_2, unit_3, unit_4)
+			                          rof, torp, unit_1, unit_2, unit_3, unit_4)
 			       VALUES ('.$fleet_id.', '.$this->bot['user_id'].', '.$template.', '.$stpl['value_9'].',
-			               '.$stpl['value_5'].', '.time().', '.$stpl['min_unit_1'].', '.$stpl['min_unit_2'].',
-			               '.$stpl['min_unit_3'].', '.$stpl['min_unit_4'].')';
+			               '.$stpl['value_5'].', '.time().', '.$stpl['rof'].', '.$stpl['max_torp'].', 
+			               '.$stpl['max_unit_1'].', '.$stpl['max_unit_2'].',
+			               '.$stpl['max_unit_3'].', '.$stpl['max_unit_4'].')';
 			for($i = 0; $i < $num; ++$i)
 			{
 				if(!$this->db->query($sql)) {
@@ -251,9 +252,9 @@ class NPC
 
 			$units_str = $stpl['min_unit_1'].', '.$stpl['min_unit_2'].', '.$stpl['min_unit_3'].', '.$stpl['min_unit_4'];
 			$sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience,
-			                           hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
+			                           hitpoints, construction_time, rof, torp, unit_1, unit_2, unit_3, unit_4)
 			        VALUES ('.$fleet['fleet_id'].', '.$this->bot['user_id'].', '.$template.', '.$stpl['value_9'].',
-			                '.$stpl['value_5'].', '.time().', '.$units_str.')';
+			                '.$stpl['value_5'].', '.time().', '.$stpl['rof'].', '.$stpl['max_torp'].', '.$units_str.')';
 
 			for($i = 0; $i < $needed; ++$i)
 			{
@@ -262,6 +263,19 @@ class NPC
 				}
 			}
 			$this->sdl->log('Fleet: '.$fleet['fleet_id'].' - updated to '.$needed.' ships', TICK_LOG_FILE_NPC);
+		}
+	}
+
+	function RepairFleet($name)
+	{
+		$query='SELECT fleet_id, n_ships FROM `ship_fleets` WHERE fleet_name="'.$name.'" and user_id='.$this->bot['user_id'].' LIMIT 0, 1';
+		$fleet=$this->db->queryrow($query);
+		$sql='SELECT s.ship_id, st.value_5, st.max_torp FROM ships s LEFT JOIN ship_templates st ON s.template_id = st.id WHERE fleet_id = '.$fleet['fleet_id'];
+		$ships=$this->db->query($sql);
+		while($ship_to_check = $this->db->fetchrow($ships))
+		{
+			$sql='UPDATE ships SET hitpoints = '.$ship_to_check['value_5'].', torp = '.$ship_to_check['max_torp'].' WHERE ship_id = '.$ship_to_check['ship_id'];
+			$this->db->query($sql);
 		}
 	}
 
