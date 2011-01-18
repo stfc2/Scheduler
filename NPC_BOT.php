@@ -192,8 +192,11 @@ class NPC
 		$this->sdl->finish_job('Sensors monitor', TICK_LOG_FILE_NPC);
 	}
 
-	function CreateFleet($name,$template,$num,$planet_id = $this->bot['planet_id'])
+	function CreateFleet($name,$template,$num,$planet_id = 0)
 	{
+		// No planet? Assume Bot's one
+		if($planet_id == 0) $planet_id = $this->bot['planet_id'];
+
 		$this->sdl->log('Check fleet "'.$name.'" composition', TICK_LOG_FILE_NPC);
 		$query='SELECT fleet_id FROM `ship_fleets` WHERE fleet_name="'.$name.'" AND user_id='.$this->bot['user_id'].' LIMIT 0, 1';
 		$q_fleet = $this->db->query($query);
