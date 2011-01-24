@@ -1797,7 +1797,9 @@ if(!$db->query($sql)) {
 // New set of last_active / last_ip after returning from holiday mode
 $sql = 'UPDATE user
         SET last_active = '.$game->TIME.',
-            last_ip = "0.0.0.0"
+            last_ip = "0.0.0.0",
+            user_last_vacation = user_vacation_start,
+            user_last_vacation_duration = (((user_vacation_end - user_vacation_start) * '.TICK_DURATION.') / 10080)
         WHERE user_vacation_end = '.$ACTUAL_TICK;
 
 if(!$db->query($sql)) {
