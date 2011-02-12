@@ -683,8 +683,6 @@ class Borg extends NPC
 				}
 			$this->sdl->log('Unimatrix Zero Fleet has been created!!!', TICK_LOG_FILE_NPC);	
 		}
-		// Increasing Unimatrix Zero fleet size
-		// We add 1 Tactical Cube for every 40 borg planets, 1 Cube for every 10 borg planets
 		
 		$this->sdl->finish_job('Creating Unimatrix Zero Fleet', TICK_LOG_FILE_NPC);
 		// ########################################################################################
@@ -922,16 +920,16 @@ class Borg extends NPC
 
 		$this->sdl->start_job('Settlers Assimilation Program - BETA -', TICK_LOG_FILE_NPC);
 
-		$sql = 'SELECT count(*) as user_planets FROM planets WHERE planet_owner = '.INDEPENDENT_USERID;
+		$sql = 'SELECT count(*) as user_planets FROM planets WHERE planet_owner = '.BORG_USERID;
 
 		if(($res = $this->db->queryrow($sql)) === false)
 		{
-			$this->sdl->log('<b>Error:</b> Bot: Could not read Indipendent User data', TICK_LOG_FILE_NPC);
+			$this->sdl->log('<b>Error:</b> Bot: Could not read Borg data', TICK_LOG_FILE_NPC);
 		}
-		elseif($res['user_planets'] > 250)
+		elseif($res['user_planets'] < 401)
 		{ // Begin Settlers Assimilation Program Main Loop
 
-			$this->sdl->log('DEBUG: Indipendent Planet Count: '.$res['user_planets'], TICK_LOG_FILE_NPC );
+			$this->sdl->log('DEBUG: Borg Planet Count: '.$res['user_planets'], TICK_LOG_FILE_NPC );
 
 			$sql='SELECT * FROM ship_fleets WHERE npc_last_action < '.$ACTUAL_TICK.' AND user_id = '.BORG_USERID.' AND move_id = 0 AND fleet_name LIKE "%Fleet Node%" ORDER BY npc_last_action ASC LIMIT 0, 1';
 
@@ -999,8 +997,8 @@ class Borg extends NPC
 		if(isset($primary_target['user_id']) && !empty($primary_target['user_id']))
 		{
 			// Checking existing attacks on the way
-			$sql = "SELECT COUNT(*) as live_attack FROM scheduler_shipmovement sm INNER JOIN planets p ON sm.dest = p.planet_id\n"
-			     . "WHERE sm.user_id = ".BORG_USERID." AND action_code = 46 AND move_status = 0 AND move_exec_started = 0 AND p.planet_owner = ".$primary_target['user_id'];
+			$sql = 'SELECT COUNT(*) as live_attack FROM scheduler_shipmovement sm INNER JOIN planets p ON sm.dest = p.planet_id
+			        WHERE sm.user_id = '.BORG_USERID.' AND action_code = 46 AND move_status = 0 AND move_exec_started = 0 AND p.planet_owner = '.$primary_target['user_id'];
 			$res0 = $this->db->queryrow($sql);
 			$live_attack = $res0['live_attack'];
 
@@ -1012,7 +1010,7 @@ class Borg extends NPC
 			$bad_factor = round((25*$primary_target['planets_taken'] + 0.1*$res1['class2_ships'] + 0.3*$res2['class3_ships']),3);
 			$this->sdl->log('<b>DEBUG:</b> USER '.$primary_target['user_id'].' got '.$bad_factor.' as bad_factor', TICK_LOG_FILE_NPC);
 
-			$good_factor = round((70*$primary_target['planets_back'] + 25*$primary_target['under_attack']),3) ;
+			$good_factor = round((70*$primary_target['planets_back'] + 9*$primary_target['under_attack']),3) ;
 			$this->sdl->log('<b>DEBUG:</b> USER '.$primary_target['user_id'].' got '.$good_factor.' as good_factor', TICK_LOG_FILE_NPC);
 
 			$threat_level = $bad_factor - $good_factor;
@@ -1021,35 +1019,36 @@ class Borg extends NPC
 
 			$max_attack = 0;
 
-			if($threat_level > 1000.0)
+			if($threat_level > 1400.0)
 			{
 				$sql = 'SELECT * FROM ship_fleets WHERE npc_last_action < '.($ACTUAL_TICK + 480).' AND user_id = '.BORG_USERID.' AND move_id = 0 AND fleet_name LIKE "%Fleet Node%" ORDER BY npc_last_action ASC LIMIT 0, 3';
 				$attack_fleet_query = $this->db->query($sql);
-				$sort_string = 'ORDER BY p.planet_points DESC';
+				$sort_string = ' ORDER BY planet_points DESC';
 				$max_attack = 3;
 			}
-			else if($threat_level > 750.0)
+			else if($threat_level > 950.0)
 			{
 				$sql = 'SELECT * FROM ship_fleets WHERE npc_last_action < '.($ACTUAL_TICK + 240).' AND user_id = '.BORG_USERID.' AND move_id = 0 AND fleet_name LIKE "%Fleet Node%" ORDER BY npc_last_action ASC LIMIT 0, 3';
 				$attack_fleet_query = $this->db->query($sql);
-				$sort_string = 'p.planet_type NOT IN("m", "n") ORDER BY p.planet_points DESC';
+				$sort_string = ' AND p.planet_type NOT IN("m", "n") ORDER BY planet_points DESC';
 				$max_attack = 3;
 			}
 			else if($threat_level > 450.0)
 			{
 				$sql = 'SELECT * FROM ship_fleets WHERE npc_last_action < '.($ACTUAL_TICK + 80).' AND user_id = '.BORG_USERID.' AND move_id = 0 AND fleet_name LIKE "%Fleet Node%" ORDER BY npc_last_action ASC LIMIT 0, 2';
 				$attack_fleet_query = $this->db->query($sql);
-				$sort_string = 'p.planet_type NOT IN("m", "n") ORDER BY p.planet_points ASC LIMIT 0,10';
+				$sort_string = ' AND p.planet_type NOT IN("m", "n") ORDER BY planet_points ASC LIMIT 0,10';
 				$max_attack = 2;
 			}
 			else if($threat_level > 200.0)
 			{
-				$sql = 'SELECT * FROM ship_fleets WHERE npc_last_action < '.$ACTUAL_TICK.' AND user_id = '.BORG_USERID.' AND move_id = 0 AND fleet_name LIKE "%Fleet Node%" ORDER BY npc_last_action ASC LIMIT 0, 1';
+				$sql = 'SELECT * FROM ship_fleets WHERE npc_last_action < '.$ACTUAL_TICK.' AND n_ships = 1 AND user_id = '.BORG_USERID.' AND move_id = 0 AND fleet_name LIKE "%Fleet Node%" ORDER BY npc_last_action ASC LIMIT 0, 1';
 				$attack_fleet_query = $this->db->query($sql);
-				$sort_string = 'p.planet_type NOT IN("m", "n", "y") AND p.planet_points < 300 ORDER BY planet_points ASC LIMIT 0,5';
+				$sort_string = ' AND p.planet_type NOT IN("m", "n", "y") AND planet_points < 300 ORDER BY planet_points ASC LIMIT 0,5';
 				$max_attack = 1;
 			}
 
+			$this->sdl->log('<b>DEBUG:</b> USER '.$primary_target['user_id'].' has '.$live_attack.' live attacks at the moment', TICK_LOG_FILE_NPC);
 			// Attacking Sequence starts here!
 			while(($attack_fleet_data = $this->db->fetchrow($attack_fleet_query)) && ($live_attack < $max_attack))
 			{
@@ -1058,7 +1057,7 @@ class Borg extends NPC
 
 				$fleetpos = $this->db->queryrow($sql);
 
-				$sql = 'SELECT p.planet_id, p.planet_attack_type, s.system_global_x, s.system_global_y FROM (planets p) INNER JOIN (starsystems s) ON s.system_id = p.system_id WHERE p.planet_owner = '.$primary_target['user_id'].' AND '.$sort_string;
+				$sql = 'SELECT p.planet_id, p.planet_attack_type, s.system_global_x, s.system_global_y FROM (planets p) INNER JOIN (starsystems s) ON s.system_id = p.system_id WHERE p.planet_owner = '.$primary_target['user_id'].$sort_string;
 
 				$target_query = $this->db->query($sql);
 
