@@ -81,7 +81,7 @@ if(!$db->query($sql)) {
 
 
 $sql = 'SELECT ss.*,
-               u.user_name, u.user_active, u.user_race, u.user_alliance, u.user_planets
+               u.user_name, u.user_active, u.user_race, u.user_alliance, u.user_alliance_status, u.user_planets
         FROM (scheduler_shipmovement ss)
         INNER JOIN user u ON u.user_id = ss.user_id
         WHERE ss.move_finish <= '.$CURRENT_TICK.' AND
