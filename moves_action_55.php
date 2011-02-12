@@ -828,7 +828,8 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                     }
                 }
 
-                send_premonition_to_user($this->move['user_id']);
+                $num_item = ($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "n" ? 2 : 1);
+                send_premonition_to_user($this->move['user_id'], $num_item);
 
                 $sql = 'SELECT * FROM borg_target WHERE user_id = '.$this->move['user_id'];
                 $bot_target_data = $this->db->query($sql);
@@ -843,9 +844,9 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                 {
                     $honor_bonus_data = $this->db->fetchrow($bot_target_data);
                     // Tenere aggiornati i valori qui indicati con quelli presenti in borg.php
-                    if($honor_bonus_data['threat_level'] > 1000.0)
+                    if($honor_bonus_data['threat_level'] > 1400.0)
                         $honor_bonus = 5.0;
-                    elseif($honor_bonus_data['threat_level'] > 750.0)
+                    elseif($honor_bonus_data['threat_level'] > 950.0)
                         $honor_bonus = 3.0;
                     elseif($honor_bonus_data['threat_level'] > 450.0)
                         $honor_bonus = 2.0;
