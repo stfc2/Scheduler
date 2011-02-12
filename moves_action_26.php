@@ -72,7 +72,7 @@ class moves_action_26 extends moves_common {
 		}
 
 
-		$sql = 'SELECT * FROM planets WHERE planet_id = '.$this->move['dest'];
+		$sql = 'SELECT ss.system_name, p.* FROM planets p LEFT JOIN starsystems ss ON p.system_id = ss.system_id WHERE planet_id = '.$this->move['dest'];
 
 		if(($survey_data = $this->db->queryrow($sql)) == false) {
 			return $this->log(MV_M_DATABASE, 'Could not read planet data! SKIP');
@@ -126,17 +126,17 @@ class moves_action_26 extends moves_common {
 		switch($this->move['language'])
 		{
 			case 'GER':
-				$log_title = 'Forschungsauftrag';
+				$log_title = 'Exploration of planet class '.strtoupper($survey_data['planet_type']).', '.$survey_data['system_name'];
 				$log_msg1 = 'Forschungs-Verh&auml;ltnis vom Schiff';
 				$log_msg2 = 'Geologische Erforschung- und Verwandt&uuml;bersichten zum Kategorienplaneten';
 			break;
 			case 'ITA':
-				$log_title = 'Missione Esplorativa';
+				$log_title = 'Esplorazione pianeta classe '.strtoupper($survey_data['planet_type']).', '.$survey_data['system_name'];
 				$log_msg1 = 'Rapporto esplorativo dalla nave';
 				$log_msg2 = 'Esplorazione e rilevamenti geologici relativi al pianeta di classe';
 			break;
 			default:
-				$log_title = 'Exploratory Mission';
+				$log_title = 'Exploration of planet class '.strtoupper($survey_data['planet_type']).', '.$survey_data['system_name'];
 				$log_msg1 = 'Exploratory relationship from the ship';
 				$log_msg2 = 'Geologic exploration and relative surveys to the planet of class';
 			break;
@@ -150,26 +150,6 @@ class moves_action_26 extends moves_common {
 		$log_data[13] = $_survey3;
 
 		add_logbook_entry($this->move['user_id'],  LOGBOOK_TACTICAL_2, $log_title, $log_data);
-
-
-		/*
-		// Smistiamo le informazioni all'alleanza, se desiderato
-		if($this->action_data['share'] == 1) {
-			$sql = 'SELECT `user_id` FROM `user` WHERE `user_alliance` = '.$this->move['user_alliance'].' AND `user_id` <> '.$this->move['user_id'];
-			if(($share_ally = $this->db->query($sql)) === false) {
-				return $this->log(MV_M_DATABASE, 'Could not read alliance members data!');
-			}
-			while($share_ally = $this->db->fetchrow($sql)) {
-				$sql_ally = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, survey_1, survey_2, survey_3)'
-				.'VALUES ('.$this->move['dest'].', '.$share_ally['user_id'].', '.$this->move['user_alliance'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.time().', '.$survey_data['rateo_1'].', '.$survey_data['rateo_2'].', '.$survey_data['rateo_3'].')';
-				if(!$this->db->query($sql_ally) {
-					return $this->log(MV_M_DATABASE, 'Could not INSERT survey planet data!');
-				}
-				
-			}
-			
-		}
-		*/
 
 		$sql = 'UPDATE ship_fleets
 		        SET planet_id = '.$this->move['dest'].',
