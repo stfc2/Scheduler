@@ -998,7 +998,11 @@ class Borg extends NPC
 		{
 			// Checking existing attacks on the way
 			$sql = 'SELECT COUNT(*) as live_attack FROM scheduler_shipmovement sm INNER JOIN planets p ON sm.dest = p.planet_id
-			        WHERE sm.user_id = '.BORG_USERID.' AND action_code = 46 AND move_status = 0 AND move_exec_started = 0 AND p.planet_owner = '.$primary_target['user_id'];
+			        WHERE sm.user_id = '.BORG_USERID.' AND
+			              action_code = 46 AND
+			              move_status = 0 AND
+			              move_exec_started = 0 AND
+			              p.planet_owner = '.$primary_target['user_id'];
 			$res0 = $this->db->queryrow($sql);
 			$live_attack = $res0['live_attack'];
 
