@@ -214,8 +214,9 @@ $sdl->start_job('Buildings / Research level fix');
 
 if (isset($MAX_BUILDING_LVL))
 {
+    $count = 0;
 
-    $qry=$db->query('SELECT p.*,u.user_capital,u.pending_capital_choice FROM (planets p) LEFT JOIN (user u) ON u.user_id=p.planet_owner ORDER BY planet_id ASC');
+    $qry=$db->query('SELECT p.*,u.user_capital,u.pending_capital_choice FROM (planets p) LEFT JOIN (user u) ON u.user_id=p.planet_owner WHERE p.planet_owner<>0 ORDER BY planet_id ASC');
 
     while (($planet = $db->fetchrow($qry)) != false)
     {
@@ -231,23 +232,29 @@ if (isset($MAX_BUILDING_LVL))
         {
             if ($MAX_BUILDING_LVL[$capital][$t]<$planet['building_'.($t+1)])
             {
-                if ($MAX_BUILDING_LVL[$capital][$t]>=9)
+                if ($MAX_BUILDING_LVL[$capital][$t]>=9) {
                     $db->query('UPDATE planets SET building_'.($t+1).'='.$MAX_BUILDING_LVL[$capital][$t].' WHERE planet_id='.$planet['planet_id']);
+                    $count++;
+                }
             }
 
             if ($planet['building_'.($t+1)]<0)
             {
                 $db->query('UPDATE planets SET building_'.($t+1).'=0 WHERE planet_id='.$planet['planet_id']);
+                $count++;
             }
         }
 
         for ($t=0;$t<5;$t++)
             if ($MAX_RESEARCH_LVL[$capital][$t]<$planet['research_'.($t+1)])
             {
-                if ($MAX_RESEARCH_LVL[$capital][$t]>=9)
+                if ($MAX_RESEARCH_LVL[$capital][$t]>=9) {
                     $db->query('UPDATE planets SET research_'.($t+1).'='.$MAX_RESEARCH_LVL[$capital][$t].' WHERE planet_id='.$planet['planet_id']);
+                    $count++;
+                }
             }
     }
+    if ($count) $sdl->log($count.' buildings/researches has been fixed');
 }
 $sdl->finish_job('Buildings / Research level fix');
 
