@@ -25,135 +25,253 @@
 
 class moves_action_27 extends moves_common {
 
-	function _action_main() {
+    function _action_main() {
 
-		global $PLANETS_DATA;
+        global $PLANETS_DATA;
 
-		// #############################################################################
-		// Away Team Missions!!!
-		//
-		// Beam us down! Energy!
-		//
-		//#############################################################################
+        // #############################################################################
+        // Away Team Missions!!!
+        //
+        // Beam us down! Energy!
+        //
+        //#############################################################################
 
-		$sql = 'SELECT s.ship_name, s.experience, s.ship_id, t.name FROM ship_fleets f
-		               LEFT JOIN ships s ON s.fleet_id = f.fleet_id
-		               LEFT JOIN ship_templates t ON t.id = s.template_id
-		        WHERE f.fleet_id IN ('.$this->fleet_ids_str.')';
+        $sql = 'SELECT s.ship_name, s.experience, s.ship_id, t.name FROM ship_fleets f
+                       LEFT JOIN ships s ON s.fleet_id = f.fleet_id
+                       LEFT JOIN ship_templates t ON t.id = s.template_id
+                WHERE f.fleet_id IN ('.$this->fleet_ids_str.')';
 
-		if(($ship_details = $this->db->queryrow($sql)) == false) {
-			$this->log(MV_M_DATABASE, 'Could not read ship name! CONTINUE');
-			$name_of_ship = '<i>Sconosciuto</i>';
-		}
-		else {
-			if(!empty($ship_details['ship_name'])) {
-				$name_of_ship = '<b>'.$ship_details['ship_name'].'</b>';
-			}
-			else {
-				$name_of_ship = '<b><i>&#171;'.$ship_details['name'].'&#187;</i></b>';
-			}
-		}
-		// Check Action Code
-		if(empty($this->action_data[0])) {
+        if(($ship_details = $this->db->queryrow($sql)) == false) {
+            $this->log(MV_M_DATABASE, 'Could not read ship name! CONTINUE');
+            $name_of_ship = '<i>Sconosciuto</i>';
+        }
+        else {
+            if(!empty($ship_details['ship_name'])) {
+                $name_of_ship = '<b>'.$ship_details['ship_name'].'</b>';
+            }
+            else {
+                $name_of_ship = '<b><i>&#171;'.$ship_details['name'].'&#187;</i></b>';
+            }
+        }
+        // Check Action Code
+        if(!isset($this->action_data[0])) {
             $this->log(MV_M_DATABASE, 'action_27: Could not find required action_data entry [0]! FORCED TO ZERO');
             $this->action_data[0] = 0;
         }
         
-        switch($this->action_data[0]){
-	        case 0:
-	        	// Calcolo Exp per missione
-				if($ship_details['experience'] < 65) {
+        /**
+         * Check planet's mood.
+         */
 
-					$actual_exp = $ship_details['experience'];
+        // The mood of the planet is calculated by adding racial modifiers, alliance
+        // modifiers (if any) and player's one
 
-					$exp = (2.5/((float)$actual_exp*0.0635))+0.6;
-						$sql = 'UPDATE ships SET experience = experience+'.$exp.' WHERE ship_id = '.$ship_details['ship_id'];
-
-//					$this->log(MV_M_NOTICE, 'SQL per update EXP: '.$sql);
-		
-					if(!$this->db->query($sql)) {
-						$this->log(MV_M_DATABASE, 'Could not update ship exp! CONTINUE');
-					}
-
-				}
-	          	// Primo Contatto
-	          	switch($this->move['language'])
-        		{
-            	case 'GER':
-                	$f_c_title = 'First contact on ';
-                	$f_c_fail = ' failed';
-                	$f_c_success = ' done';
-            	break;
-            	case 'ITA':
-                	$f_c_title = 'Primo contatto su ';
-                	$f_c_fail = ' fallito';
-                	$f_c_success = ' avvenuto';
-            	break;
-            	default:
-                	$f_c_title = 'First contact on ';
-                	$f_c_fail = ' failed';
-                	$f_c_success = ' done';
-            	break;
-        		}
-	        	
-				// Controllo del mood del pianeta
-				$log_data = array(27, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], 0);
-				
-				$sql = 'SELECT mood_race'.$this->move['user_race'].' AS mood_race FROM planet_details WHERE planet_id = '.$this->move['dest'].' AND log_code = 300';
-				if(($mood_data = $this->db->queryrow($sql)) == false) {
-					return $this->log(MV_M_DATABASE, 'Could not read planet data! SKIP');
-				}
-				
-				if($mood_data['mood_race'] > 105) {
-					// Mossa non valida. Il mood supera già i 105 punti.
-					$log_data[8] = -1;
-	        		add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $f_c_title.$this->dest['planet_name'].$f_c_fail, $log_data);
-				}
-				else
-				{
-					// Mossa valida. Calcoliamo il fattore random di riuscita della missione.
-					$outcome = mt_rand(0, 100);					
-				
-					if($mood_data['mood_race'] >= $outcome)  {
-						// Missione riuscita
-						// Aggiorniamo il log_code 300 del pianeta
-						$sql = 'UPDATE planet_details SET mood_race'.$this->move['user_race'].' = mood_race'.$this->move['user_race'].' + '.(mt_rand(1, 3)).' WHERE planet_id = '.$this->move['dest'].' AND log_code = 300';
-						if(!$this->db->query($sql)) {
-							return $this->log(MV_M_DATABASE, 'Could not update planet mood! SKIP!!!');
-						}
-						// Calcolo Exp per missione
-						if($ship_details['experience'] < 75) {
-							$actual_exp = $ship_details['experience'];
-							$exp = (2.5/((float)$actual_exp*0.0635))+0.6;
-							$sql = 'UPDATE ships SET experience = experience+'.$exp.' WHERE ship_id = '.$ship_details['ship_id'];
-							if(!$this->db->query($sql)) {
-								return $this->log(MV_M_DATABASE, 'Could not update ship exp! SKIP');
-							}
-						}
-						$log_data[8] = 1;
-	        			add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $f_c_title.$this->dest['planet_name'].$f_c_success, $log_data);
-					}
-					else
-					{
-						// Missione fallita!
-						$log_data[8] = -2;
-	        			add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $f_c_title.$this->dest['planet_name'].$f_c_fail, $log_data);
-					}
-				}
-	        	break;
+        // Racial mood
+        $sql = 'SELECT SUM(mood_modifier) AS mood_race
+                FROM settlers_relations
+                WHERE planet_id = '.$this->move['dest'].' AND
+                      user_id != '.$this->move['user_id'].' AND
+                      race_id = '.$this->move['user_race'];
+        if(($mood_race = $this->db->queryrow($sql)) == false) {
+            return $this->log(MV_M_DATABASE, 'Could not read planet data! SKIP');
         }
 
-		$sql = 'UPDATE ship_fleets
-		        SET planet_id = '.$this->move['dest'].',
-		            move_id = 0
-		        WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+        // Alliance mood
+        if(isset($this->move['user_alliance']) && !empty($this->move['user_alliance'])) {
+            $sql = 'SELECT SUM(mood_modifier) AS mood_alliance
+                    FROM settlers_relations
+                    WHERE planet_id = '.$this->move['dest'].' AND
+                          user_id != '.$this->move['user_id'].' AND
+                          alliance_id = '.$this->move['user_alliance'];
+            if(($mood_alliance = $this->db->queryrow($sql)) == false) {
+                return $this->log(MV_M_DATABASE, 'Could not read planet data! SKIP');
+            }
+        }
+        else $mood_alliance['mood_alliance'] = 0;
 
-		if(!$this->db->query($sql)) {
-			return $this->log(MV_M_DATABASE, 'Could not update fleets data! SKIP');
-		}
-		return MV_EXEC_OK;
-	}
+        // Player mood
+        $sql = 'SELECT SUM(mood_modifier) AS mood_user
+                FROM settlers_relations
+                WHERE planet_id = '.$this->move['dest'].' AND
+                      user_id = '.$this->move['user_id'];
+        if(($mood_user = $this->db->queryrow($sql)) == false) {
+            return $this->log(MV_M_DATABASE, 'Could not read planet data! SKIP');
+        }
 
+        $mood_value = (!empty($mood_race['mood_race']) ? $mood_race['mood_race'] : 0) +
+                      (!empty($mood_alliance['mood_alliance']) ? $mood_alliance['mood_alliance'] : 0) +
+                      (!empty($mood_user['mood_user']) ? $mood_user['mood_user'] : 0);
+        
+        switch($this->action_data[0]){
+            /**
+             * First contact mission.
+             */
+            case 0:
+                switch($this->move['language'])
+                {
+                    case 'GER':
+                        $f_c_title = 'First contact on ';
+                        $f_c_fail = ' failed';
+                        $f_c_success = ' done';
+                    break;
+                    case 'ITA':
+                        $f_c_title = 'Primo contatto su ';
+                        $f_c_fail = ' fallito';
+                        $f_c_success = ' avvenuto';
+                    break;
+                    default:
+                        $f_c_title = 'First contact on ';
+                        $f_c_fail = ' failed';
+                        $f_c_success = ' done';
+                    break;
+                }
+
+                $log_data = array(
+                    27,
+                    $this->move['user_id'],
+                    $this->move['start'],
+                    $this->start['planet_name'],
+                    $this->start['user_id'],
+                    $this->move['dest'],
+                    $this->dest['planet_name'],
+                    $this->dest['user_id'],
+                    0
+                );
+
+                $log_data[8] = array(
+                    'mission_type'   => 0,
+                    'mission_result' => 0,
+                );
+
+                if($mood_value >= 10) {
+                    // Invalid move. The mood is greater then 10 points granted by the First Contact
+                    $log_data[8]['mission_result'] = -1;
+                    add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $f_c_title.$this->dest['planet_name'].$f_c_fail, $log_data);
+                }
+                else
+                {
+                    if($mood_value >= 0)  {
+                        // Mission successfully
+                        // Insert First Contact record, log_code = 1
+                        // If the player is President or Diplomatic, add alliance mood value
+                        if(isset($this->move['user_alliance']) && !empty($this->move['user_alliance']) && $this->move['user_alliance_status'] > 2) {
+                            $sql = 'INSERT INTO settlers_relations
+                                    SET planet_id = '.$this->move['dest'].',
+                                        race_id = '.$this->move['user_race'].',
+                                        user_id = '.$this->move['user_id'].',
+                                        alliance_id = '.$this->move['user_alliance'].',
+                                        timestamp = '.time().',
+                                        log_code = 1,
+                                        mood_modifier = 10';
+                            
+                            if(!$this->db->query($sql)) {
+                                return $this->log(MV_M_DATABASE, 'Could not create new settlers relations! SKIP!!!');
+                            }
+                        }
+                        else {
+                            $sql = 'INSERT INTO settlers_relations
+                                    SET planet_id = '.$this->move['dest'].',
+                                        race_id = '.$this->move['user_race'].',
+                                        user_id = '.$this->move['user_id'].',
+                                        timestamp = '.time().',
+                                        log_code = 1,
+                                        mood_modifier = 10';
+                        
+                            if(!$this->db->query($sql)) {
+                                return $this->log(MV_M_DATABASE, 'Could not create new settlers relations! SKIP!!!');
+                            }
+                        }
+                        
+                        // Calculate Exp of the mission
+                        if($ship_details['experience'] < 75) {
+                            $actual_exp = $ship_details['experience'];
+                            $exp = (2.5/((float)$actual_exp*0.0635))+0.6;
+                            $sql = 'UPDATE ships SET experience = experience+'.$exp.' WHERE ship_id = '.$ship_details['ship_id'];
+                            if(!$this->db->query($sql)) {
+                                return $this->log(MV_M_DATABASE, 'Could not update ship exp! SKIP');
+                            }
+                        }
+                        $log_data[8]['mission_result'] = 1;
+                        add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $f_c_title.$this->dest['planet_name'].$f_c_success, $log_data);
+                    }
+                    else
+                    {
+                        // Mission failed!
+                        $log_data[8]['mission_result'] = -2;
+                        add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $f_c_title.$this->dest['planet_name'].$f_c_fail, $log_data);
+                    }
+                }
+            break;
+
+            /**
+             * Reconnaissance mission.
+             */
+            case 1:
+                switch($this->move['language'])	{
+                    case 'GER':
+                        $f_c_title = 'Recon mission on ';
+                        $f_c_fail = ' failed';
+                        $f_c_success = ' done';
+                    break;
+                    case 'ITA':
+                        $f_c_title = 'Ricognizione su ';
+                        $f_c_fail = ' fallita';
+                        $f_c_success = ' terminata';
+                    break;
+                    default:
+                        $f_c_title = 'Recon mission on ';
+                        $f_c_fail = ' failed';
+                        $f_c_success = ' done';
+                    break;
+                }
+                $log_data = array(
+                    27,
+                    $this->move['user_id'],
+                    $this->move['start'],
+                    $this->start['planet_name'],
+                    $this->start['user_id'],
+                    $this->move['dest'],
+                    $this->dest['planet_name'],
+                    $this->dest['user_id'],
+                    0
+                );
+
+                $log_data[8] = array(
+                    'mission_type'   => 1,
+                    'mission_result' => 1,
+                    'user_mood'      => $mood_value,
+                );
+
+                $index = 0;
+                $sql = 'SELECT sr.user_id, u.user_name, u.user_alliance, u.user_race, SUM(mood_modifier) as mood_value
+                        FROM (settlers_relations sr)
+                        LEFT JOIN (user u) ON sr.user_id = u.user_id
+                        WHERE sr.user_id != '.$this->move['user_id'].' AND
+                              sr.planet_id = '.$this->move['dest'].'
+                              GROUP BY sr.user_id ORDER BY mood_value
+                        LIMIT 0,10';
+                $user_mood_query = $this->db->query($sql);
+                while($user_mood_item = $this->db->fetchrow($user_mood_query)) {
+                    $user_mood_data[$index] = $user_mood_item;
+                    $index++;
+                }
+
+                $log_data[8]['toptenlist'] = $user_mood_data;
+
+                add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $f_c_title.$this->dest['planet_name'].$f_c_success, $log_data);
+            break;
+        }
+
+        $sql = 'UPDATE ship_fleets
+                SET planet_id = '.$this->move['dest'].',
+                    move_id = 0
+                WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+
+        if(!$this->db->query($sql)) {
+            return $this->log(MV_M_DATABASE, 'Could not update fleets data! SKIP');
+        }
+        return MV_EXEC_OK;
+    }
 }
 
 
