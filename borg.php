@@ -74,6 +74,7 @@ class Borg extends NPC
 		$Environment = $this->db->queryrow('SELECT * FROM config LIMIT 0 , 1');
 		$ACTUAL_TICK = $Environment['tick_id'];
 		$STARDATE = $Environment['stardate'];
+		$FUTURE_SHIP = $Environment['future_ship'];
 
 		$this->sdl->start_job('SevenOfNine basic system', TICK_LOG_FILE_NPC);
 
@@ -838,7 +839,6 @@ class Borg extends NPC
 				case "e":
 				case "f":
 				case "g":
-					break;
 				case "m":
 				case "n":
 				case "y":
@@ -926,7 +926,7 @@ class Borg extends NPC
 		{
 			$this->sdl->log('<b>Error:</b> Bot: Could not read Borg data', TICK_LOG_FILE_NPC);
 		}
-		elseif($res['user_planets'] < 401)
+		elseif($res['user_planets'] < 101)
 		{ // Begin Settlers Assimilation Program Main Loop
 
 			$this->sdl->log('DEBUG: Borg Planet Count: '.$res['user_planets'], TICK_LOG_FILE_NPC );
@@ -1011,7 +1011,9 @@ class Borg extends NPC
 			$res1 = $this->db->queryrow($sql);
 			$sql = 'SELECT count(*) as class3_ships FROM ships LEFT JOIN ship_templates ON ships.template_id = ship_templates.id WHERE ship_class = 3 AND ships.user_id = '.$primary_target['user_id'];
 			$res2 = $this->db->queryrow($sql);
-			$bad_factor = round((25*$primary_target['planets_taken'] + 0.1*$res1['class2_ships'] + 0.3*$res2['class3_ships']),3);
+			$sql = 'SELECT count(*) as prom_ships FROM ships WHERE template_id = '.$FUTURE_SHIP.' AND ships.user_id = '.$primary_target['user_id'];
+			$res3 = $this->db->queryrow($sql);
+			$bad_factor = round((25*$primary_target['planets_taken'] + 0.1*$res1['class2_ships'] + 0.3*$res2['class3_ships'] + 2.7*$res3['prom_ships']),3);
 			$this->sdl->log('<b>DEBUG:</b> USER '.$primary_target['user_id'].' got '.$bad_factor.' as bad_factor', TICK_LOG_FILE_NPC);
 
 			$good_factor = round((70*$primary_target['planets_back'] + 9*$primary_target['under_attack']),3) ;
@@ -1034,21 +1036,21 @@ class Borg extends NPC
 			{
 				$sql = 'SELECT * FROM ship_fleets WHERE npc_last_action < '.($ACTUAL_TICK + 240).' AND user_id = '.BORG_USERID.' AND move_id = 0 AND fleet_name LIKE "%Fleet Node%" ORDER BY npc_last_action ASC LIMIT 0, 3';
 				$attack_fleet_query = $this->db->query($sql);
-				$sort_string = ' AND p.planet_type NOT IN("m", "n") ORDER BY planet_points DESC';
+				$sort_string = ' ORDER BY planet_points ASC LIMIT 0,40';
 				$max_attack = 3;
 			}
 			else if($threat_level > 450.0)
 			{
 				$sql = 'SELECT * FROM ship_fleets WHERE npc_last_action < '.($ACTUAL_TICK + 80).' AND user_id = '.BORG_USERID.' AND move_id = 0 AND fleet_name LIKE "%Fleet Node%" ORDER BY npc_last_action ASC LIMIT 0, 2';
 				$attack_fleet_query = $this->db->query($sql);
-				$sort_string = ' AND p.planet_type NOT IN("m", "n") ORDER BY planet_points ASC LIMIT 0,10';
+				$sort_string = ' ORDER BY planet_points ASC LIMIT 0,20';
 				$max_attack = 2;
 			}
 			else if($threat_level > 200.0)
 			{
 				$sql = 'SELECT * FROM ship_fleets WHERE npc_last_action < '.$ACTUAL_TICK.' AND n_ships = 1 AND user_id = '.BORG_USERID.' AND move_id = 0 AND fleet_name LIKE "%Fleet Node%" ORDER BY npc_last_action ASC LIMIT 0, 1';
 				$attack_fleet_query = $this->db->query($sql);
-				$sort_string = ' AND p.planet_type NOT IN("m", "n", "y") AND planet_points < 300 ORDER BY planet_points ASC LIMIT 0,5';
+				$sort_string = ' AND p.planet_type NOT IN("m", "n") AND planet_points < 451 ORDER BY planet_points ASC LIMIT 0,5';
 				$max_attack = 1;
 			}
 
