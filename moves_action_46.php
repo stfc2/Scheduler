@@ -439,15 +439,13 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             $this->log(MV_M_DATABASE, 'Could not delete ship trade data! CONTINUE');
         }
 
-        if($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "n" || $this->dest['planet_type'] == "y") {
+        if($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "n" || $this->dest['planet_type'] == "y" || $this->dest['planet_type'] == "e" || $this->dest['planet_type'] == "f" || $this->dest['planet_type'] == "g") {
             $def_tech_lev = 9;
         }
-        elseif($this->dest['planet_type'] == "e" || $this->dest['planet_type'] == "f" || $this->dest['planet_type'] == "g") {
+        else {
             $def_tech_lev = 6;
         }
-        else {
-            $def_tech_lev = 3;
-        }
+        
 
         $sql = 'UPDATE planets
                 SET planet_owner = '.$this->move['user_id'].',
@@ -459,6 +457,8 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                     planet_attack_ships = 0,
                     planet_attack_type = 0,
                     research_3 = '.$def_tech_lev.',
+                    research_4 = '.$def_tech_lev.',
+                    research_5 = '.$def_tech_lev.',
                     recompute_static = 1,
                     building_1 = 9,
                     building_2 = '.$building_levels[1].',

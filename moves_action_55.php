@@ -828,7 +828,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                     }
                 }
 
-                $num_item = ($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "n" ? 2 : 1);
+                $num_item = ($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "n" || $this->dest['planet_type'] == "y"  || $this->dest['planet_type'] == "e" || $this->dest['planet_type'] == "f" || $this->dest['planet_type'] == "g" ? 2 : 1);
                 send_premonition_to_user($this->move['user_id'], $num_item);
 
                 $sql = 'SELECT * FROM borg_target WHERE user_id = '.$this->move['user_id'];
@@ -854,7 +854,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                         $honor_bonus = 1.5;
                     else
                         $honor_bonus = 1.0;
-                    $honor_prize = ($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "n" ? 40 : 15) * $honor_bonus;
+                    $honor_prize = ($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "n" || $this->dest['planet_type'] == "y"  || $this->dest['planet_type'] == "e" || $this->dest['planet_type'] == "f" || $this->dest['planet_type'] == "g" ? 40 : 15) * $honor_bonus;
                     $sql='UPDATE borg_target SET planets_taken = planets_taken + 1 WHERE user_id = '.$this->move['user_id'];
                     $this->db->query($sql);
                 }
