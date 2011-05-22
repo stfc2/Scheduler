@@ -2176,6 +2176,14 @@ while($fleet = $db->fetchrow($q_fleets)) {
 
         $sdl->log('Fleet: <b>'.$fleet_id.'</b>; (Non-secure MoveID: '.$fleet['move_id'].' [Type: '.$fleet['action_code'].']) Fleet is empty. Deleted');
 
+        // 21/03/11 - AC: Ensure there's no ship with this fleet id.
+        $sql = 'UPDATE ships
+                SET fleet_id = -'.$fleet['user_capital'].'
+                WHERE fleet_id = '.$fleet_id;
+
+        if(!$db->query($sql)) {
+            message(DATABASE_ERROR, 'Could not update ships fleet_id data');
+        }
     }
 
     
@@ -2235,7 +2243,7 @@ while($fleet = $db->fetchrow($q_fleets)) {
 
         
 
-        $sdl->log('Fleet: <b>'.$fleet_id.' (Non-secure MoveID: '.$fleet['move_id'].' [Type: '.$fleet['action_code'].'])</b>; Wrong ship numbers. Solved');
+        $sdl->log('Fleet: <b>'.$fleet_id.'</b> (Non-secure MoveID: '.$fleet['move_id'].' [Type: '.$fleet['action_code'].'])</b>; Wrong ship numbers. Solved');
 
     }
 
