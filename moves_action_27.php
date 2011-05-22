@@ -36,6 +36,10 @@ class moves_action_27 extends moves_common {
         //
         //#############################################################################
 
+        define('LC_FIRST_CONTACT', 1);
+        define('LC_DIPLO_SPEECH', 2);
+        define('LC_COLO_FOUNDER', 30);
+
         $sql = 'SELECT s.ship_name, s.experience, s.ship_id, t.name FROM ship_fleets f
                        LEFT JOIN ships s ON s.fleet_id = f.fleet_id
                        LEFT JOIN ship_templates t ON t.id = s.template_id
@@ -72,9 +76,11 @@ class moves_action_27 extends moves_common {
                 WHERE planet_id = '.$this->move['dest'].' AND
                       user_id != '.$this->move['user_id'].' AND
                       race_id = '.$this->move['user_race'];
-        if(($mood_race = $this->db->queryrow($sql)) == false) {
+        if(($mood_race = $this->db->queryrow($sql)) === false) {
             return $this->log(MV_M_DATABASE, 'Could not read planet data! SKIP');
         }
+
+        $mood['race'] = 0.20 * $mood_race['mood_race'];
 
         // Alliance mood
         if(isset($this->move['user_alliance']) && !empty($this->move['user_alliance'])) {
@@ -83,25 +89,31 @@ class moves_action_27 extends moves_common {
                     WHERE planet_id = '.$this->move['dest'].' AND
                           user_id != '.$this->move['user_id'].' AND
                           alliance_id = '.$this->move['user_alliance'];
-            if(($mood_alliance = $this->db->queryrow($sql)) == false) {
+            if(($mood_alliance = $this->db->queryrow($sql)) === false) {
                 return $this->log(MV_M_DATABASE, 'Could not read planet data! SKIP');
             }
         }
         else $mood_alliance['mood_alliance'] = 0;
+
+        $mood['alliance'] = 0.50 * $mood_alliance['mood_alliance'];
 
         // Player mood
         $sql = 'SELECT SUM(mood_modifier) AS mood_user
                 FROM settlers_relations
                 WHERE planet_id = '.$this->move['dest'].' AND
                       user_id = '.$this->move['user_id'];
-        if(($mood_user = $this->db->queryrow($sql)) == false) {
+        if(($mood_user = $this->db->queryrow($sql)) === false) {
             return $this->log(MV_M_DATABASE, 'Could not read planet data! SKIP');
         }
 
-        $mood_value = (!empty($mood_race['mood_race']) ? $mood_race['mood_race'] : 0) +
-                      (!empty($mood_alliance['mood_alliance']) ? $mood_alliance['mood_alliance'] : 0) +
-                      (!empty($mood_user['mood_user']) ? $mood_user['mood_user'] : 0);
-        
+        $mood['user'] = $mood_user['mood_user'];
+
+
+        $mood['value'] = (!empty($mood['race']) ? $mood['race'] : 0) +
+                         (!empty($mood['alliance']) ? $mood['alliance'] : 0) +
+                         (!empty($mood['user']) ? $mood['user'] : 0);
+
+
         switch($this->action_data[0]){
             /**
              * First contact mission.
@@ -143,14 +155,14 @@ class moves_action_27 extends moves_common {
                     'mission_result' => 0,
                 );
 
-                if($mood_value >= 10) {
-                    // Invalid move. The mood is greater then 10 points granted by the First Contact
+                if($mood['value'] != 0) {
+                    // Invalid move. 
                     $log_data[8]['mission_result'] = -1;
                     add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $f_c_title.$this->dest['planet_name'].$f_c_fail, $log_data);
                 }
                 else
                 {
-                    if($mood_value >= 0)  {
+                    if($mood['value'] >= 0)  {
                         // Mission successfully
                         // Insert First Contact record, log_code = 1
                         // If the player is President or Diplomatic, add alliance mood value
@@ -161,7 +173,7 @@ class moves_action_27 extends moves_common {
                                         user_id = '.$this->move['user_id'].',
                                         alliance_id = '.$this->move['user_alliance'].',
                                         timestamp = '.time().',
-                                        log_code = 1,
+                                        log_code = '.LC_FIRST_CONTACT.',
                                         mood_modifier = 10';
                             
                             if(!$this->db->query($sql)) {
@@ -174,14 +186,14 @@ class moves_action_27 extends moves_common {
                                         race_id = '.$this->move['user_race'].',
                                         user_id = '.$this->move['user_id'].',
                                         timestamp = '.time().',
-                                        log_code = 1,
+                                        log_code = '.LC_FIRST_CONTACT.',
                                         mood_modifier = 10';
-                        
+
                             if(!$this->db->query($sql)) {
                                 return $this->log(MV_M_DATABASE, 'Could not create new settlers relations! SKIP!!!');
                             }
                         }
-                        
+
                         // Calculate Exp of the mission
                         if($ship_details['experience'] < 75) {
                             $actual_exp = $ship_details['experience'];
@@ -239,7 +251,7 @@ class moves_action_27 extends moves_common {
                 $log_data[8] = array(
                     'mission_type'   => 1,
                     'mission_result' => 1,
-                    'user_mood'      => $mood_value,
+                    'user_mood'      => $mood
                 );
 
                 $index = 0;
@@ -259,6 +271,98 @@ class moves_action_27 extends moves_common {
                 $log_data[8]['toptenlist'] = $user_mood_data;
 
                 add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $f_c_title.$this->dest['planet_name'].$f_c_success, $log_data);
+            break;
+
+            /**
+             * Diplomatic Agreement.
+             */
+            case 2:
+                switch($this->move['language'])
+                {
+                    case 'GER':
+                        $f_c_title = 'Diplo Speech on ';
+                        $f_c_fail = ' failed';
+                        $f_c_success = ' done';
+                    break;
+                    case 'ITA':
+                        $f_c_title = 'Trarrative Diplomatiche su ';
+                        $f_c_fail = ' fallite';
+                        $f_c_success = ' concluse';
+                    break;
+                    default:
+                        $f_c_title = 'Diplo Speech on ';
+                        $f_c_fail = ' failed';
+                        $f_c_success = ' done';
+                    break;
+                }
+
+                $log_data = array(
+                    27,
+                    $this->move['user_id'],
+                    $this->move['start'],
+                    $this->start['planet_name'],
+                    $this->start['user_id'],
+                    $this->move['dest'],
+                    $this->dest['planet_name'],
+                    $this->dest['user_id'],
+                    0
+                );
+
+                $log_data[8] = array(
+                    'mission_type'   => 2,
+                    'mission_result' => 0,
+                );
+
+                if($mood['value'] < 1) {
+                    // Invalid move. 
+                    $log_data[8]['mission_result'] = -1;
+                    add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $f_c_title.$this->dest['planet_name'].$f_c_fail, $log_data);
+                }
+                else
+                {
+                    // Check whether an agreement is still valid
+                
+                    $sql = 'SELECT log_code, mood_modifier
+                            FROM settlers_relations
+                            WHERE planet_id = '.$this->move['dest'].' AND
+                                  player_id = '.$this->move['user_id'].' AND
+                                  log_code = '.LC_DIPLO_SPEECH;
+                    if(($_qd = $this->db->queryrow($sql)) === false) {
+                        return $this->log(MV_M_DATABASE, 'Could not read planet data! SKIP');
+                    }
+
+                    if(!empty($_qd['log_code']) && $_qd['log_code'] == LC_DIPLO_SPEECH && $_qd['mood_modifier'] > 0) {
+                        // There's already a valid agreement, invalid move
+                        $log_data[8]['mission_result'] = -2;
+                        add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $f_c_title.$this->dest['planet_name'].$f_c_fail, $log_data);
+                    }
+                    else
+                    {
+                        $speech_value = 10;
+
+                        if($_qd['log_code'] == LC_DIPLO_SPEECH && $_qd['mood_modifier'] == 0) $speech_value += 5;
+
+                        $sql = 'SELECT * FROM borg_target WHERE user_id = '.$this->move['user_id'];
+                        $bot_target_data = $this->db->query($sql);
+                        $already_acquired = $this->db->num_rows($bot_target_data);
+                        if($already_acquired > 0) {
+                            $honor_bonus_data = $this->db->fetchrow($bot_target_data);
+                            // Tenere aggiornati i valori qui indicati con quelli presenti in borg.php
+                            if($honor_bonus_data['threat_level'] > 1400.0)
+                                $speech_value += 50;
+                            elseif($honor_bonus_data['threat_level'] > 950.0)
+                                $speech_value += 35;
+                            elseif($honor_bonus_data['threat_level'] > 450.0)
+                                $speech_value += 25;
+                            elseif($honor_bonus_data['threat_level'] > 200.0)
+                                $speech_value += 15;
+                            else
+                                $speech_value += 10;
+                        }
+                        $log_data[8]['mission_result'] = 1;
+                        add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $f_c_title.$this->dest['planet_name'].$f_c_success, $log_data);
+                    }
+                }
             break;
         }
 
