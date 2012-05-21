@@ -164,132 +164,249 @@ $sdl->finish_job('Building Scheduler');
 
 $sdl->start_job('Academy Scheduler v3-blackeye');
 
-$db->query('UPDATE planets SET
-            unittrain_error = 0');
+$db->lock('planets');
 
-if(!($academyquery=$db->query('SELECT p.*, u.user_race FROM (planets p) LEFT JOIN (user u) ON u.user_id=p.planet_owner WHERE (p.unittrainid_nexttime<="'.$ACTUAL_TICK.'") AND (p.unittrainid_nexttime>0)'))) {
+$db->query('UPDATE planets SET
+            unittrain_error = 0
+            WHERE unittrain_error <> 0');
+
+$tmp = 'SELECT p.planet_id,
+               p.research_4,
+               p.resource_1,
+               p.resource_2,
+               p.resource_3,
+               p.resource_4,
+               p.max_units,
+               p.unit_1,
+               p.unit_2,
+               p.unit_3,
+               p.unit_4,
+               p.unit_5,
+               p.unit_6,
+               p.unittrainid_1,
+               p.unittrainid_2,
+               p.unittrainid_3,
+               p.unittrainid_4,
+               p.unittrainid_5,
+               p.unittrainid_6,
+               p.unittrainid_7,
+               p.unittrainid_8,
+               p.unittrainid_9,
+               p.unittrainid_10,
+               p.unittrainnumber_1,
+               p.unittrainnumber_2,
+               p.unittrainnumber_3,
+               p.unittrainnumber_4,
+               p.unittrainnumber_5,
+               p.unittrainnumber_6,
+               p.unittrainnumber_7,
+               p.unittrainnumber_8,
+               p.unittrainnumber_9,
+               p.unittrainnumber_10,
+               p.unittrainnumberleft_1,
+               p.unittrainnumberleft_2,
+               p.unittrainnumberleft_3,
+               p.unittrainnumberleft_4,
+               p.unittrainnumberleft_5,
+               p.unittrainnumberleft_6,
+               p.unittrainnumberleft_7,
+               p.unittrainnumberleft_8,
+               p.unittrainnumberleft_9,
+               p.unittrainnumberleft_10,
+               p.unittrainendless_1,
+               p.unittrainendless_2,
+               p.unittrainendless_3,
+               p.unittrainendless_4,
+               p.unittrainendless_5,
+               p.unittrainendless_6,
+               p.unittrainendless_7,
+               p.unittrainendless_8,
+               p.unittrainendless_9,
+               p.unittrainendless_10,
+               p.unittrain_actual,
+               p.unittrainid_nexttime,
+               u.user_race
+        FROM (planets p)
+        LEFT JOIN (user u) ON u.user_id=p.planet_owner
+        WHERE (p.unittrainid_nexttime<="'.$ACTUAL_TICK.'") AND (p.unittrainid_nexttime>0)';
+
+if(!($academyquery=$db->query($tmp))) {
     $sdl->log(' - Warning: Could not query unittrain data! CONTINUED');
 }
 else
 {
-while (($planet=$db->fetchrow($academyquery))==true)
-{
-	// Look whether the construction number is within normal parameters, but should never lie outside:
-	if ($planet['unittrain_actual']<1 || $planet['unittrain_actual']>10)
-	{
-		$db->query('UPDATE planets SET unittrain_actual="1" WHERE planet_id="'.$planet['planet_id'].'" LIMIT 1');
-	}
-	else // If within normal parameters
-	{
-		
-		$t=($planet['unittrainid_'.($planet['unittrain_actual'])])-1;
-		if ($t>5 || $t<0 || (UnitPrice($t,0,$planet['user_race'])<=$planet['resource_1'] && UnitPrice($t,1,$planet['user_race'])<=$planet['resource_2'] && UnitPrice($t,2,$planet['user_race'])<=$planet['resource_3'] && UnitPrice($t,3,$planet['user_race'])<=$planet['resource_4']))
-		{
-			$sql=array();
- 			if ($t<=5 && $t>=0)
-			{
-			$sql[]='resource_1=resource_1-'.(UnitPrice($t,0,$planet['user_race'])).', resource_2=resource_2-'.(UnitPrice($t,1,$planet['user_race'])).', resource_3=resource_3-'.(UnitPrice($t,2,$planet['user_race'])).', resource_4=resource_4-'.(UnitPrice($t,3,$planet['user_race']));
-			}	
-				
-			
-			// 2pre1: The SQL Query for 2. prepare, because the data under 1. can change:
-			if ($planet['unittrainid_'.($planet['unittrain_actual'])]<7 && $planet['unittrainid_'.($planet['unittrain_actual'])]>0)
-			$sql[]='unit_'.($planet['unittrainid_'.($planet['unittrain_actual'])]).'=unit_'.($planet['unittrainid_'.($planet['unittrain_actual'])]).'+1';
-			
-			// 1. For the next unit jump + new time set:
-			// if left<=0
-        	$planet['unittrainnumberleft_'.($planet['unittrain_actual'])]--;
-			
-			// We build further on the same slot:
-		    if ($planet['unittrainnumberleft_'.($planet['unittrain_actual'])]>0)
-			{
-			$sql[]='unittrainnumberleft_'.($planet['unittrain_actual']).'=unittrainnumberleft_'.($planet['unittrain_actual']).'-1';
-		        	
-				// Only set the recent time:
-				// If Unit
-				if ($planet['unittrainid_'.($planet['unittrain_actual'])]<7) {$sql[]='unittrain_actual="'.($planet['unittrain_actual']).'",unittrainid_nexttime="'.($ACTUAL_TICK+UnitTimeTicksScheduler($planet['unittrainid_'.($planet['unittrain_actual'])]-1,$planet['research_4'],$planet['user_race'])).'"';}
-				else // If Break
-				{
-					if ($planet['unittrainid_'.($planet['unittrain_actual'])]==10) {$sql[]='unittrain_actual="'.($planet['unittrain_actual']).'",unittrainid_nexttime="'.($ACTUAL_TICK+1).'"';}
-					if ($planet['unittrainid_'.($planet['unittrain_actual'])]==11) {$sql[]='unittrain_actual="'.($planet['unittrain_actual']).'",unittrainid_nexttime="'.($ACTUAL_TICK+9).'"';}
-					if ($planet['unittrainid_'.($planet['unittrain_actual'])]==12) {$sql[]='unittrain_actual="'.($planet['unittrain_actual']).'",unittrainid_nexttime="'.($ACTUAL_TICK+18).'"';}
-				}
-			}
-			else // We do not build further on the same slot:
-			{
-	    		// If endless built, put back again the number...:
-	    		if ($planet['unittrainendless_'.($planet['unittrain_actual'])]==1)
-				{
-					$planet['unittrainnumberleft_'.($planet['unittrain_actual'])]=$planet['unittrainnumber_'.($planet['unittrain_actual'])];
-					$sql[]='unittrainnumberleft_'.($planet['unittrain_actual']).'=unittrainnumber_'.($planet['unittrain_actual']);
-				}
-				else $sql[]='unittrainnumberleft_'.($planet['unittrain_actual']).'=0';
-				
-				// Now we take the construction of the next unit in the list:
-				$started=0;
-				$tries=0;
-				while ($started==0 && $tries<=10)
-				{
-					$planet['unittrain_actual']++;
-					if ($planet['unittrain_actual']>10) $planet['unittrain_actual']=1;
-					if ($planet['unittrainid_'.($planet['unittrain_actual'])]<13 && $planet['unittrainid_'.($planet['unittrain_actual'])]>=0 && $planet['unittrainnumberleft_'.($planet['unittrain_actual'])]>0)
-					{
-						// If Unit
-						if ($planet['unittrainid_'.($planet['unittrain_actual'])]<7) {$sql[]='unittrain_actual="'.($planet['unittrain_actual']).'",unittrainid_nexttime="'.($ACTUAL_TICK+UnitTimeTicksScheduler($planet['unittrainid_'.($planet['unittrain_actual'])]-1,$planet['research_4'],$planet['user_race'])).'"';}
-						else // If Break
-						{
-							if ($planet['unittrainid_'.($planet['unittrain_actual'])]==10) {$sql[]='unittrain_actual="'.($planet['unittrain_actual']).'",unittrainid_nexttime="'.($ACTUAL_TICK+1).'"';}
-							if ($planet['unittrainid_'.($planet['unittrain_actual'])]==11) {$sql[]='unittrain_actual="'.($planet['unittrain_actual']).'",unittrainid_nexttime="'.($ACTUAL_TICK+9).'"';}
-							if ($planet['unittrainid_'.($planet['unittrain_actual'])]==12) {$sql[]='unittrain_actual="'.($planet['unittrain_actual']).'",unittrainid_nexttime="'.($ACTUAL_TICK+18).'"';}
-						}
-						$started=1;
-					}
-					$tries++;
-				}
-			
-				if (!$started)
-				{
-					$sql[]='unittrainid_nexttime="-1"';
-				}
+    while (($planet=$db->fetchrow($academyquery))==true)
+    {
+        // Look whether the construction number is within normal parameters, but should never lie outside:
+        if ($planet['unittrain_actual'] < 1 || $planet['unittrain_actual'] > 10) {
+            $db->query('UPDATE planets SET unittrain_actual="1" WHERE planet_id="'.$planet['planet_id'].'"');
+        }
+        // If within normal parameters
+        else {
+            // Unit in training
+            $t=($planet['unittrainid_'.($planet['unittrain_actual'])])-1;
 
+            // Needed resources
+            $need_res_1 = UnitPrice($t,0,$planet['user_race']);
+            $need_res_2 = UnitPrice($t,1,$planet['user_race']);
+            $need_res_3 = UnitPrice($t,2,$planet['user_race']);
+            $need_res_4 = UnitPrice($t,3,$planet['user_race']);
 
-			}
+            // Check if we're handling a break and if we're training a
+            // unit, that the planet has the needed resources
+            if ($t>5 || $t<0 || ($need_res_1 <= $planet['resource_1'] &&
+                                 $need_res_2 <= $planet['resource_2'] &&
+                                 $need_res_3 <= $planet['resource_3'] &&
+                                 $need_res_4 <= $planet['resource_4']))
+            {
+                $sql=array();
 
-			// 2. Add the last planet unit (if planet at the limit, remains unit as finished in the loop):
-			// unittrain_error=2 if planet full 
+                // 2pre1: The SQL Query for 2. prepare, because the data under 1. can change:
+                $t++;
+                if ($t < 7 && $t > 0)
+                {
+                    $sql[]='resource_1=resource_1-'.$need_res_1.',
+                            resource_2=resource_2-'.$need_res_2.',
+                            resource_3=resource_3-'.$need_res_3.',
+                            resource_4=resource_4-'.$need_res_4.',
+                            unit_'.$t.'=unit_'.$t.'+1';
+                }	
 
-                    $damn_units = ($planet['unit_1']*2+$planet['unit_2']*3+$planet['unit_3']*4+$planet['unit_4']*4+$planet['unit_5']*4+$planet['unit_6']*4);
+                // 1. For the next unit jump + new time set:
+                // if left<=0
+                $planet['unittrainnumberleft_'.($planet['unittrain_actual'])]--;
 
-                    if($planet['max_units']<=$damn_units){
- 
-                       $db->query('UPDATE planets SET unittrain_error="2" WHERE planet_id="'.$planet['planet_id'].'" LIMIT 1');
-                       //$sdl->log('No unit with ID # '.$planet['planet_id'].' was added because of lack of space');
-                        
+                // We build further on the same slot:
+                if ($planet['unittrainnumberleft_'.($planet['unittrain_actual'])]>0)
+                {
+                    // Only set the recent time:
+                    $training_time = $ACTUAL_TICK;
+
+                    // If Unit
+                    if ($t < 7) {
+                        $training_time += UnitTimeTicksScheduler($t-1,$planet['research_4'],$planet['user_race']);
+                    }
+                    // If Break
+                    else {
+                        switch($t)
+                        {
+                            // 3 minute break
+                            case 10:
+                                $training_time++;
+                            break;
+                            // 27 minutes break
+                            case 11:
+                                $training_time += 9;
+                            break;
+                            // 54 minutes break
+                            case 12:
+                                $training_time += 18;
+                            break;
+                        }
                     }
 
-                    else {
+                    $sql[]='unittrainnumberleft_'.($planet['unittrain_actual']).'=unittrainnumberleft_'.($planet['unittrain_actual']).'-1,
+                            unittrain_actual = "'.($planet['unittrain_actual']).'",
+                            unittrainid_nexttime = "'.$training_time.'"';
+                }
+                else // We do not build further on the same slot:
+                {
+                    // If endless built, put back again the number...:
+                    if ($planet['unittrainendless_'.($planet['unittrain_actual'])]==1)
+                    {
+                        $planet['unittrainnumberleft_'.($planet['unittrain_actual'])]=$planet['unittrainnumber_'.($planet['unittrain_actual'])];
+                        $sql[]='unittrainnumberleft_'.($planet['unittrain_actual']).'=unittrainnumber_'.($planet['unittrain_actual']);
+                    }
+                    else
+                        $sql[]='unittrainnumberleft_'.($planet['unittrain_actual']).'=0';
 
-			 if (isset($sql) && count($sql)>0)
-			 {
-			 	$db->query('UPDATE planets SET '.implode(",", $sql).' WHERE planet_id='.$planet['planet_id'].'');
-			 }
+                    // Now we take the construction of the next unit in the list:
+                    $started=0;
+                    $tries=0;
+                    while ($started==0 && $tries<=10)
+                    {
+                        $planet['unittrain_actual']++;
+                        if ($planet['unittrain_actual']>10) $planet['unittrain_actual']=1;
 
-			}
-		}
-		else // If we did not have enough resources
-		{                  
-                $db->query('UPDATE planets SET unittrain_error="1" WHERE planet_id="'.$planet['planet_id'].'" LIMIT 1');
-              }
+                        // Unit in training
+                        $t=$planet['unittrainid_'.($planet['unittrain_actual'])];
 
-	} // End of "within normal parameters"
+                        if ($t <13 && $t >= 0 &&
+                            $planet['unittrainnumberleft_'.($planet['unittrain_actual'])]>0)
+                        {
+                            $training_time = $ACTUAL_TICK;
 
-      // End Cancel
+                            // If Unit
+                            if ($t < 7) {
+                                $training_time += UnitTimeTicksScheduler($t-1,$planet['research_4'],$planet['user_race']);
+                            }
+                            // If Break
+                            else {
+                                switch($t)
+                                {
+                                    // 3 minute break
+                                    case 10:
+                                        $training_time++;
+                                    break;
+                                    // 27 minutes break
+                                    case 11:
+                                        $training_time += 9;
+                                    break;
+                                    // 54 minutes break
+                                    case 12:
+                                        $training_time += 18;
+                                    break;
+                                }
+                            }
+                            $sql[]='unittrain_actual = "'.($planet['unittrain_actual']).'",
+                                    unittrainid_nexttime = "'.$training_time.'"';
+                            $started=1;
+                        }
+                        $tries++;
+                    }
 
-} // End while
+                    if (!$started)
+                    {
+                        $sql[]='unittrainid_nexttime="-1"';
+                    }
+                }
 
+                // 2. Add the last planet unit (if planet at the limit, remains unit as finished in the loop):
+                // unittrain_error=2 if planet full 
+
+                $damn_units = ($planet['unit_1']*2+
+                               $planet['unit_2']*3+
+                               $planet['unit_3']*4+
+                               $planet['unit_4']*4+
+                               $planet['unit_5']*4+
+                               $planet['unit_6']*4);
+
+                if($planet['max_units'] <= $damn_units) {
+
+                    $db->query('UPDATE planets SET unittrain_error="2" WHERE planet_id="'.$planet['planet_id'].'"');
+                     //$sdl->log('No unit with ID # '.$planet['planet_id'].' was added because of lack of space');
+                }
+                else {
+
+                    if (isset($sql) && count($sql)>0) {
+                        $db->query('UPDATE planets SET '.implode(",", $sql).' WHERE planet_id='.$planet['planet_id']);
+                    }
+                }
+
+                unset($sql);
+            }
+            // If we did not have enough resources
+            else {
+                $db->query('UPDATE planets SET unittrain_error="1" WHERE planet_id="'.$planet['planet_id'].'"');
+            }
+
+        } // End of "within normal parameters"
+
+    } // End while
 } // End of: Successfull Planet Query
 
-unset($sql);
+$db->unlock('planets');
+
 $sdl->finish_job('Academy Scheduler v3-blackeye');
 
 
@@ -300,8 +417,10 @@ $sdl->finish_job('Academy Scheduler v3-blackeye');
 
 $sdl->start_job('Shiprepair Scheduler');
 
-$sql = 'SELECT s.*,t.ship_torso, t.value_5, t.max_torp FROM (ships s) LEFT JOIN (ship_templates t) ON s.template_id=t.id
-			WHERE s.ship_repair>0 AND s.ship_repair<= '.$ACTUAL_TICK;
+$sql = 'SELECT s.ship_id, s.ship_untouchable,
+               t.ship_torso, t.value_5, t.max_torp
+        FROM (ships s) LEFT JOIN (ship_templates t) ON s.template_id=t.id
+        WHERE s.ship_repair>0 AND s.ship_repair<= '.$ACTUAL_TICK;
 
 if(($q_ship = $db->query($sql)) === false) {
 	$sdl->log('<b>Error:</b> Could not query shiprepair data! CONTINUED');
@@ -311,9 +430,16 @@ else
 	while($ship = $db->fetchrow($q_ship)) {
 		// DC ---- Ships in Refitting does not get repaired
 		if ($ship['ship_untouchable'] == SHIP_IN_REFIT)
-			$sql = 'UPDATE ships SET ship_repair=0, ship_untouchable=0'.($ship['ship_torso'] > 2 ? ', torp = '.$ship['max_torp'] : '' ).' WHERE ship_id='.$ship['ship_id'];
+			$sql = 'UPDATE ships
+                    SET ship_repair=0,
+                        ship_untouchable=0'.($ship['ship_torso'] > 2 ? ', torp = '.$ship['max_torp'] : '' ).'
+                    WHERE ship_id='.$ship['ship_id'];
 		else
-			$sql = 'UPDATE ships SET hitpoints='.$ship['value_5'].', ship_repair=0, ship_untouchable=0 WHERE ship_id='.$ship['ship_id'];
+			$sql = 'UPDATE ships
+                    SET hitpoints='.$ship['value_5'].',
+                        ship_repair=0,
+                        ship_untouchable=0
+                    WHERE ship_id='.$ship['ship_id'];
 		// DC ----
 
 		if(!$db->query($sql)) {
@@ -330,8 +456,23 @@ $sdl->finish_job('Shiprepair Scheduler');
 
 $sdl->start_job('Shipscrap Scheduler');
 
-$sql = 'SELECT s.*,t.id,t.value_5,t.buildtime,t.resource_1,t.resource_2,t.resource_3,t.unit_5,t.unit_6 FROM (ships s) LEFT JOIN (ship_templates t) ON s.template_id=t.id
-			WHERE s.ship_scrap>0 AND s.ship_scrap<= '.$ACTUAL_TICK;
+$sql = 'SELECT s.ship_id,
+               s.fleet_id,
+               s.hitpoints,
+               s.unit_1,
+               s.unit_2,
+               s.unit_3,
+               s.unit_4,
+               t.id,
+               t.value_5,
+               t.buildtime,
+               t.resource_1,
+               t.resource_2,
+               t.resource_3,
+               t.unit_5,
+               t.unit_6
+        FROM (ships s) LEFT JOIN (ship_templates t) ON s.template_id=t.id
+        WHERE s.ship_scrap>0 AND s.ship_scrap<= '.$ACTUAL_TICK;
 
 
 if(($q_ship = $db->query($sql)) === false) {
@@ -354,17 +495,27 @@ $unit[4]=$ship['unit_5'];
 $unit[5]=$ship['unit_6'];
 
 
-$sql = 'DELETE FROM ships WHERE ship_id='.$ship['ship_id'].' LIMIT 1';
+$sql = 'DELETE FROM ships WHERE ship_id='.$ship['ship_id'];
 if(!$db->query($sql)) {
     $sdl->log('<b>Error:</b> Could not delete ship: <b>'.$sql.'</b>');
 }
 else
 {
-    $sdl->log('<b>The ship <b>#'.$ship['ship_id'].'('.$ship['id'].')</b> on planet <b>#'.((-1)*$ship['fleet_id']).'</b> was dismantled successfully!');
+    $planet_id = ((-1)*$ship['fleet_id']);
 
-    $sql = 'UPDATE planets SET resource_1=resource_1+'.$res[0].', resource_2=resource_2+'.$res[1].', resource_3=resource_3+'.$res[2].',
-                               unit_1=unit_1+'.$unit[0].',unit_2=unit_2+'.$unit[1].',unit_3=unit_3+'.$unit[2].',unit_4=unit_4+'.$unit[3].',unit_5=unit_5+'.$unit[4].',unit_6=unit_6+'.$unit[5].'
-            WHERE planet_id='.((-1)*$ship['fleet_id']).' LIMIT 1';
+    $sdl->log('<b>The ship <b>#'.$ship['ship_id'].'(template '.$ship['id'].')</b> on planet <b>#'.$planet_id.'</b> was dismantled successfully!');
+
+    $sql = 'UPDATE planets
+            SET resource_1=resource_1+'.$res[0].',
+                resource_2=resource_2+'.$res[1].',
+                resource_3=resource_3+'.$res[2].',
+                unit_1=unit_1+'.$unit[0].',
+                unit_2=unit_2+'.$unit[1].',
+                unit_3=unit_3+'.$unit[2].',
+                unit_4=unit_4+'.$unit[3].',
+                unit_5=unit_5+'.$unit[4].',
+                unit_6=unit_6+'.$unit[5].'
+            WHERE planet_id='.$planet_id;
     if(!$db->query($sql)) {
         $sdl->log('<b>Error:</b> Could not update planets data: <b>'.$sql.'</b>');
     }
