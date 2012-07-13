@@ -182,7 +182,6 @@ class Borg extends NPC
 					}
 
 					$sql = 'UPDATE user SET user_points = "400",user_planets = "1",last_active = "5555555555",
-					                        user_attack_protection = "'.($ACTUAL_TICK + 14400).'",
 					                        user_capital = "'.$this->bot['planet_id'].'",
 					                        active_planet = "'.$this->bot['planet_id'].'"
 					        WHERE user_id = '.$this->bot['user_id'];
@@ -190,6 +189,13 @@ class Borg extends NPC
 					if(!$this->db->query($sql)) {
 						$this->sdl->log('<b>Error:</b> Bot body: Planet has not been created', TICK_LOG_FILE_NPC);
 					}
+
+					// That one is for resetting the Borg Targets List
+					$sql = 'TRUNCATE TABLE borg_target';
+				 	if(!$this->db->query($sql)) {
+						$this->sdl->log('<b>Error:</b> Bot body: borg_target not reset!', TICK_LOG_FILE_NPC);
+					}
+
 					else
 					{
 						//Bot gets best values for his body, he should also look good
@@ -197,7 +203,7 @@ class Borg extends NPC
 						$sql = 'UPDATE planets SET planet_points = 1200,building_1 = 9,building_2 = 15,building_3 = 15,
 							building_4 = 15,building_5 = 16,building_6 = 9,building_7 = 15,building_8 = 9,
 							building_9 = 9,building_10 = 35,building_11 = 9,building_12 = 15,building_13 = 35,
-							unit_1 = 20000,unit_2 = 20000,unit_3 = 20000,unit_4 = 5000,unit_5 = 5000,unit_6=5000,
+							unit_1 = 20000,unit_2 = 10000,unit_3 = 5000,unit_4 = 5000,unit_5 = 0,unit_6 = 0,
 							planet_name = "Unimatrix Zero",
 							research_1 = 15,research_2 = 15,research_3 = 15,research_4 = 15,research_5 = 9,
 							workermine_1 = 1600,workermine_2 = 1600,workermine_3 = 1600,resource_4 = 4000
@@ -215,102 +221,16 @@ class Borg extends NPC
 			// Check ownership of the BOT's planet
 			else {
 				$sql = 'SELECT planet_owner FROM planets
-					        WHERE planet_id = '.$this->bot['planet_id'];
+				        WHERE planet_id = '.$this->bot['planet_id'];
 
 				$botplanetowner = $this->db->queryrow($sql);
 				// Owner are still BORG?
 				if($botplanetowner['planet_owner'] != $this->bot['user_id'])
 				{
-					// The wrath of Borgs begin
-					$this->sdl->log("SevenOfNine has lost her homeplanet, her wrath begins!",TICK_LOG_FILE_NPC);
-
-					$this->sdl->log('The User '.$botplanetowner['planet_owner'].' will have a bad day', TICK_LOG_FILE_NPC);
-
-					// Choose a target
-					$sql='SELECT p.planet_owner,p.planet_name,p.planet_id,u.user_points FROM (planets p)
-					      INNER JOIN (user u) ON u.user_id = p.planet_owner
-					      WHERE p.planet_owner ='.$botplanetowner['planet_owner'].' LIMIT 0 , 1';
-					$target=$this->db->queryrow($sql);
-
-					// Check if a fleet is already on fly
-					$sql = 'SELECT `fleet_id`, `move_id`, `planet_id` FROM `ship_fleets`
-					        WHERE `user_id` = '.$this->bot['user_id'].' AND `fleet_name` = "'.$target['planet_name'].'"
-					        LIMIT 0,1';
-					$fleet = $this->db->queryrow($sql);
-
-					// If the fleet does not exists
-					if(empty($fleet['fleet_id'])) {
-						// Create a new fleet
-						$fleet_id = $this->CreateFleet($target['planet_name'],$this->bot['ship_template2'],
-							$this->bot['wrath_size']);
-
-						// Increase wrath size
-						$sql = 'UPDATE borg_bot SET wrath_size = wrath_size + 30';
-						if(!$this->db->query($sql))
-							$this->sdl->log('<b>Error:</b> cannot increase Borg wrath', TICK_LOG_FILE_NPC);
-
-						// Send it to the planet
-						$this->SendBorgFleet($ACTUAL_TICK,$fleet_id, $target['planet_id']);
-					}
-					// If the fleet exists but it is not moving and it is not at planet
-					else if($fleet['planet_id'] != $target['planet_id'] && $target['move_id'] == 0) {
-						// Send it to the planet
-						$this->SendBorgFleet($ACTUAL_TICK,$fleet['fleet_id'], $target['planet_id']);
-					}
-
-					// Now think to reconquer the homeplanet
-					$sql='SELECT p.planet_owner,p.planet_name,p.planet_id,u.user_points FROM (planets p)
-					      INNER JOIN (user u) ON u.user_id = p.planet_owner
-					      WHERE p.planet_id ='.$this->bot['planet_id'];
-					$target=$this->db->queryrow($sql);
-
-					// Check if a fleet is already on fly
-					$sql = 'SELECT `fleet_id`, `move_id`, `planet_id` FROM `ship_fleets`
-					        WHERE `user_id` = '.$this->bot['user_id'].' AND `fleet_name` = "Borg Wrath"
-					        LIMIT 0,1';
-					$fleet = $this->db->queryrow($sql);
-
-					// If the fleet does not exists
-					if(empty($fleet['fleet_id'])) {
-						// Create a new fleet
-						$fleet_id = $this->CreateFleet("Borg Wrath",$this->bot['ship_template2'],30);
-
-						//$sql='SELECT planet_id FROM planets
-						//      WHERE planet_owner ='.$this->bot['user_id'].' LIMIT 0 , 1';
-						//$start=$this->db->queryrow($sql);
-
-						// Fix the origin since the bot has lost is home planet
-						//$sql = 'UPDATE ships_fleets SET planet_id = '.$start['planet_id'].' WHERE fleet_id = '.$fleet_id;
-						//if(!$this->db->query($sql))
-						//	$this->sdl->log('<b>Error:</b> Cannot update Borg wrath fleet data', TICK_LOG_FILE_NPC);
-
-						// Send it to the planet
-						$this->SendBorgFleet($ACTUAL_TICK,$fleet_id, $this->bot['planet_id']);
-					}
-					// If the fleet exists but it is not moving and it is not at planet
-					else if($fleet['planet_id'] != $this->bot['planet_id'] && $target['move_id'] == 0) {
-
-						// Borg are tired?
-						if($this->bot['wrath_num'] <= 1)
-						{
-							// Send it to the planet
-							$this->SendBorgFleet($ACTUAL_TICK,$fleet['fleet_id'], $this->bot['planet_id']);
-
-							// Increase wrath num
-							$sql = 'UPDATE borg_bot SET wrath_num = wrath_num + 1';
-							if(!$this->db->query($sql))
-								$this->sdl->log('<b>Error:</b> cannot increase wrath num', TICK_LOG_FILE_NPC);
-						}
-					}
-				}
-				else
-				{
-					$this->sdl->log("SevenOfNine hasn't lost her homeplanet.",TICK_LOG_FILE_NPC);
-
-					// Set wrath size at default value
-					$sql = 'UPDATE borg_bot SET wrath_size = 30';
+					// Just reset the Borg planet_id, next round the Borg Queen will get a new throne!
+					$sql = 'UPDATE borg_bot SET planet_id = 0';
 					if(!$this->db->query($sql))
-						$this->sdl->log('<b>Error:</b> cannot restore Borg wrath', TICK_LOG_FILE_NPC);
+						$this->sdl->log('<b>Error:</b> cannot reset Borg main planet id', TICK_LOG_FILE_NPC);
 				}
 			}
 
@@ -656,8 +576,8 @@ class Borg extends NPC
 		// ########################################################################################
 		//Ships creation
 		$this->sdl->start_job('Creating Unimatrix Zero Fleet', TICK_LOG_FILE_NPC);
-		// Fleet Exist?
-		$sql = 'SELECT COUNT(*) AS cnt FROM ship_fleets WHERE fleet_name = "Unimatrix Zero" AND user_id = '.$this->bot['user_id'];
+		// Main Fleet Exist?
+		$sql = 'SELECT COUNT(*) AS cnt, fleet_id, planet_id FROM ship_fleets WHERE fleet_name = "Unimatrix Zero" AND user_id = '.$this->bot['user_id'];
 		$f_c = $this->db->queryrow($sql);
 		if($f_c['cnt'] == false)
 		{
@@ -684,6 +604,11 @@ class Borg extends NPC
 				}
 			$this->sdl->log('Unimatrix Zero Fleet has been created!!!', TICK_LOG_FILE_NPC);	
 		}
+		else
+		{
+			// Main Fleet is in right position?
+			if($f_c['planet_id'] != $this->bot['planet_id']) $this->SendBorgFleet($ACTUAL_TICK,$f_c['fleet_id'], $this->bot['planet_id'],11);
+		}
 		
 		$this->sdl->finish_job('Creating Unimatrix Zero Fleet', TICK_LOG_FILE_NPC);
 		// ########################################################################################
@@ -695,114 +620,6 @@ class Borg extends NPC
 		        WHERE fleet_name LIKE "%Fleet Node%" AND user_id = '.$this->bot['user_id'];
 		if(!$this->db->query($sql))
 			$this->sdl->log('<b>Warning:</b> cannot update Borg Nodes Fleet crew!', TICK_LOG_FILE_NPC);
-		// ########################################################################################
-		// ########################################################################################
-		// Send ships
-		/*
-		$this->sdl->start_job('Assimilate planets', TICK_LOG_FILE_NPC);
-
-		// First of all check how much time has been elapsed from the previous attack
-		if($ACTUAL_TICK > ($this->bot['user_tick'] + BORG_CYCLE)) {
-			$sql = 'UPDATE borg_bot SET user_tick="'.$ACTUAL_TICK.'" WHERE id="'.$this->bot['id'].'"';
-			if(!$this->db->query($sql))
-				$this->sdl->log('<b>Warning:</b> cannot update bot user_tick!', TICK_LOG_FILE_NPC);
-
-			// Give the user a chance not to be attacked
-			if(rand(0,100) <= BORG_CHANCE) {
-				// Select BORG home planet
-				$sql = 'SELECT s.system_global_x, s.system_global_y
-				        FROM (planets p)
-				        INNER JOIN (starsystems s) ON s.system_id = p.system_id
-				        WHERE p.planet_id = '.$this->bot['planet_id'];
-
-				$unimtx0 = $this->db->queryrow($sql);
-
-				// Filter last four attacked users
-				$filter = '';
-				if($this->bot['last_attacked'] > 0 && $this->bot['last_attacked'] < 4)
-				{
-					$skip_id = array();
-					for($i = 0; $i < $this->bot['last_attacked']; ++$i) {
-						$skip_id[$i] = $this->bot['attacked_user'.($i+1)];
-					}
-					$filter = 'u.user_id NOT IN ('.implode(',', $skip_id).') AND';
-				}
-				// Reset attacked counter
-				else if($this->bot['last_attacked'] >= 4)
-					$this->bot['last_attacked'] = 0;
-
-				// Now select the target...
-				$sql = 'SELECT p.planet_id, s.system_global_x, s.system_global_y,
-				               u.user_points, u.user_id
-				        FROM (planets p)
-				        INNER JOIN (starsystems s) ON s.system_id = p.system_id
-				        INNER JOIN (user u) ON u.user_id = p.planet_owner
-				        WHERE u.user_planets > '.BORG_MINATTACK.' AND
-				              u.user_vacation_end < '.$ACTUAL_TICK.' AND
-				              p.planet_owner <> '.$this->bot['user_id'].' AND
-				              '.$filter.'
-				              CEIL(p.sector_id / 81) = '.$this->bot['attack_quadrant'].'
-				              ORDER BY p.planet_id ASC';
-
-				$targets = $this->db->query($sql);
-
-				// Select the nearest planet
-				$min_distance = 10000000;
-				while($target = $this->db->fetchrow($targets)) {
-					$distance = get_distance(
-						array($unimtx0['system_global_x'], $unimtx0['system_global_y']),
-						array($target['system_global_x'], $target['system_global_y'])
-					);
-					if($distance < $min_distance)
-					{
-						$min_distance = $distance;
-						$chosen_target = $target;
-					}
-				}
-
-				$this->sdl->log('Chosen target is planet: <b>'.$chosen_target['planet_id'].'</b> of user: <b>'.$chosen_target['user_id'].'</b> at distance: <b>'.$min_distance.'</b> from BOT planet',TICK_LOG_FILE_NPC);
-
-				// Select appropriate fleet
-				if($chosen_target['user_points'] > BORG_BIGPLAYER)
-					$sql = 'SELECT `fleet_id` FROM `ship_fleets`
-					        WHERE `fleet_name`="Borg cube" AND `user_id` = '.$this->bot['user_id'].' AND `planet_id` <> 0
-					        LIMIT 0,1';
-				else
-					$sql = 'SELECT `fleet_id` FROM `ship_fleets`
-					        WHERE `fleet_name`="Borg spheres" AND `user_id` = '.$this->bot['user_id'].' AND `planet_id` <> 0
-					        LIMIT 0,1';
-
-				$fleet = $this->db->queryrow($sql);
-
-				if(!empty($fleet['fleet_id']) && !empty($chosen_target['planet_id'])) {
-					$this->SendBorgFleet($ACTUAL_TICK,$fleet['fleet_id'],$chosen_target['planet_id']);
-					$this->sdl->log('Borg fleet #'.$fleet['fleet_id'].' sent to planet #'.$chosen_target['planet_id'],
-						TICK_LOG_FILE_NPC);
-
-					// Next time attack another quadrant
-					$this->bot['attack_quadrant']++;
-					if($this->bot['attack_quadrant'] > 4)
-						$this->bot['attack_quadrant'] = 1;
-
-					$sql = 'UPDATE borg_bot SET
-					               attack_quadrant = '.$this->bot['attack_quadrant'].',
-					               attacked_user'.($this->bot['last_attacked']+1).' = '.$chosen_target['user_id'].',
-					               last_attacked = last_attacked + 1
-					        WHERE id="'.$this->bot['id'].'"';
-					if(!$this->db->query($sql))
-						$this->sdl->log('<b>Warning:</b> cannot update bot attack_quadrant!',
-							TICK_LOG_FILE_NPC);
-				}
-				else {
-					$this->sdl->log('No fleets or no targets available!', TICK_LOG_FILE_NPC);
-				}
-			}
-			else
-				$this->sdl->log('Today the galaxy is safe!', TICK_LOG_FILE_NPC);
-		}
-
-		$this->sdl->finish_job('Assimilate planets', TICK_LOG_FILE_NPC);
-		*/
 		// ########################################################################################
 		// ########################################################################################
 		// Create defences for BOT planets
@@ -926,7 +743,7 @@ class Borg extends NPC
 		{
 			$this->sdl->log('<b>Error:</b> Bot: Could not read Borg data', TICK_LOG_FILE_NPC);
 		}
-		elseif($res['user_planets'] < 101)
+		elseif($res['user_planets'] < 51)
 		{ // Begin Settlers Assimilation Program Main Loop
 
 			$this->sdl->log('DEBUG: Borg Planet Count: '.$res['user_planets'], TICK_LOG_FILE_NPC );
