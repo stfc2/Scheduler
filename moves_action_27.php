@@ -197,7 +197,7 @@ class moves_action_27 extends moves_common {
                         // Calculate Exp of the mission
                         if($ship_details['experience'] < 75) {
                             $actual_exp = $ship_details['experience'];
-                            $exp = (2.5/((float)$actual_exp*0.0635))+0.6;
+                            $exp = (2.7/((float)$actual_exp*0.0635))+1.5;
                             $sql = 'UPDATE ships SET experience = experience+'.$exp.' WHERE ship_id = '.$ship_details['ship_id'];
                             if(!$this->db->query($sql)) {
                                 return $this->log(MV_M_DATABASE, 'Could not update ship exp! SKIP');
@@ -325,7 +325,7 @@ class moves_action_27 extends moves_common {
                     $sql = 'SELECT log_code, mood_modifier
                             FROM settlers_relations
                             WHERE planet_id = '.$this->move['dest'].' AND
-                                  player_id = '.$this->move['user_id'].' AND
+                                  user_id = '.$this->move['user_id'].' AND
                                   log_code = '.LC_DIPLO_SPEECH;
                     if(($_qd = $this->db->queryrow($sql)) === false) {
                         return $this->log(MV_M_DATABASE, 'Could not read planet data! SKIP');
@@ -359,6 +359,47 @@ class moves_action_27 extends moves_common {
                             else
                                 $speech_value += 10;
                         }
+
+                        $sql = 'SELECT * FROM user_diplomacy
+                                WHERE user1_id = '.INDEPENDENT_USERID.' AND user2_id = '.$this->move['user_id'];
+                        $diplo_data = $this->db->queryrow($sql);
+                        if(isset($diplo_data['ud_id']) && !empty($diplo_data['ud_id'])) {
+                            $speech_value += 10;
+                        }
+                        else {
+                            $speech_value += 30;
+                            $sql = 'INSERT INTO user_diplomacy 
+                                    SET user1_id = '.INDEPENDENT_USERID.',
+                                        user2_id = '.$this->move['user_id'].',
+                                        date = '.time().',
+                                        accepted = 1';
+                            if(!$this->db->query($sql)) {
+                                return $this->log(MV_M_DATABASE, 'Could not create user alliance with the settlers! SKIP!!!');
+                            }
+                        }
+
+                        $sql = 'INSERT INTO settlers_relations
+                                SET planet_id = '.$this->move['dest'].',
+                                    race_id = '.$this->move['user_race'].',
+                                    user_id = '.$this->move['user_id'].',
+                                    timestamp = '.time().',
+                                    log_code = '.LC_DIPLO_SPEECH.',
+                                    mood_modifier = '.$speech_value;
+
+                        if(!$this->db->query($sql)) {
+                            return $this->log(MV_M_DATABASE, 'Could not create new settlers relations! SKIP!!!');
+                        }
+
+                        // Calculate Exp of the mission
+                        if($ship_details['experience'] < 99) {
+                            $actual_exp = $ship_details['experience'];
+                            $exp = (2.9/((float)$actual_exp*0.0635))+2.5;
+                            $sql = 'UPDATE ships SET experience = experience+'.$exp.' WHERE ship_id = '.$ship_details['ship_id'];
+                            if(!$this->db->query($sql)) {
+                                return $this->log(MV_M_DATABASE, 'Could not update ship exp! SKIP');
+                            }
+                        }
+
                         $log_data[8]['mission_result'] = 1;
                         add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL_2, $f_c_title.$this->dest['planet_name'].$f_c_success, $log_data);
                     }
