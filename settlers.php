@@ -73,6 +73,10 @@ class Settlers extends NPC
 				{
 					$this->sdl->log('<b>Error:</b> Bot: Could not create TheSettlers', TICK_LOG_FILE_NPC);
 				}
+				else {
+					// Update BOT user ID
+					$this->bot['user_id'] = INDEPENDENT_USERID;
+				}
 			} // end user bot creation
 		}else{
 			$this->sdl->log('<b>Error:</b> No access to environment table!', TICK_LOG_FILE_NPC);
