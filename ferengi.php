@@ -159,6 +159,9 @@ class Ferengi extends NPC
 					"50","50","0","250","250","40","40","40","50","9.99","40","40","1","1","0",
 					"200000","200000","200000","40000","5000","5000","5000","2500","2500","5000","5000","2500","2500",2000,0)';
 				if(!$this->db->query($sql))  $this->sdl->log('<b>Error:</b> Bot ShipsTemps: template 1 was not saved', TICK_LOG_FILE_NPC);
+
+				// 23/07/12 - AC: Update ship template id with the freshly created one... hoping everything went fine!
+				$this->bot['ship_t_1'] = $this->db->insert_id();
 			}
 			if($this->bot['ship_t_2']==0)
 			{
@@ -171,6 +174,9 @@ class Ferengi extends NPC
 					"4000","4000","100","6000","6000","60","60","60","60","9.99","60","60","1","1","0",
 					"500000","500000","500000","50000","5000","10000","10000","2500","2500","5000","5000","2500","2500",2000,0)';
 				if(!$this->db->query($sql))  $this->sdl->log('<b>Error:</b> Bot ShipsTemps: template 2 was not saved', TICK_LOG_FILE_NPC);
+
+				// 23/07/12 - AC: Update ship template id with the freshly created one... hoping everything went fine!
+				$this->bot['ship_t_2'] = $this->db->insert_id();
 			}
 			if($neuladen>0)
 			{
