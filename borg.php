@@ -94,6 +94,7 @@ class Borg extends NPC
 				            `planet_id` SMALLINT( 5 ) UNSIGNED NOT NULL DEFAULT  \'0\',
 				            `ship_template1` INT( 10 ) UNSIGNED NOT NULL DEFAULT  \'0\',
 				            `ship_template2` INT( 10 ) UNSIGNED NOT NULL DEFAULT  \'0\',
+				            `ship_template3` INT( 10 ) UNSIGNED NOT NULL DEFAULT  \'0\',
 				            `user_tick` INT( 10 ) NOT NULL ,
 				            `attack_quadrant` TINYINT( 3 ) UNSIGNED NOT NULL DEFAULT  \''.BORG_QUADRANT.'\',
 				            `attacked_user1` MEDIUMINT( 8 ) UNSIGNED NOT NULL ,
@@ -115,8 +116,8 @@ class Borg extends NPC
 			$num_bot=$this->db->num_rows($Bot_exe);
 			if($num_bot < 1)
 			{
-				$sql = 'INSERT INTO borg_bot (user_id,user_tick,planet_id,ship_template1,ship_template2)
-				        VALUES ("0","0","0","0","0")';
+				$sql = 'INSERT INTO borg_bot (user_id,user_tick,planet_id,ship_template1,ship_template2,ship_template3)
+				        VALUES ("0","0","0","0","0","0")';
 				if(!$this->db->query($sql))
 				{
 					$this->sdl->log('<b>Error:</b> Abort the program because of errors when creating the user', TICK_LOG_FILE_NPC);
@@ -305,6 +306,9 @@ class Borg extends NPC
 
 				if(!$this->db->query($sql))
 					$this->sdl->log('<b>Error:</b> Bot ShipsTemps: template 1 was not saved', TICK_LOG_FILE_NPC);
+
+				// 23/07/12 - AC: Update ship template id with the freshly created one... hoping everything went fine!
+				$this->bot['ship_template1'] = $this->db->insert_id();
 			}
 			if($this->bot['ship_template2']==0)
 			{
@@ -375,6 +379,9 @@ class Borg extends NPC
 
 				if(!$this->db->query($sql))
 					$this->sdl->log('<b>Error:</b> Bot ShipsTemps: template 2 was not saved', TICK_LOG_FILE_NPC);
+
+				// 23/07/12 - AC: Update ship template id with the freshly created one... hoping everything went fine!
+				$this->bot['ship_template2'] = $this->db->insert_id();
 			}
 
 			if($this->bot['ship_template3']==0)
@@ -448,6 +455,9 @@ class Borg extends NPC
 
 				if(!$this->db->query($sql))
 					$this->sdl->log('<b>Error:</b> Bot ShipsTemps: template 3 was not saved', TICK_LOG_FILE_NPC);
+
+				// 23/07/12 - AC: Update ship template id with the freshly created one... hoping everything went fine!
+				$this->bot['ship_template3'] = $this->db->insert_id();
 			}
 
 			if($reload>0)
@@ -600,7 +610,7 @@ class Borg extends NPC
 			               '.$stpl['max_unit_1'].', '.$stpl['max_unit_2'].',
 			               '.$stpl['max_unit_3'].', '.$stpl['max_unit_4'].')';
 			if(!$this->db->query($sql)) {
-					$this->sdl->log('<b>Error:</b> Could not insert new ships #'.$i.' data', TICK_LOG_FILE_NPC);
+					$this->sdl->log('<b>Error:</b> Could not insert new ship data', TICK_LOG_FILE_NPC);
 				}
 			$this->sdl->log('Unimatrix Zero Fleet has been created!!!', TICK_LOG_FILE_NPC);	
 		}
