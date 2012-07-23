@@ -133,12 +133,12 @@ class Borg extends NPC
 			{
 				$this->sdl->log('We need to create SevenOfNine', TICK_LOG_FILE_NPC);
 
-				$sql = 'INSERT INTO user (user_active, user_name, user_loginname, user_password, user_email,
+				$sql = 'INSERT INTO user (user_id, user_active, user_name, user_loginname, user_password, user_email,
 				                          user_auth_level, user_race, user_gfxpath, user_skinpath, user_registration_time,
 				                          user_registration_ip, user_birthday, user_gender, plz, country,
 				                          user_enable_sig,user_message_sig,
 				                         user_signature)
-				         VALUES (1, "Borg(NPG)", "BorgBot", "'.md5("borgcube").'", "borg@stfc.it",
+				         VALUES ('.BORG_USERID.', 1, "Borg(NPG)", "BorgBot", "'.md5("borgcube").'", "borg@stfc.it",
 				                 1, '.BORG_RACE.', "", "skin1/", '.time().',
 				                 "127.0.0.1", "23.05.2008", "", 16162 , "Italia",
 				                 1, "<br><br><p><b>We are the Borg, resistance is futile</b></p>",
