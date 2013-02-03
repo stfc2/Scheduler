@@ -139,7 +139,6 @@ class moves_action_24 extends moves_common {
         // #############################################################################
         // Terraforming planet!!!
 
-        //if($this->move['user_id'] == 390) {
         if((bool)$this->action_data[1]) {
 
             // Pre-Terraforming Check
@@ -152,7 +151,7 @@ class moves_action_24 extends moves_common {
                 $dilithium = $dilicheck['resource_3'];
             }
 
-            if($dilithium < 250000) {
+            if($dilithium < 150000) {
                 $log_data[8] = -3;
                 add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $ter_title.$this->dest['planet_name'].$ter_fail, $log_data);
 
@@ -167,7 +166,7 @@ class moves_action_24 extends moves_common {
                 $check_clear = false;
             }
             elseif($_check['planet_owner'] != 0) $check_clear = false;
-            elseif($_check['planet_type'] != 'd')$check_clear = false;
+            elseif($_check['planet_type'] != 'a' && $_check['planet_type'] != 'b' && $_check['planet_type'] != 'c' && $_check['planet_type'] != 'd')$check_clear = false;
 
             if(!$check_clear) {
                 $log_data[8] = -4;
@@ -182,25 +181,27 @@ class moves_action_24 extends moves_common {
                 case 0:
                 case 1:
                     $type_probabilities = array(
-                        'c' => 60,
+                        'e' => 59,
                         'g' => 9,
-                        'k' => 25,
-                        'i' => 3,
+                        'f' => 25,
+                        'h' => 3,
                         'm' => 1,
-                        'n' => 1,
+                        'o' => 1,
+			'x' => 1,
                         'y' => 1
                     );
                 break;
                 case 2:
                 case 3:
                     $type_probabilities = array(
-                        'c' => 5,
-                        'e' => 29,
-                        'f' => 38,
+                        'h' => 5,
+                        'n' => 29,
+                        'k' => 37,
                         'g' => 2,
-                        'k' => 20,
+                        'l' => 20,
                         'm' => 3,
-                        'n' => 2,
+                        'o' => 2,
+			'x' => 1,
                         'y' => 1
                     );
                 break;
@@ -209,10 +210,12 @@ class moves_action_24 extends moves_common {
                 case 6:
                 case 7:
                     $type_probabilities = array(
-                        'h' => 45,
+                        'h' => 44,
                         'j' => 20,
                         'k' => 9,
-                        'l' => 25,
+                        'n' => 15,
+			'p' => 10,
+			'x' => 1,
                         'y' => 1
                     );
                 break;
@@ -280,8 +283,105 @@ class moves_action_24 extends moves_common {
             return MV_EXEC_OK;
 
         }
+	
+	// #############################################################################
+	// Planet goes to Settlers Community!
+	/*
+	if((bool)$this->action_data[2]) {
+	
+	        $sql = 'UPDATE planets
+                SET planet_owner = '.INDEPENDENT_USERID].',
+		    planet_name = 
+                    planet_owned_date = '.time().',
+                    planet_owner_enum = '.($n_planets - 1).',
+                    planet_available_points = '.$structure_pts.',
+                    research_1 = 0,
+                    research_2 = 0,
+                    research_3 = 0,
+                    research_4 = 0,
+                    research_5 = 0,
+                    resource_1 = 50,
+                    resource_2 = 50,
+                    resource_3 = 0,
+                    resource_4 = 10,
+                    recompute_static = 1,
+                    building_1 = 1,
+                    building_2 = 0,
+                    building_3 = 0,
+                    building_4 = 0,
+                    building_5 = 0,
+                    building_6 = 0,
+                    building_7 = 0,
+                    building_8 = 0,
+                    building_9 = 0,
+                    building_10 = 0,
+                    building_11 = 0,
+                    building_12 = 0,
+                    building_13 = 0,
+                    unit_1 = '.($cship['unit_1'] - $cship['min_unit_1']).',
+                    unit_2 = '.($cship['unit_2'] - $cship['min_unit_2']).',
+                    unit_3 = '.($cship['unit_3'] - $cship['min_unit_3']).',
+                    unit_4 = '.($cship['unit_4'] - $cship['min_unit_4']).',
+                    unit_5 = 0,
+                    unit_6 = 0,
+                    workermine_1 = 100,
+                    workermine_2 = 100,
+                    workermine_3 = 100,
+                    catresearch_1 = 0,
+                    catresearch_2 = 0,
+                    catresearch_3 = 0,
+                    catresearch_4 = 0,
+                    catresearch_5 = 0,
+                    catresearch_6 = 0,
+                    catresearch_7 = 0,
+                    catresearch_8 = 0,
+                    catresearch_9 = 0,
+                    catresearch_10 = 0,
+                    unittrainid_1 = 0,
+                    unittrainid_2 = 0,
+                    unittrainid_3 = 0,
+                    unittrainid_4 = 0,
+                    unittrainid_5 = 0,
+                    unittrainid_6 = 0,
+                    unittrainid_7 = 0,
+                    unittrainid_8 = 0,
+                    unittrainid_9 = 0,
+                    unittrainid_10 = 0,
+                    unittrainnumber_1 = 0,
+                    unittrainnumber_2 = 0,
+                    unittrainnumber_3 = 0,
+                    unittrainnumber_4 = 0,
+                    unittrainnumber_5 = 0,
+                    unittrainnumber_6 = 0,
+                    unittrainnumber_7 = 0,
+                    unittrainnumber_8 = 0,
+                    unittrainnumber_9 = 0,
+                    unittrainnumber_10 = 0,
+                    unittrainnumberleft_1 = 0,
+                    unittrainnumberleft_2 = 0,
+                    unittrainnumberleft_3 = 0,
+                    unittrainnumberleft_4 = 0,
+                    unittrainnumberleft_5 = 0,
+                    unittrainnumberleft_6 = 0,
+                    unittrainnumberleft_7 = 0,
+                    unittrainnumberleft_8 = 0,
+                    unittrainnumberleft_9 = 0,
+                    unittrainnumberleft_10 = 0,
+                    unittrain_actual = 0,
+                    unittrainid_nexttime=0,
+                    building_queue=0,
+                    planet_surrender=0
+                WHERE planet_id = '.$this->move['dest'];
 
+		//$this->log('SQL Debug', ''.$sql.'');
 
+		if(!$this->db->query($sql)) {
+		    return $this->log(MV_M_DATABASE, 'Could not update planets data! SKIP');
+		}
+	
+	}
+
+	*/
         // #############################################################################
         // We need the number of planets, which owns the colonizer
         // (we want to determine planet_owner_enum surely)
