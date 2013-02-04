@@ -101,7 +101,7 @@ class Settlers extends NPC
 		
 		$this->sdl->start_job('Mayflower Planets Building Control', TICK_LOG_FILE_NPC);
 		
-		$sql='SELECT * FROM planets WHERE planet_owner = '.INDEPENDENT_USERID.' ORDER BY npc_last_action ASC LIMIT 0, 3';
+		$sql='SELECT * FROM planets WHERE planet_owner = '.INDEPENDENT_USERID.' AND npc_last_action < '.$ACTUAL_TICK.' ORDER BY npc_last_action ASC LIMIT 0, 3';
 		
 		if(($setpoint = $this->db->query($sql)) === false)
 			{
@@ -196,7 +196,7 @@ class Settlers extends NPC
 				
 				// Let's activate the Academy!
 				if($planet_to_serve['unittrain_actual'] == 0 &&
-				  ($planet_to_serve['planet_type'] == 'm' || $planet_to_serve['planet_type'] == 'n'))
+				  ($planet_to_serve['planet_type'] == 'm' || $planet_to_serve['planet_type'] == 'o' || $planet_to_serve['planet_type'] == 'p'))
 				{
 					$sql = 'UPDATE planets SET unittrainid_1 = 2, unittrainid_2 = 1,
 								   unittrainid_3 = 5, unittrainid_4 = 6,
@@ -215,11 +215,14 @@ class Settlers extends NPC
 				}
 
 				if($planet_to_serve['unittrain_actual'] == 0 &&
-				  ($planet_to_serve['planet_type'] == 'c' || 
+				  ($planet_to_serve['planet_type'] == 'a' || 
+				   $planet_to_serve['planet_type'] == 'b' ||
+				   $planet_to_serve['planet_type'] == 'c' ||
+				   $planet_to_serve['planet_type'] == 'd' ||
+				   $planet_to_serve['planet_type'] == 'h' ||
 				   $planet_to_serve['planet_type'] == 'k' ||
-				   $planet_to_serve['planet_type'] == 'e' ||
-				   $planet_to_serve['planet_type'] == 'f' ||
-				   $planet_to_serve['planet_type'] == 'g'))
+				   $planet_to_serve['planet_type'] == 'l' ||
+				   $planet_to_serve['planet_type'] == 'n'))
 				{
 					$sql = 'UPDATE planets SET unittrainid_1 = 2, unittrainid_2 = 1,
 								   unittrainnumber_1 = 2, unittrainnumber_2 = 1,
@@ -272,7 +275,7 @@ class Settlers extends NPC
 					continue;	
 				}
 
-				// This phase is definitely vary heavy in terms of DB accesses, it's better to do that just one time per execution.
+				// This phase is definitely very heavy in terms of DB accesses, it's better to do that just one time per execution.
 				if(!$_already_done)
 				{
 					$sql = 'SELECT s.user_id, ud.ud_id, u.user_capital, SUM(s.mood_modifier) 
@@ -296,24 +299,24 @@ class Settlers extends NPC
 						{
 						// Mining planets
 						// Supplies 12%-15% of their production to the player with the higher mood
-						case "a":
-						case "b":
+						case "f":
+						case "j":
 							$_ress_1 = round(0.15*$planet_to_serve['resource_1']);
 							$planet_to_serve['resource_1'] = $planet_to_serve['resource_1'] - $_ress_1;
 							break;
-						case "l":
-						case "j":
-						case "d":
-							$_ress_4 = round(0.10*$planet_to_serve['resource_4']);
-							$planet_to_serve['resource_4'] = $planet_to_serve['resource_4'] - $_ress_4;						
+						case "e":
+						case "s":
 							$_ress_2 = round(0.15*$planet_to_serve['resource_2']);
 							$planet_to_serve['resource_2'] = $planet_to_serve['resource_2'] - $_ress_2;
 							break;
-						case "i":
+						case "i":	
+						case "g":
 						case "h":
+						case "t":
 							$_ress_3 = round(0.12*$planet_to_serve['resource_3']);
 							$planet_to_serve['resource_3'] = $planet_to_serve['resource_3'] - $_ress_3;
 							break;
+						case "x":
 						case "y":
 							$_ress_1 = round(0.15*$planet_to_serve['resource_1']);
 							$planet_to_serve['resource_1'] = $planet_to_serve['resource_1'] - $_ress_1;
@@ -325,7 +328,8 @@ class Settlers extends NPC
 						// Mercenary Planets
 						// Supplies Technician and Physician
 						case "m":
-						case "n":
+						case "o":
+						case "p":
 							$_ress_4 = round(0.10*$planet_to_serve['resource_4']);
 							$planet_to_serve['resource_4'] = $planet_to_serve['resource_4'] - $_ress_4;
 							$_unit_5 = round(0.30*$planet_to_serve['unit_5']);
@@ -334,11 +338,14 @@ class Settlers extends NPC
 							$planet_to_serve['unit_6'] = $planet_to_serve['unit_6'] - $_unit_6;
 							break;
 						// Supplies first and second level troops
+						case "a":
+						case "b":
 						case "c":
+						case "d":
+						case "h":
 						case "k":
-						case "e":
-						case "f":
-						case "g":
+						case "l":
+						case "n":						    
 							$_ress_4 = round(0.10*$planet_to_serve['resource_4']);
 							$planet_to_serve['resource_4'] = $planet_to_serve['resource_4'] - $_ress_4;
 							$_unit_1 = round(0.30*$planet_to_serve['unit_1']);
@@ -375,7 +382,7 @@ class Settlers extends NPC
 				// In the definitive version, only certain planets should build ships.
 				$sql = 'SELECT COUNT(*) as ship_queue FROM scheduler_shipbuild WHERE planet_id = '.$planet_to_serve['planet_id'];
 				$s_q = $this->db->queryrow($sql);
-				if($s_q['ship_queue'] == 0 && ($planet_to_serve['planet_type'] == 'c' || $planet_to_serve['planet_type'] == 'f' || $planet_to_serve['planet_type'] == 'e'))
+				if($s_q['ship_queue'] == 0 && ($planet_to_serve['planet_type'] == 'h' || $planet_to_serve['planet_type'] == 'k' || $planet_to_serve['planet_type'] == 'l'))
 				{
 					$_buildtime = 65; // Yep, no access to the DB, let's avoid it...
 					$sql = 'INSERT INTO scheduler_shipbuild SET ship_type = '.$Environment['settler_tmp_1'].', planet_id = '.$planet_to_serve['planet_id'].', start_build = '.$ACTUAL_TICK.', finish_build = '.($ACTUAL_TICK + $_buildtime).', unit_1 = 15, unit_2 = 0, unit_3 = 0, unit_4 = 1';
@@ -386,8 +393,8 @@ class Settlers extends NPC
 					$this->db->query($sql);
 					continue;
 				}
-				// We build big combact ships (hull 12)!!!
-				if($s_q['ship_queue'] == 0 && ($planet_to_serve['planet_type'] == 'y' || $planet_to_serve['planet_type'] == 'g'))
+				// We build big combat ships (hull 12)!!!
+				if($s_q['ship_queue'] == 0 && ($planet_to_serve['planet_type'] == 'e' || $planet_to_serve['planet_type'] == 'f' || $planet_to_serve['planet_type'] == 'g' || $planet_to_serve['planet_type'] == 'x' || $planet_to_serve['planet_type'] == 'y'))
 				{
 					$_buildtime = 420; // Yep, no access to the DB, let's avoid it...
 					$sql = 'INSERT INTO scheduler_shipbuild SET ship_type = '.$Environment['settler_tmp_3'].', planet_id = '.$planet_to_serve['planet_id'].', start_build = '.$ACTUAL_TICK.', finish_build = '.($ACTUAL_TICK + $_buildtime).', unit_1 = 200, unit_2 = 95, unit_3 = 65, unit_4 = 6';
@@ -399,7 +406,7 @@ class Settlers extends NPC
 					continue;
 				}
 
-				$sql = 'UPDATE planets SET npc_last_action = '.$ACTUAL_TICK.' WHERE planet_id = '.$planet_to_serve['planet_id'];
+				$sql = 'UPDATE planets SET npc_last_action = '.($ACTUAL_TICK + 20).' WHERE planet_id = '.$planet_to_serve['planet_id'];
 				$this->sdl->log('SQL E'.$sql, TICK_LOG_FILE_NPC);
 				$this->db->query($sql);
 			}
