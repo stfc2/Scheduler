@@ -59,11 +59,10 @@ class moves_action_26 extends moves_common {
 
 			$actual_exp = $ship_details['experience'];
 
-			$exp = (2.5/((float)$actual_exp*0.0635))+0.6;
+            $exp = ($actual_exp > 0) ? (2.5/((float)$actual_exp*0.0635))+0.6 : 40;
 
-			$sql = 'UPDATE ships SET experience = experience+'.$exp.' WHERE ship_id = '.$ship_details['ship_id'];
-
-//			$this->log(MV_M_NOTICE, 'SQL per update EXP: '.$sql);
+			$sql = 'UPDATE ships SET experience = experience+'.$exp.'
+                    WHERE ship_id = '.$ship_details['ship_id'];
 		
 			if(!$this->db->query($sql)) {
 				$this->log(MV_M_DATABASE, 'Could not update ship exp! CONTINUE');
