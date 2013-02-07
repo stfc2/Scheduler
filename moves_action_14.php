@@ -151,7 +151,7 @@ class moves_action_14 extends moves_common {
                     remaining_distance = '.$this->move['total_distance'].',
                     move_begin = '.$this->CURRENT_TICK.',
                     move_finish = '.($this->CURRENT_TICK + ($this->move['move_finish'] - $this->move['move_begin'])).',
-                    action_code = 12,
+                    action_code = 12
                 WHERE move_id = '.$this->mid;
 
         // 07/02/13 - AC: If action_data would ever serve a day, store it in the DB
