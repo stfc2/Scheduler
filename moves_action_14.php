@@ -28,84 +28,45 @@ class moves_action_14 extends moves_common {
     function _action_main() {
 
         // #############################################################################
-
-        // Summe der Rohstoffe ermitteln
-
-        
+        // Determine total raw materials
 
         $sql = 'SELECT fleet_id, user_id,
-
                        resource_1, resource_2, resource_3, resource_4,
-
                        unit_1, unit_2, unit_3, unit_4, unit_5, unit_6
-
                 FROM ship_fleets
-
                 WHERE fleet_id IN ('.$this->fleet_ids_str.')';
 
-                
-
         if(($q_rfleets = $this->db->query($sql)) === false) {
-
             return $this->log(MV_M_DATABASE, 'Could not query fleets resources data! SKIP');
-
         }
 
-
-
         // #############################################################################
+        // Resources transferred
 
-        // Rohstoffe übertragen
-
-
-
-        $wares_names = array('resource_1', 'resource_2', 'resource_3', 'resource_4', 'unit_1', 'unit_2', 'unit_3', 'unit_4', 'unit_5', 'unit_6');
+        $wares_names = array('resource_1', 'resource_2', 'resource_3', 'resource_4',
+                             'unit_1', 'unit_2', 'unit_3', 'unit_4', 'unit_5', 'unit_6');
 
 
+        // $pwares -> Wares on the planet
+        // $fwares -> Wares on the fleet
 
-        // $pwares -> Waren auf dem Planeten
-
-        // $fwares -> Waren auf der Flotte
-
-
-
-        $pwares = $fwares = $transported = array();
-		$transported[0]=0;
-		$transported[1]=0;
-		$transported[2]=0;
-		$transported[3]=0;
-		$transported[4]=0;
-		$transported[5]=0;
-		$transported[6]=0;
-		$transported[7]=0;
-		$transported[8]=0;
-		$transported[9]=0;
-
+        $pwares = $fwares = array();
 
         for($i = 0; $i < count($wares_names); ++$i) {
-
             $pwares[$i] = (int)$this->dest[$wares_names[$i]];
-
         }
 
 
         $push = false;
-
         $planet_overloaded = false;
-
         $user_id = get_userid_by_planet($this->move['dest']);
 
-        
-
         while($rfleet = $this->db->fetchrow($q_rfleets)) {
-
             $fleet_id = $rfleet['fleet_id'];
 
-
-
-            $n_fwares = $rfleet['resource_1'] + $rfleet['resource_2'] + $rfleet['resource_3'] + $rfleet['resource_4'] + $rfleet['unit_1'] + $rfleet['unit_2'] + $rfleet['unit_3'] + $rfleet['unit_4'] + $rfleet['unit_5'] + $rfleet['unit_6'];
-
-
+            $n_fwares = $rfleet['resource_1'] + $rfleet['resource_2'] + $rfleet['resource_3'] + $rfleet['resource_4'] +
+                        $rfleet['unit_1'] + $rfleet['unit_2'] + $rfleet['unit_3'] +
+                        $rfleet['unit_4'] + $rfleet['unit_5'] + $rfleet['unit_6'];
 
             if($n_fwares == 0) continue;
 
@@ -117,179 +78,95 @@ class moves_action_14 extends moves_common {
             }
 
             foreach($pwares as $i => $p_value) {
-
                 $value = $fwares[$i] = (int)$rfleet[$wares_names[$i]];
-
-
 
                 if($value == 0) continue;
 
-
-
                 if($i == 3) {
-
                     if( ($pwares[$i] + $value) > $this->dest['max_worker'] ) {
-
                         $value = $this->dest['max_worker'] - $pwares[$i];
-
                         $planet_overloaded = true;
-
                     }
-
                 }
-
                 elseif($i <= 2) {
-
                     if( ($pwares[$i] + $value) > $this->dest['max_resources'] ) {
-
                         $value = $this->dest['max_resources'] - $pwares[$i];
-
                         $planet_overloaded = true;
-
                     }
-
                 }
-
                 else {
-
                     if( ($pwares[$i] + $value) > $this->dest['max_units'] ) {
-
                         $value = $this->dest['max_units'] - $pwares[$i];
-
                         $planet_overloaded = true;
-
                     }
-
                 }
-
-
 
                 $fwares[$i] -= $value;
-
                 $pwares[$i] += $value;
-                
-                $transported[$i]+=$value;
-
             }
-
-
 
             $sql = 'UPDATE ship_fleets
-
                     SET resource_1 = '.$fwares[0].',
-
                         resource_2 = '.$fwares[1].',
-
                         resource_3 = '.$fwares[2].',
-
                         resource_4 = '.$fwares[3].',
-
                         unit_1 = '.$fwares[4].',
-
                         unit_2 = '.$fwares[5].',
-
                         unit_3 = '.$fwares[6].',
-
                         unit_4 = '.$fwares[7].',
-
                         unit_5 = '.$fwares[8].',
-
                         unit_6 = '.$fwares[9].'
-
                     WHERE fleet_id = '.$fleet_id;
 
-                    
-
             if(!$this->db->query($sql)) {
-
                 return $this->log(MV_M_DATABASE, 'Could not update resource data of fleet #'.$fleet_id.'! SKIP');
-
             }
-
         }
-
-
 
         $sql = 'UPDATE planets
-
                 SET resource_1 = '.$pwares[0].',
-
                     resource_2 = '.$pwares[1].',
-
                     resource_3 = '.$pwares[2].',
-
                     resource_4 = '.$pwares[3].',
-
                     unit_1 = '.$pwares[4].',
-
                     unit_2 = '.$pwares[5].',
-
                     unit_3 = '.$pwares[6].',
-
                     unit_4 = '.$pwares[7].',
-
                     unit_5 = '.$pwares[8].',
-
                     unit_6 = '.$pwares[9].'
-
                 WHERE planet_id = '.$this->move['dest'];
 
-                
-
         if(!$this->db->query($sql)) {
-
             return $this->log(MV_M_DATABASE, 'Could not update planets resource data! SKIP');
-
         }
-
 
 
         // #############################################################################
-
-        // Schiffe zurückgeschicken
-
-
+        // Ships return
 
         $sql = 'UPDATE scheduler_shipmovement
-
                 SET start = '.$this->move['dest'].',
-
                     dest = '.$this->move['start'].',
-
                     total_distance = '.$this->move['total_distance'].',
-
                     remaining_distance = '.$this->move['total_distance'].',
-
                     move_begin = '.$this->CURRENT_TICK.',
-
                     move_finish = '.($this->CURRENT_TICK + ($this->move['move_finish'] - $this->move['move_begin'])).',
-
                     action_code = 12,
-
-                    action_data = "14"
-
                 WHERE move_id = '.$this->mid;
 
-                
+        // 07/02/13 - AC: If action_data would ever serve a day, store it in the DB
+        //            as action_data = "i:14;" and not like before action_data = "14"
+        //            that doesn't mean anything for function serialize().
 
         if(!$this->db->query($sql)) {
-
             return $this->log(MV_M_DATABASE, 'Could not update moves data! SKIP');
-
         }
-
-
 
         $this->flags['keep_move_alive'] = true;
 
-
-
         return MV_EXEC_OK;
-
     }
-
 }
-
 
 
 ?>
