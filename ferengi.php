@@ -423,6 +423,8 @@ class Ferengi extends NPC
 							case 'ITA':
 								$log_title = 'Notifica asta (vendita)';
 							break;
+							default:
+							     $log_title = 'Auction notification (sold)';
 						}
 						/* */
 
@@ -447,7 +449,7 @@ class Ferengi extends NPC
 						);
 
 						/* 02/04/08 - AC: Recover language of the sender */
-						$sql = 'SELECT language FROM user WHERE user_id='.$tradedata['user'];
+						$sql = 'SELECT language FROM user WHERE user_id='.$hbieter['user_id'];
 						if(!($language = $this->db->queryrow($sql)))
 						{
 							$this->sdl->log('<b>Error:</b> Cannot read user language!', TICK_LOG_FILE_NPC);
@@ -465,6 +467,8 @@ class Ferengi extends NPC
 							case 'ITA':
 								$log_title = 'Notifica asta (acquisto)';
 							break;
+							default:
+							     $log_title = 'Auction notification (bought)';
 						}
 						/* */
 
