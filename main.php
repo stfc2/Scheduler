@@ -113,46 +113,46 @@ $sdl->start_job('Building Scheduler');
 
 $sql = 'SELECT si.*, u.user_race, p.planet_type,p.research_4,p.building_queue,p.building_1,p.building_2,p.building_3,p.building_4,p.building_5,p.building_6,p.building_7,p.building_8,p.building_9,p.building_10,p.building_11,p.building_12
         FROM (scheduler_instbuild si) LEFT JOIN (planets p) ON p.planet_id=si.planet_id LEFT JOIN (user u) ON u.user_id=p.planet_owner
-		WHERE si.build_finish <= '.$ACTUAL_TICK;
+        WHERE si.build_finish <= '.$ACTUAL_TICK;
 
 if(($q_inst = $db->query($sql)) === false) {
     $sdl->log('<b>Error:</b> Could not query scheduler instbuild data! CONTINUED');
 }
-else
+else if($db->num_rows() > 0)
 {
-$n_instbuild = 0;
-while($build = $db->fetchrow($q_inst)) {
-   	    $recompute_static = (in_array($build['installation_type'], array(1, 2, 3, 11))) ? 1 : 0;
+    $n_instbuild = 0;
+    while($build = $db->fetchrow($q_inst)) {
+        $recompute_static = (in_array($build['installation_type'], array(1, 2, 3, 11))) ? 1 : 0;
 
         $sql = 'UPDATE planets
                 SET building_'.($build['installation_type'] + 1).' = building_'.($build['installation_type'] + 1).' + 1,
                     recompute_static = '.$recompute_static.', building_queue=0
                 WHERE planet_id = '.$build['planet_id'];
-		
+
         if(!$db->query($sql)) {
             $sdl->log('<b>Error:</b> Query sched_instbuild @ planets failed!  TICK EXECUTION CONTINUED');
         }
-	
-	// Queue processing:
-	if ($build['building_queue']>0)
-	{
-	$build['building_'.($build['installation_type']+1)]++;
-	if ($db->query('INSERT INTO scheduler_instbuild (installation_type,planet_id,build_finish) VALUES ("'.($build['building_queue']-1).'","'.$build['planet_id'].'","'.($ACTUAL_TICK+GetBuildingTimeTicks($build['building_queue']-1,$build,$build['user_race'])).'")')==false)  {$sdl->log('<b>Error:</b> building_query: Could not call INSERT INTO in scheduler_instbuild TICK EXECUTION CONTINUED'); }	
-	}
+
+        // Queue processing:
+        if ($build['building_queue']>0)
+        {
+            $build['building_'.($build['installation_type']+1)]++;
+            if ($db->query('INSERT INTO scheduler_instbuild (installation_type,planet_id,build_finish) VALUES ("'.($build['building_queue']-1).'","'.$build['planet_id'].'","'.($ACTUAL_TICK+GetBuildingTimeTicks($build['building_queue']-1,$build,$build['user_race'])).'")')==false)  {$sdl->log('<b>Error:</b> building_query: Could not call INSERT INTO in scheduler_instbuild TICK EXECUTION CONTINUED'); }	
+        }
 
 
-		++$n_instbuild;
-}
+        ++$n_instbuild;
+    }
 
-$sql = 'DELETE FROM scheduler_instbuild
-        WHERE build_finish <= '.$ACTUAL_TICK.'
-        LIMIT '.$n_instbuild;
+    $sql = 'DELETE FROM scheduler_instbuild
+            WHERE build_finish <= '.$ACTUAL_TICK.'
+            LIMIT '.$n_instbuild;
 
-if(!$db->query($sql)) {
-    $sdl->log('<b>Error:</b> Could not delete instbuild data - TICK EXECUTION CONTINUED');
-}
+    if(!$db->query($sql)) {
+        $sdl->log('<b>Error:</b> Could not delete instbuild data - TICK EXECUTION CONTINUED');
+    }
 
-unset($build);
+    unset($build);
 }
 
 $sdl->finish_job('Building Scheduler');
@@ -423,29 +423,29 @@ $sql = 'SELECT s.ship_id, s.ship_untouchable,
         WHERE s.ship_repair>0 AND s.ship_repair<= '.$ACTUAL_TICK;
 
 if(($q_ship = $db->query($sql)) === false) {
-	$sdl->log('<b>Error:</b> Could not query shiprepair data! CONTINUED');
+    $sdl->log('<b>Error:</b> Could not query shiprepair data! CONTINUED');
 }
 else
 {
-	while($ship = $db->fetchrow($q_ship)) {
-		// DC ---- Ships in Refitting does not get repaired
-		if ($ship['ship_untouchable'] == SHIP_IN_REFIT)
-			$sql = 'UPDATE ships
+    while($ship = $db->fetchrow($q_ship)) {
+        // DC ---- Ships in Refitting does not get repaired
+        if ($ship['ship_untouchable'] == SHIP_IN_REFIT)
+            $sql = 'UPDATE ships
                     SET ship_repair=0,
                         ship_untouchable=0'.($ship['ship_torso'] > 2 ? ', torp = '.$ship['max_torp'] : '' ).'
                     WHERE ship_id='.$ship['ship_id'];
-		else
-			$sql = 'UPDATE ships
+        else
+            $sql = 'UPDATE ships
                     SET hitpoints='.$ship['value_5'].',
                         ship_repair=0,
                         ship_untouchable=0
                     WHERE ship_id='.$ship['ship_id'];
-		// DC ----
+        // DC ----
 
-		if(!$db->query($sql)) {
-			$sdl->log('<b>Error:</b> Could not update processed ships data: <b>'.$sql.'</b>');
-		}
-	}
+        if(!$db->query($sql)) {
+            $sdl->log('<b>Error:</b> Could not update processed ships data: <b>'.$sql.'</b>');
+        }
+    }
 }
 $sdl->finish_job('Shiprepair Scheduler');
 
@@ -480,49 +480,46 @@ if(($q_ship = $db->query($sql)) === false) {
 }
 else
 {
+    while($ship = $db->fetchrow($q_ship)) {
 
-while($ship = $db->fetchrow($q_ship)) {
+        $res[0]=round(0.7*($ship['resource_1']-$ship['resource_1']/$ship['value_5']*($ship['value_5']-$ship['hitpoints'])),0);
+        $res[1]=round(0.7*($ship['resource_2']-$ship['resource_2']/$ship['value_5']*($ship['value_5']-$ship['hitpoints'])),0);
+        $res[2]=round(0.7*($ship['resource_3']-$ship['resource_3']/$ship['value_5']*($ship['value_5']-$ship['hitpoints'])),0);
 
-$res[0]=round(0.7*($ship['resource_1']-$ship['resource_1']/$ship['value_5']*($ship['value_5']-$ship['hitpoints'])),0);
-$res[1]=round(0.7*($ship['resource_2']-$ship['resource_2']/$ship['value_5']*($ship['value_5']-$ship['hitpoints'])),0);
-$res[2]=round(0.7*($ship['resource_3']-$ship['resource_3']/$ship['value_5']*($ship['value_5']-$ship['hitpoints'])),0);
-
-$unit[0]=$ship['unit_1'];
-$unit[1]=$ship['unit_2'];
-$unit[2]=$ship['unit_3'];
-$unit[3]=$ship['unit_4'];
-$unit[4]=$ship['unit_5'];
-$unit[5]=$ship['unit_6'];
+        $unit[0]=$ship['unit_1'];
+        $unit[1]=$ship['unit_2'];
+        $unit[2]=$ship['unit_3'];
+        $unit[3]=$ship['unit_4'];
+        $unit[4]=$ship['unit_5'];
+        $unit[5]=$ship['unit_6'];
 
 
-$sql = 'DELETE FROM ships WHERE ship_id='.$ship['ship_id'];
-if(!$db->query($sql)) {
-    $sdl->log('<b>Error:</b> Could not delete ship: <b>'.$sql.'</b>');
-}
-else
-{
-    $planet_id = ((-1)*$ship['fleet_id']);
+        $sql = 'DELETE FROM ships WHERE ship_id='.$ship['ship_id'];
+        if(!$db->query($sql)) {
+            $sdl->log('<b>Error:</b> Could not delete ship: <b>'.$sql.'</b>');
+        }
+        else
+        {
+            $planet_id = ((-1)*$ship['fleet_id']);
 
-    $sdl->log('<b>The ship <b>#'.$ship['ship_id'].'(template '.$ship['id'].')</b> on planet <b>#'.$planet_id.'</b> was dismantled successfully!');
+            $sdl->log('<b>The ship <b>#'.$ship['ship_id'].'(template '.$ship['id'].')</b> on planet <b>#'.$planet_id.'</b> was dismantled successfully!');
 
-    $sql = 'UPDATE planets
-            SET resource_1=resource_1+'.$res[0].',
-                resource_2=resource_2+'.$res[1].',
-                resource_3=resource_3+'.$res[2].',
-                unit_1=unit_1+'.$unit[0].',
-                unit_2=unit_2+'.$unit[1].',
-                unit_3=unit_3+'.$unit[2].',
-                unit_4=unit_4+'.$unit[3].',
-                unit_5=unit_5+'.$unit[4].',
-                unit_6=unit_6+'.$unit[5].'
-            WHERE planet_id='.$planet_id;
-    if(!$db->query($sql)) {
-        $sdl->log('<b>Error:</b> Could not update planets data: <b>'.$sql.'</b>');
+            $sql = 'UPDATE planets
+                    SET resource_1=resource_1+'.$res[0].',
+                        resource_2=resource_2+'.$res[1].',
+                        resource_3=resource_3+'.$res[2].',
+                        unit_1=unit_1+'.$unit[0].',
+                        unit_2=unit_2+'.$unit[1].',
+                        unit_3=unit_3+'.$unit[2].',
+                        unit_4=unit_4+'.$unit[3].',
+                        unit_5=unit_5+'.$unit[4].',
+                        unit_6=unit_6+'.$unit[5].'
+                    WHERE planet_id='.$planet_id;
+            if(!$db->query($sql)) {
+                $sdl->log('<b>Error:</b> Could not update planets data: <b>'.$sql.'</b>');
+            }
+        }
     }
-}
-
-}
-
 }
 $sdl->finish_job('Shipscrap Scheduler');
 
@@ -617,8 +614,6 @@ $sdl->finish_job('Shipyard Scheduler');
 
 $sdl->start_job('Research Scheduler');
 
-$n_techs = 0;
-
 $sql = 'SELECT sr.*,
                p.research_1, p.research_2, p.research_3, p.research_4, p.research_5,
                p.catresearch_1, p.catresearch_2, p.catresearch_3, p.catresearch_4, p.catresearch_5,
@@ -630,42 +625,42 @@ $sql = 'SELECT sr.*,
 if(($q_research = $db->query($sql)) === false) {
     $sdl->log('<b>Error:</b> Could not query research data');
 }
+else if($db->num_rows() > 0) {
+    $n_techs = 0;
 
-while($research = $db->fetchrow($q_research)) {
-    if($research['research_id'] < 5) {
-        $sql = 'UPDATE planets
-                 SET research_'.($research['research_id']+1).' = research_'.($research['research_id']+1).' +1,
-                 recompute_static = 1
+    while($research = $db->fetchrow($q_research)) {
+        if($research['research_id'] < 5) {
+            $sql = 'UPDATE planets
+                    SET research_'.($research['research_id']+1).' = research_'.($research['research_id']+1).' +1,
+                        recompute_static = 1
                     WHERE planet_id = '.$research['planet_id'];
 
             if(!$db->query($sql)) {
                 $sdl->log('<b>Error:</b> Query sched_research @ user failed!  TICK EXECUTION CONTINUED');
             }
         }
-    else {
-
-           $sql = 'UPDATE planets
-                 SET catresearch_'.($research['research_id']-4).' = catresearch_'.($research['research_id']-4).' + 1
+        else {
+            $sql = 'UPDATE planets
+                    SET catresearch_'.($research['research_id']-4).' = catresearch_'.($research['research_id']-4).' + 1
                     WHERE planet_id = '.$research['planet_id'];
 
             if(!$db->query($sql)) {
                 $sdl->log('<b>Error:</b> Query sched_research @ user failed:<br> '.$sql.' <br>TICK EXECUTION CONTINUED');
             }
 
-       	}
+        }
 
+        $n_techs++;
+    }
 
-    $n_techs++;
+    $sql = 'DELETE FROM scheduler_research
+            WHERE research_finish <= '.$ACTUAL_TICK.'
+            LIMIT '.$n_techs;
+
+    if(!$db->query($sql)) {
+        $sdl->log('<b>Error:</b> Could not delete processed research data');
+    }
 }
-
-$sql = 'DELETE FROM scheduler_research
-        WHERE research_finish <= '.$ACTUAL_TICK.'
-        LIMIT '.$n_techs;
-
-if(!$db->query($sql)) {
-    $sdl->log('<b>Error:</b> Could not delete processed research data');
-}
-
 $sdl->finish_job('Research Scheduler');
 
 // ########################################################################################
@@ -676,15 +671,14 @@ $sdl->start_job('Resourcetrade Scheduler');
 
 $sql = 'SELECT *
         FROM (scheduler_resourcetrade s)
-		WHERE s.arrival_time <= '.$ACTUAL_TICK;
+        WHERE s.arrival_time <= '.$ACTUAL_TICK;
 
 if(($q_rtrade = $db->query($sql)) === false) {
     $sdl->log('<b>Error:</b> Could not query scheduler resourcetrade data! CONTINUED');
 }
-else
-{
-$n_resourcetrades = 0;
-while($trade = $db->fetchrow($q_rtrade)) {
+else if($db->num_rows() > 0) {
+    $n_resourcetrades = 0;
+    while($trade = $db->fetchrow($q_rtrade)) {
 
         $sql = 'UPDATE planets
                 SET resource_1=resource_1+'.$trade['resource_1'].',resource_2=resource_2+'.$trade['resource_2'].',resource_3=resource_3+'.$trade['resource_3'].',resource_4=resource_4+'.$trade['resource_4'].',
@@ -696,17 +690,17 @@ while($trade = $db->fetchrow($q_rtrade)) {
         }
         else { $sdl->log('<b>Transport delivered</b> Transport ID: '.$trade['id'].' at Planet: '.$trade['planet'].' <b>WARES</b> - Metal: '.$trade['resource_1'].' Minerals: '.$trade['resource_2'].' Dilithium: '.$trade['resource_3'].' Workers: '.$trade['resource_4'].' lvl1: '.$trade['unit_1'].' lvl2: '.$trade['unit_2'].' lvl3: '.$trade['unit_3'].' lvl4: '.$trade['unit_4'].' lvl5: '.$trade['unit_5'].' lvl6: '.$trade['unit_6'].''); }
 
-		++$n_resourcetrades;
-}
+        ++$n_resourcetrades;
+    }
 
-$sql = 'DELETE FROM scheduler_resourcetrade
-        WHERE arrival_time <= '.$ACTUAL_TICK.'
-        LIMIT '.$n_resourcetrades;
+    $sql = 'DELETE FROM scheduler_resourcetrade
+            WHERE arrival_time <= '.$ACTUAL_TICK.'
+            LIMIT '.$n_resourcetrades;
 
-if(!$db->query($sql)) {
-    $sdl->log('<b>Error: (Critical)</b> Could not delete scheduler_resourcetrade data - TICK EXECUTION CONTINUED');
-}
-unset($trade);
+    if(!$db->query($sql)) {
+        $sdl->log('<b>Error: (Critical)</b> Could not delete scheduler_resourcetrade data - TICK EXECUTION CONTINUED');
+    }
+    unset($trade);
 }
 $sdl->finish_job('Resourcetrade Scheduler');
 
@@ -716,13 +710,11 @@ $sdl->finish_job('Resourcetrade Scheduler');
 // Future Humans
 $sdl->start_job('Future Humans Setup&Maintenance');
 
-$sql = 'SELECT future_ship AS fhtemplate FROM config';
-if(($FHTemplate = $db->queryrow($sql)) === false) {
-    $sdl->log('<b>FH Error: (Critical)</b> Could not read Future Humans Ship Template_id - TICK EXECUTION CONTINUED');
-}
-elseif($FHTemplate['fhtemplate'] == 0)
+if($cfg_data['future_ship'] == 0)
 {
-    $sql = 'SELECT count(*) AS fhship_check FROM ship_templates WHERE template_id = '.$FHTemplate['fhtemplate'];
+    $sql = 'SELECT count(*) AS fhship_check
+            FROM ship_templates
+            WHERE template_id = '.$cfg_data['future_ship'];
     $result = $db->queryrow($sql);
     if($result['fhship_check'] == 0)
     {
@@ -748,13 +740,14 @@ elseif($FHTemplate['fhtemplate'] == 0)
                         "400","200","150","25",
                         2000, 3, 500)';
 
-        if(!$db->query($sql)) $sdl->log('<b>FH Error: (Critical)</b> Could not write Future Humans Ship Template - TICK EXECUTION CONTINUED');
+        if(!$db->query($sql))
+            $sdl->log('<b>FH Error: (Critical)</b> Could not write Future Humans Ship Template - TICK EXECUTION CONTINUED');
 
-        $newtemplateid = $db->queryrow('SELECT id FROM ship_templates WHERE owner = '.FUTURE_HUMANS_UID);
+        $cfg_data['future_ship'] = $db->insert_id();
 
-        $db->query('UPDATE config SET future_ship = '.$newtemplateid['id']);
+        $db->query('UPDATE config SET future_ship = '.$cfg_data['future_ship']);
 
-        $sdl->log('Template created with id '.$newtemplateid['id']);
+        $sdl->log('Template created with id '.$cfg_data['future_ship']);
     }
 }
 
@@ -766,20 +759,29 @@ $sdl->finish_job('Future Humans Setup&Maintenance');
 
 $sdl->start_job('Future Humans Rewards');
 
-$sql = 'SELECT future_ship AS fhtemplate FROM config';
-if(($FHTemplate = $db->queryrow($sql)) === false) {
-    $sdl->log('<b>FH Error: (Critical)</b> Could not read Future Humans Ship Template_id - TICK EXECUTION CONTINUED');
+$sql = 'SELECT count(user_id) AS n_ships, user_id, target_planet_id
+        FROM future_human_reward
+        WHERE sent = 0
+        GROUP BY user_id';
+
+if(($fh_stream = $db->query($sql)) === false) {
+    $sdl->log('<b>Error:</b> Could not query future human reward! CONTINUED');
 }
-else
-{
-    $sql = 'SELECT id, value_9, value_5, min_unit_1, min_unit_2, min_unit_3, min_unit_4, rof, max_torp FROM ship_templates WHERE id = '.$FHTemplate['fhtemplate'];
+else if($db->num_rows() > 0) {
+    // Load Future human ship's template
+    $sql = 'SELECT id, value_9, value_5, min_unit_1, min_unit_2, min_unit_3, min_unit_4, rof, max_torp
+            FROM ship_templates
+            WHERE id = '.$cfg_data['future_ship'];
+
     $template = $db->queryrow($sql);
-    $sql = 'SELECT count(user_id) AS n_ships, user_id, target_planet_id FROM future_human_reward WHERE sent = 0 GROUP BY user_id';
-    $fh_stream = $db->query($sql);
+
     while($player_to_serve = $db->fetchrow($fh_stream))
     {
         $sql = 'INSERT INTO ship_fleets (fleet_name, user_id, planet_id, n_ships)
-                VALUES ("Reward", '.$player_to_serve['user_id'].', '.$player_to_serve['target_planet_id'].', '.$player_to_serve['n_ships'].')';
+                VALUES ("Reward",
+                        '.$player_to_serve['user_id'].',
+                        '.$player_to_serve['target_planet_id'].',
+                        '.$player_to_serve['n_ships'].')';
 
         if(!$db->query($sql)) {
             $sdl->log(' - <b>Warning:</b> Could not create Reward Fleet for user '.$player_to_serve['user_id']);
@@ -791,7 +793,19 @@ else
         for($i = 0; $i < $player_to_serve['n_ships']; $i++)
         {
             $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4, rof, torp, last_refit_time)
-                    VALUES ('.$new_fleet_id.', '.$player_to_serve['user_id'].', '.$template['id'].', '.$template['value_9'].', '.$template['value_5'].', '.$game->TIME.', '.$template['min_unit_1'].', '.$template['min_unit_2'].', '.$template['min_unit_3'].', '.$template['min_unit_4'].', '.$template['rof'].', '.$template['max_torp'].', '.$game->TIME.')';
+                    VALUES ('.$new_fleet_id.',
+                            '.$player_to_serve['user_id'].',
+                            '.$template['id'].',
+                            '.$template['value_9'].',
+                            '.$template['value_5'].',
+                            '.$game->TIME.',
+                            '.$template['min_unit_1'].',
+                            '.$template['min_unit_2'].',
+                            '.$template['min_unit_3'].',
+                            '.$template['min_unit_4'].',
+                            '.$template['rof'].',
+                            '.$template['max_torp'].',
+                            '.$game->TIME.')';
 
             if(!$db->query($sql)) {
                 $sdl->log(' - <b>Warning:</b> Could not Insert '.$player_to_serve['n_ships'].' Reward ship for user '.$player_to_serve['user_id']);
@@ -800,7 +814,9 @@ else
         }
 
         $sql = 'UPDATE future_human_reward SET sent = 1 WHERE user_id = '.$player_to_serve['user_id'];
-        $db->query($sql);
+        if(!$db->query($sql)) {
+            $sdl->log('<b>Error:</b> Could not update future human reward - TICK EXECUTION CONTINUED');
+        }
     }
 }
 
@@ -1125,54 +1141,51 @@ $sdl->start_job('Recompute Static Planet Values');
 $sql = 'SELECT p.*,
                u.user_id, u.user_race, u.user_vacation_start, u.user_vacation_end
         FROM (planets p)
-		LEFT join (user u) ON u.user_id = p.planet_owner
+        LEFT join (user u) ON u.user_id = p.planet_owner
         WHERE p.recompute_static = 1';
-
-
-
 
 if(($q_planets = $db->query($sql)) === false) {
     $sdl->log('<b>Error:</b> Could not query planets data to recompute static planet values! CONTINUED');
 }
 else {
-	$n_recomputed = 0;
+    $n_recomputed = 0;
 
-	while($planet = $db->fetchrow($q_planets)) {
-		if(empty($planet['user_id'])) continue;
+    while($planet = $db->fetchrow($q_planets)) {
+        if(empty($planet['user_id'])) continue;
 
-		$add_1 = ResourcesPerTickMetal($planet);
-		$add_2 = ResourcesPerTickMineral($planet);
-		$add_3 = ResourcesPerTickLatinum($planet);
+        $add_1 = ResourcesPerTickMetal($planet);
+        $add_2 = ResourcesPerTickMineral($planet);
+        $add_3 = ResourcesPerTickLatinum($planet);
 
-		$add_4 = ($planet['rateo_4']*$RACE_DATA[$planet['user_race']][12]
-		         +($planet['research_1']*$RACE_DATA[$planet['user_race']][20])*0.1
-				 +($planet['research_2']*$RACE_DATA[$planet['user_race']][20])*0.2);
+        $add_4 = ($planet['rateo_4']*$RACE_DATA[$planet['user_race']][12]
+                 +($planet['research_1']*$RACE_DATA[$planet['user_race']][20])*0.1
+                 +($planet['research_2']*$RACE_DATA[$planet['user_race']][20])*0.2);
 
 
-		if($ACTUAL_TICK >= $planet['user_vacation_start'] && $ACTUAL_TICK <= $planet['user_vacation_end']) {
-		    $add_1 *= 0.2;
-			$add_2 *= 0.2;
-			$add_3 *= 0.2;
-			$add_4 *= 0.2;
-		}
+        if($ACTUAL_TICK >= $planet['user_vacation_start'] && $ACTUAL_TICK <= $planet['user_vacation_end']) {
+            $add_1 *= 0.2;
+            $add_2 *= 0.2;
+            $add_3 *= 0.2;
+            $add_4 *= 0.2;
+        }
 
-		$sql = 'UPDATE planets
-		        SET add_1 = '.$add_1.',
-				    add_2 = '.$add_2.',
-					add_3 = '.$add_3.',
-					add_4 = '.$add_4.',
-					recompute_static = 0,
-					max_resources = '.($PLANETS_DATA[$planet['planet_type']][6]+($planet['building_12']*50000*$RACE_DATA[$planet['user_race']][20])).',
-					max_worker = '.($PLANETS_DATA[$planet['planet_type']][7]+($planet['research_1']*$RACE_DATA[$planet['user_race']][20]*500)).',
-					max_units = '.($PLANETS_DATA[$planet['planet_type']][7]+($planet['research_1']*$RACE_DATA[$planet['user_race']][20]*500)).'
-				WHERE planet_id = '.$planet['planet_id'];
-				
-		if(!$db->query($sql)) {
-		    $sdl->log('<b>Error:</b> Could not update recomputed static values of planet <b>'.$planet['planet_id'].'</b>! CONTINUED');
-		}
+        $sql = 'UPDATE planets
+                SET add_1 = '.$add_1.',
+                    add_2 = '.$add_2.',
+                    add_3 = '.$add_3.',
+                    add_4 = '.$add_4.',
+                    recompute_static = 0,
+                    max_resources = '.($PLANETS_DATA[$planet['planet_type']][6]+($planet['building_12']*50000*$RACE_DATA[$planet['user_race']][20])).',
+                    max_worker = '.($PLANETS_DATA[$planet['planet_type']][7]+($planet['research_1']*$RACE_DATA[$planet['user_race']][20]*500)).',
+                    max_units = '.($PLANETS_DATA[$planet['planet_type']][7]+($planet['research_1']*$RACE_DATA[$planet['user_race']][20]*500)).'
+                WHERE planet_id = '.$planet['planet_id'];
+                
+        if(!$db->query($sql)) {
+            $sdl->log('<b>Error:</b> Could not update recomputed static values of planet <b>'.$planet['planet_id'].'</b>! CONTINUED');
+        }
 
-		++$n_recomputed;
-	}
+        ++$n_recomputed;
+    }
 }
 
 $sdl->finish_job('Recompute Static Planet Values');
@@ -1222,7 +1235,7 @@ $sql = 'UPDATE planets
             resource_2 = resource_2 + add_2,
             resource_3 = resource_3 + add_3,
             resource_4 = resource_4 + add_4
-		WHERE planet_owner <> 0';
+        WHERE planet_owner <> 0';
 
 if(!$db->query($sql)) {
     $sdl->log(' - Warning: Could not update planet points and resources! CONTINUED');
@@ -1249,7 +1262,7 @@ $sql = 'UPDATE planets
         SET resource_1 = resource_1 - add_1 + add_1 * (1 / min_security_troops * (unit_1*2+unit_2*3+unit_3*4+unit_4*4)),
             resource_2 = resource_2 - add_2 + add_2 * (1 / min_security_troops * (unit_1*2+unit_2*3+unit_3*4+unit_4*4)),
             resource_3 = resource_3 - add_3 + add_3 * (1 / min_security_troops * (unit_1*2+unit_2*3+unit_3*4+unit_4*4))
-	WHERE min_security_troops > unit_1*2+unit_2*3+unit_3*4+unit_4*4';
+        WHERE min_security_troops > unit_1*2+unit_2*3+unit_3*4+unit_4*4';
 
 if(!$db->query($sql)) {
     $sdl->log(' - Warning: Could not update planets resource-diff-troops data! CONTINUED');
@@ -2268,62 +2281,33 @@ $sdl->start_job('Resolve ghost fleet');
 
 
 $sql = 'SELECT f.*,
-
                COUNT(s.ship_id) AS real_n_ships,
-
                u.user_id AS real_user_id, u.user_capital,
-
                p.planet_id,
-
                ss.move_id, ss.move_status, ss.start, ss.dest, ss.action_code
-
         FROM (ship_fleets f)
-
         LEFT JOIN (ships s) ON s.fleet_id = f.fleet_id
-
         LEFT JOIN (user u) ON u.user_id = f.user_id
-
         LEFT JOIN (planets p) ON p.planet_id = f.planet_id
-
         LEFT JOIN (scheduler_shipmovement ss) ON ss.move_id = f.move_id
-
         GROUP BY f.fleet_id';
 
-        
-
 if(!$q_fleets = $db->query($sql)) {
-
-    message(DATABASE_ERROR, 'Could not query fleets main data');
-
+    $sdl->log('<b>Error:</b> Could not query fleets main data!');
 }
-
-
 
 $sdl->log('<b>'.$db->num_rows($q_fleets).'</b> Fleets of ships found.');
 
-
-
 while($fleet = $db->fetchrow($q_fleets)) {
-
     $fleet_id = (int)$fleet['fleet_id'];
 
-    
-
     if($fleet['real_n_ships'] == 0) {
-
         $sql = 'DELETE FROM ship_fleets
-
                 WHERE fleet_id = '.$fleet_id;
 
-                
-
         if(!$db->query($sql)) {
-
-            message(DATABASE_ERROR, 'Could not delete empty fleets data');
-
+            $sdl->log('<b>Error:</b> Could not delete empty fleets data');
         }
-
-        
 
         $sdl->log('Fleet: <b>'.$fleet_id.'</b>; (Non-secure MoveID: '.$fleet['move_id'].' [Type: '.$fleet['action_code'].']) Fleet is empty. Deleted');
 
@@ -2333,162 +2317,86 @@ while($fleet = $db->fetchrow($q_fleets)) {
                 WHERE fleet_id = '.$fleet_id;
 
         if(!$db->query($sql)) {
-            message(DATABASE_ERROR, 'Could not update ships fleet_id data');
+            $sdl->log('<b>Error:</b> Could not update ships fleet_id data');
         }
     }
 
-    
-
     if(empty($fleet['real_user_id'])) {
-
         $sql = 'DELETE FROM ships
-
                 WHERE fleet_id = '.$fleet_id;
 
-                
-
         if(!$db->query($sql)) {
-
-            message(DATABASE_ERROR, 'Could not delete ships data');
-
+            $sdl->log('<b>Error:</b> Could not delete ships data');
         }
-
-        
 
         $sql = 'DELETE FROM ship_fleets
                 WHERE fleet_id = '.$fleet_id;
 
-                
-
         if(!$db->query($sql)) {
-
-            message(DATABASE_ERROR, 'Could not delete fleets data');
-
+            $sdl->log('<b>Error:</b> Could not delete fleets data');
         }
-
-        
 
         $sdl->log('Fleet: <b>'.$fleet_id.'</b>; Player no longer exists. Ships and fleets removed');
-
     }
-
-        
-
-    
 
     if($fleet['real_n_ships'] != $fleet['n_ships']) {
-
         $sql = 'UPDATE ship_fleets
-
                 SET n_ships = '.(int)$fleet['real_n_ships'].'
-
                 WHERE fleet_id = '.$fleet_id;
 
-                
-
         if(!$db->query($sql)) {
-
-            message(DATABASE_ERROR, 'Could not update fleet n_ships data');
-
+            $sdl->log('<b>Error:</b> Could not update fleet n_ships data');
         }
 
-        
-
         $sdl->log('Fleet: <b>'.$fleet_id.'</b> (Non-secure MoveID: '.$fleet['move_id'].' [Type: '.$fleet['action_code'].'])</b>; Wrong ship numbers. Solved');
-
     }
-
-    
 
     $RESET_FLEET = 0;
 
-    
-
     if( (empty($fleet['planet_id'])) && (empty($fleet['move_id'])) ) {
-
         $sdl->log('Ghost fleet: <b>'.$fleet_id.'</b>; No position data. Attempts repositioning');
-
-        
-
         $RESET_FLEET = $fleet['user_capital'];
-
     }
-
     elseif( (!empty($fleet['planet_id'])) && (!empty($fleet['move_id'])) ) {
-
         $sdl->log('Ghost fleet: <b>'.$fleet_id.'</b>; Corrupt position data. Attempts repositioning');
         $RESET_FLEET = $fleet['planet_id'];
-
     }
-
     elseif(!empty($fleet['move_id'])) {
-
         $move_status = (int)$fleet['move_status'];
 
-        
-
         if( ($move_status > 10) && ($move_status < 40) ) {
-
             $sdl->log('Ghost fleet: <b>'.$fleet_id.'</b>; Incomplete Move: <b>[Type: '.$fleet['action_code'].'] [Type: '.$fleet['action_code'].']</b>. Attempts repositioning');
-
-            
-
             $RESET_FLEET = $fleet['dest'];
-
         }
-
         elseif( ($move_status > 30) && ($move_status < 40) ) {
-
             $sdl->log('Ghost fleet: <b>'.$fleet_id.'</b>; Incomplete Move: <b>'.$fleet['move_id'].' [Type: '.$fleet['action_code'].']</b>. Attempts repositioning');
-
-            
-
             $RESET_FLEET = $fleet['start'];
-
         }
         elseif( ($move_status == 4) ) { // Recall a fleet of colo or recall the first tick
-
             $sdl->log('Ghost fleet: <b>'.$fleet_id.'</b>; Incomplete Move -> status 4: <b>'.$fleet['move_id'].' [Type: '.$fleet['action_code'].']</b>. Attempts repositioning');
             $RESET_FLEET = $fleet['start'];
-
         }
-        
-
     }
 
-    
-
     if($RESET_FLEET > 0) {
-
         $sql = 'UPDATE ship_fleets
-
                 SET planet_id = '.$RESET_FLEET.',
-
                     move_id = 0
-
                 WHERE fleet_id = '.$fleet_id;
 
-
-
         if(!$db->query($sql)) {
-
-            message(DATABASE_ERROR, 'Could not reset fleets location data');
-
+            $sdl->log('<b>Error:</b> Could not reset fleets location data');
         }
 
         $sdl->log('Fleet <b>'.$fleet_id.'</b> becomes Planet <b>'.$RESET_FLEET.'</b> reset');
-
-
-
     }
-
 }
 
 $sql = 'DELETE FROM ship_fleets
         WHERE n_ships = 0';
 
 if(!$db->query($sql)) {
-    message(DATABASE_ERROR, 'Could not delete empty fleets');
+    $sdl->log('<b>Error:</b> Could not delete empty fleets');
 }
 
 
