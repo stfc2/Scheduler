@@ -502,7 +502,7 @@ else
         {
             $planet_id = ((-1)*$ship['fleet_id']);
 
-            $sdl->log('<b>The ship <b>#'.$ship['ship_id'].'(template '.$ship['id'].')</b> on planet <b>#'.$planet_id.'</b> was dismantled successfully!');
+            $sdl->log('The ship <b>#'.$ship['ship_id'].'(template '.$ship['id'].')</b> on planet <b>#'.$planet_id.'</b> was dismantled successfully!');
 
             $sql = 'UPDATE planets
                     SET resource_1=resource_1+'.$res[0].',
