@@ -137,7 +137,13 @@ else if($db->num_rows() > 0)
         if ($build['building_queue']>0)
         {
             $build['building_'.($build['installation_type']+1)]++;
-            if ($db->query('INSERT INTO scheduler_instbuild (installation_type,planet_id,build_finish) VALUES ("'.($build['building_queue']-1).'","'.$build['planet_id'].'","'.($ACTUAL_TICK+GetBuildingTimeTicks($build['building_queue']-1,$build,$build['user_race'])).'")')==false)  {$sdl->log('<b>Error:</b> building_query: Could not call INSERT INTO in scheduler_instbuild TICK EXECUTION CONTINUED'); }	
+            $sql = 'INSERT INTO scheduler_instbuild (installation_type,planet_id,build_finish)
+                    VALUES ("'.($build['building_queue']-1).'",
+                            "'.$build['planet_id'].'",
+                            "'.($ACTUAL_TICK+GetBuildingTimeTicks($build['building_queue']-1,$build,$build['user_race'])).'")';
+            if ($db->query($sql)==false) {
+                $sdl->log('<b>Error:</b> building_query: Could not call INSERT INTO in scheduler_instbuild TICK EXECUTION CONTINUED');
+            }
         }
 
 
