@@ -807,7 +807,8 @@ class Ferengi extends NPC
 		}else{
 			$this->sdl->log('[MESSAGE]No debts available', TICK_LOG_FILE_NPC);
 		}
-		//Leere Konton destroyen
+		//Empty accounts destruction
+		$deleted_accounts = 0;
 		if(($konton_destroy=$this->db->query('SELECT * FROM schulden_table WHERE status=2'))==true)
 		{
 			while($konton_destroy_t=$this->db->fetchrow($konton_destroy))
@@ -822,14 +823,15 @@ class Ferengi extends NPC
 					{
 						$this->sdl->log('<b>Error: (Critical)</b>Could not delete entry in treuhandkonto //Code:'.$konton_destroy_t['id'].'//'.$sql_c, TICK_LOG_FILE_NPC);
 					}
+					$deleted_accounts++;
 				}
 			}
 		}
-		else{$this->sdl->log('[Empties accounts] Accounts query was not || '.$konton_destroy.' = status will not change', TICK_LOG_FILE_NPC);}
-		$this->sdl->log('Paid debt: '.$schulden_bezahlt, TICK_LOG_FILE_NPC);
+		else{$this->sdl->log('[Empties accounts] Accounts query was not executed || '.$konton_destroy.' = status will not change', TICK_LOG_FILE_NPC);}
+		$this->sdl->log('Paid debts: '.$schulden_bezahlt, TICK_LOG_FILE_NPC);
 		$this->sdl->log('Number of debtors: '.$schuldner, TICK_LOG_FILE_NPC);
-		$this->sdl->log('Deleted account: '.$schuldner, TICK_LOG_FILE_NPC);
-		$this->sdl->log('Number of fun bidder: '.$spassbieter, TICK_LOG_FILE_NPC);
+		$this->sdl->log('Deleted accounts: '.$deleted_accounts, TICK_LOG_FILE_NPC);
+		$this->sdl->log('Number of fun bidders: '.$spassbieter, TICK_LOG_FILE_NPC);
 		$this->sdl->log('Number of messages: '.$nachrichten_a++, TICK_LOG_FILE_NPC);
 		$this->sdl->finish_job('Trust Account monitor', TICK_LOG_FILE_NPC);	
 		// ########################################################################################
@@ -871,10 +873,10 @@ class Ferengi extends NPC
 		$anzahl_freigeben=0; 
 		while($result = $this->db->fetchrow($temps))
 		{
-			//[23:19] <Secius> da stehe ne sql anweisung
-			//[23:19] <Secius> abernichts sendet sie zurDB
+			//[23:19] <Secius> there is a sql statement
+			//[23:19] <Secius> but nothing sends it to the DB
 			//[23:19] <Mojo1987> lol
-			//[23:19] <Mojo1987> das gut^^
+			//[23:19] <Mojo1987> the good^^
 			$sql_x='UPDATE user SET trade_tick=0 WHERE user_id="'.$result['user_id'].'"';
 			$this->sdl->log('User:'.$result['user_id'].' got the freedom to the women of this Galaxy fear to empty', TICK_LOG_FILE_NPC);
 			if(!$this->db->query($sql_x)) $this->sdl->log('<b>Error:</b> update of the user --'.$sql_x, TICK_LOG_FILE_NPC);
