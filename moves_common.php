@@ -649,7 +649,8 @@ class moves_common {
             while($ar_uid = $this->db->fetchrow($q_ar_uid)) {
                 //if( ($ar_uid['user_id'] == $this->dest['user_id']) && $is_friendly_action ) continue;
 
-                if($ar_uid['user_alliance'] == $this->move['user_alliance']) continue;
+                // While checking for the same alliance, also check if THERE IS actually an alliance!
+                if($ar_uid['user_alliance'] != 0 && ($ar_uid['user_alliance'] == $this->move['user_alliance'])) continue;
 
                 if(!empty($ar_uid['ud_id'])) {
                     if($ar_uid['accepted'] == 1) continue;
