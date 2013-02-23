@@ -112,6 +112,7 @@ $sdl->finish_job('Recalculate resources');
 
 $sdl->start_job('Recalculate security forces');
 $sql = 'SELECT u.user_id FROM user u WHERE u.user_active=1';
+$count = 0;
 
 if(!$q_user = $db->query($sql)) {
 
@@ -371,12 +372,12 @@ $sdl->finish_job('Rioters planets take over by the settlers');
 $sdl->start_job('Logbook cleaning');
 
 $sql = 'DELETE FROM logbook WHERE log_read=1 AND log_date<'.(time()-3600*24*14);
-$sdl->log($sql);
+
 if(!$db->query($sql)) {
     $sdl->log('<b>Error:</b> could not delete 14-day old logs');
 }
 $sql = 'DELETE FROM logbook WHERE log_type='.LOGBOOK_GOVERNMENT.' AND log_date<'.(time()-3600*24);
-$sdl->log($sql);
+
 if(!$db->query($sql)) {
     $sdl->log('<b>Error:</b> could not delete 1-day old government logs');
 }
