@@ -607,19 +607,19 @@ class Ferengi extends NPC
 											break;
 											case 'ENG':
 												$text='<center><b>Good morning</b></center><br><br>
-													The deadline for a payment of a trade which you have done is over.<br>
+													You are about to exceed the time limit for payment, for a trade you have completed.
 													Remember that appropriate measures will be take if you should not pay your debts.
 													<br>--------------------------------------<br>
 													Full respect from The Ferengi Trade Guild';
-												$title = '<b>First warning</b>';
+												$title = '<b>Warning</b>';
 											break;
 											case 'ITA':
 												$text='<center><b>Buongiorno</b></center><br><br>
-													Il termine di pagamento per un commercio che ha fatto &egrave; stato superato<br>
+													Il termine di pagamento per un commercio che avete concluso si sta avvicinando.<br>
 													Si ricorda che saranno intraprese appropriate misure se non dovesse pagare i suoi debiti.
 													<br>--------------------------------------<br>
 													Massimo rispetto dalla Gilda del Commercio Ferengi';
-												$title = '<b>Primo avvertimento</b>';
+												$title = '<b>Avvertimento</b>';
 											break;
 										}
 
@@ -689,7 +689,7 @@ class Ferengi extends NPC
 													appeal through the normal way of complain.<br>
 													<br>--------------------------------------<br>
 													Full respect from The Ferengi Trade Guild';
-												$title = '<b>Reminder of warning</b>';
+												$title = '<b>Reminder with consequences</b>';
 											break;
 											case 'ITA':
 												$text='<center><b>Buongiorno</b></center><br><br>
@@ -702,7 +702,7 @@ class Ferengi extends NPC
 													potete appellarvi tramite la normale procedura di reclamo.<br>
 													<br>--------------------------------------<br>
 													Massimo rispetto dalla Gilda del Commercio Ferengi';
-												$title = '<b>Ulteriore avvertimento</b>';
+												$title = '<b>Avviso delle conseguenze</b>';
 											break;
 										}
 
