@@ -248,7 +248,6 @@ class scheduler {
 		else
 			$fp = fopen($file, 'a');
 		fwrite($fp, $message."<br>\n");
-		echo str_replace('\n','<br>',$message.'\n');
 		fclose($fp);
 	}
 
