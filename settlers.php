@@ -34,55 +34,45 @@
 // Startconfig of Settlers
 class Settlers extends NPC
 {
+    public function Install($log = INSTALL_LOG_FILE_NPC)
+    {
+        $this->sdl->start_job('Mayflower basic system', $log);
+
+        // We give the bot some data so that it is also Registered
+        $this->bot = $this->db->queryrow('SELECT * FROM user WHERE user_id = '.INDEPENDENT_USERID);
+
+        //Check whether the bot already lives
+        if($this->bot['user_id'] == 0) {
+            $this->sdl->log('We need to create TheSettlers!', $log);
+
+            $sql = 'INSERT INTO user (user_id, user_active, user_name, user_loginname, user_password,
+                                      user_email, user_auth_level, user_race, user_gfxpath, user_skinpath,
+                                    user_registration_time, user_registration_ip,
+                                          user_birthday, user_gender, plz, country, user_enable_sig,
+                                          user_message_sig, user_signature, user_notepad, user_options, message_basement)
+                         VALUES ('.INDEPENDENT_USERID.', '.STGC_BOT.', "Coloni(NPG)", "SettlersBot", "'.md5("settlers").'",
+                                 "settlers@stfc.it", 1, 13, "", "skin1/", '.time().', "127.0.0.1",
+                                 "25.06.2008", "", 16162 , "IT", 1,
+                                 "",  "", "", "", "")';
+
+            if(!$this->db->query($sql)) {
+                $this->sdl->log('<b>Error:</b> could not create TheSettlers - ABORTED', $log);
+            }
+        }
+        $this->sdl->finish_job('Mayflower basic system', $log);
+    }
+
 	public function Execute($debug=0)
 	{
+		global $ACTUAL_TICK;
 		$starttime = ( microtime() + time() );
 
 		$this->sdl->log('<br><b>-------------------------------------------------------------</b><br>'.
 			'<b>Starting Settlers Bot Scheduler at '.date('d.m.y H:i:s', time()).'</b>', TICK_LOG_FILE_NPC);
 
-		// Bot also enable the life we may need a few more
-		$Environment = $this->db->queryrow('SELECT * FROM config LIMIT 0 , 1');
-		$ACTUAL_TICK = $Environment['tick_id'];
-		$STARDATE = $Environment['stardate'];
+        // Update BOT user ID
+        $this->bot['user_id'] = INDEPENDENT_USERID;
 
-		$this->sdl->start_job('Mayflower basic system', TICK_LOG_FILE_NPC);
-
-		//Only with adoption Bot has an existence
-		if($Environment)
-		{
-			//So now we give the bot some data so that it is also Registered
-			$this->bot = $this->db->queryrow('SELECT * FROM user WHERE user_id = '.INDEPENDENT_USERID);
-
-			//Check whether the bot already lives
-			if($this->bot['user_id']==0)
-			{
-				$this->sdl->log('We need to create TheSettlers!', TICK_LOG_FILE_NPC);
-
-				$sql = 'INSERT INTO user (user_id, user_active, user_name, user_loginname, user_password,
-				                          user_email, user_auth_level, user_race, user_gfxpath, user_skinpath,
-				                          user_registration_time, user_registration_ip,
-				                          user_birthday, user_gender, plz, country, user_enable_sig,
-				                          user_message_sig, user_signature)
-				         VALUES ('.INDEPENDENT_USERID.', 1, "Coloni(NPG)", "SettlersBot", "'.md5("settlers").'",
-				                 "settlers@stfc.it", 1, 13, "", "skin1/", '.time().', "127.0.0.1",
-				                 "25.06.2008", "", 16162 , "Italia", 1,
-				                 "",  "")';
-
-				if(!$this->db->query($sql))
-				{
-					$this->sdl->log('<b>Error:</b> Bot: Could not create TheSettlers', TICK_LOG_FILE_NPC);
-				}
-				else {
-					// Update BOT user ID
-					$this->bot['user_id'] = INDEPENDENT_USERID;
-				}
-			} // end user bot creation
-		}else{
-			$this->sdl->log('<b>Error:</b> No access to environment table!', TICK_LOG_FILE_NPC);
-			return;
-		}
-		$this->sdl->finish_job('Mayflower basic system', TICK_LOG_FILE_NPC);
 		// ########################################################################################
 		// ########################################################################################
 		// Messages answer
@@ -104,9 +94,9 @@ class Settlers extends NPC
 		$sql='SELECT * FROM planets WHERE planet_owner = '.INDEPENDENT_USERID.' AND npc_last_action < '.$ACTUAL_TICK.' ORDER BY npc_last_action ASC LIMIT 0, 3';
 		
 		if(($setpoint = $this->db->query($sql)) === false)
-			{
-				$this->sdl->log('<b>Error:</b> Bot: Could not read planets DB', TICK_LOG_FILE_NPC);
-			}
+		{
+			$this->sdl->log('<b>Error:</b> Bot: Could not read planets DB', TICK_LOG_FILE_NPC);
+		}
 		else
 		{
 			$_already_done = false;
