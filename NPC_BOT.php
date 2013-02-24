@@ -37,6 +37,7 @@ define('BUILD_ERR_REQUIRED', -3);
 define('BUILD_ERR_ENERGY', -4);
 define('BUILD_ERR_DB', -5);
 define('BUILD_ERR_MAXLEVEL',-6);
+define('INSTALL_LOG_FILE_NPC', $game_path.'logs/NPC_installation.log');
 
 
 //#######################################################################################
@@ -77,9 +78,9 @@ class NPC
 		return true;
 	}
 
-	function ChangePassword()
+	function ChangePassword($log = TICK_LOG_FILE_NPC)
 	{
-		$this->sdl->start_job('PW change', TICK_LOG_FILE_NPC);
+		$this->sdl->start_job('PW change', $log);
 		$new=rand(1,9);
 		$random="vv";
 		if($new==2) $new='v'.$random.'h';
@@ -95,9 +96,9 @@ class NPC
 		                     WHERE `user_id` ='.$this->bot['user_id']))
 		{
 			$this->sdl->log('Now there are only One-Night-Stands, no longer relations',
-				TICK_LOG_FILE_NPC);
+				$log);
 		}
-		$this->sdl->finish_job('PW change', TICK_LOG_FILE_NPC);
+		$this->sdl->finish_job('PW change', $log);
 	}
 
 	function ReplyToUser($titles,$messages)
@@ -240,6 +241,11 @@ class NPC
 	{
 		$query='SELECT * FROM `ship_fleets` WHERE fleet_name="'.$name.'" and user_id='.$this->bot['user_id'].' LIMIT 0, 1';
 		$fleet=$this->db->queryrow($query);
+		if (empty($fleet)) {
+			$this->sdl->log('<u>Warning:</u> Fleet: '.$name.' does not exists! - SKIP', TICK_LOG_FILE_NPC);
+			return;
+		}
+
 		if($fleet['n_ships'] < $num)
 		{
 			$this->sdl->log('Fleet "'.$name.'" has only '.$fleet['n_ships'].' ships - we need restore', TICK_LOG_FILE_NPC);
@@ -251,21 +257,25 @@ class NPC
 
 			$sql = 'SELECT * FROM ship_templates WHERE id = '.$template;
 			if(($stpl = $this->db->queryrow($sql)) === false)
-				$this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql_b, TICK_LOG_FILE_NPC);
+				$this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql, TICK_LOG_FILE_NPC);
 
-			$units_str = $stpl['min_unit_1'].', '.$stpl['min_unit_2'].', '.$stpl['min_unit_3'].', '.$stpl['min_unit_4'];
-			$sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience,
-			                           hitpoints, construction_time, rof, torp, unit_1, unit_2, unit_3, unit_4)
-			        VALUES ('.$fleet['fleet_id'].', '.$this->bot['user_id'].', '.$template.', '.$stpl['value_9'].',
-			                '.$stpl['value_5'].', '.time().', '.$stpl['rof'].', '.$stpl['max_torp'].', '.$units_str.')';
+			if (empty($stpl))
+				$this->sdl->log('<b>Error:</b> Could not found template '.$template.'!', TICK_LOG_FILE_NPC);
+			else {
+				$units_str = $stpl['min_unit_1'].', '.$stpl['min_unit_2'].', '.$stpl['min_unit_3'].', '.$stpl['min_unit_4'];
+				$sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience,
+						                   hitpoints, construction_time, rof, torp, unit_1, unit_2, unit_3, unit_4)
+						VALUES ('.$fleet['fleet_id'].', '.$this->bot['user_id'].', '.$template.', '.$stpl['value_9'].',
+						        '.$stpl['value_5'].', '.time().', '.$stpl['rof'].', '.$stpl['max_torp'].', '.$units_str.')';
 
-			for($i = 0; $i < $needed; ++$i)
-			{
-				if(!$this->db->query($sql)) {
-					$this->sdl->log('<b>Error:</b> Could not insert new ships #'.$i.' data', TICK_LOG_FILE_NPC);
+				for($i = 0; $i < $needed; ++$i)
+				{
+					if(!$this->db->query($sql)) {
+						$this->sdl->log('<b>Error:</b> Could not insert new ships #'.$i.' data', TICK_LOG_FILE_NPC);
+					}
 				}
+				$this->sdl->log('Fleet: '.$fleet['fleet_id'].' - updated to '.$needed.' ships', TICK_LOG_FILE_NPC);
 			}
-			$this->sdl->log('Fleet: '.$fleet['fleet_id'].' - updated to '.$needed.' ships', TICK_LOG_FILE_NPC);
 		}
 	}
 
