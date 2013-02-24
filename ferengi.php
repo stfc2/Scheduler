@@ -47,9 +47,235 @@ class Ferengi extends NPC
 		}
 	}
 
+    // Function to create BOT structures
+    public function Install($log = INSTALL_LOG_FILE_NPC)
+    {
+        // We don't use the global variable here since this function can be called also
+        // by the installation script.
+        $environment = $this->db->queryrow('SELECT * FROM config LIMIT 0 , 1');
+        $ACTUAL_TICK = $environment['tick_id'];
+
+        $this->sdl->start_job('Ramona basic system', $log);
+
+        // First of all retrieve the BOT quick storage table        
+        if(!($Bot_exe=$this->db->query('SELECT * FROM FHB_Bot LIMIT 0,1'))) {
+            // Create the table if does not exists
+            $sql = "CREATE TABLE IF NOT EXISTS `FHB_Bot` (
+                        `id` int(2) NOT NULL AUTO_INCREMENT,
+                        `user_id` mediumint(8) unsigned NOT NULL DEFAULT '0',
+                        `user_name` varchar(32) NOT NULL DEFAULT '',
+                        `user_tick` int(10) NOT NULL DEFAULT '0',
+                        `user_race` tinyint(3) NOT NULL DEFAULT '0',
+                        `user_loginname` varchar(32) NOT NULL DEFAULT '',
+                        `planet_id` mediumint(8) unsigned NOT NULL DEFAULT '0',
+                        `ship_t_1` int(10) NOT NULL DEFAULT '0',
+                        `ship_t_2` int(10) NOT NULL DEFAULT '0',
+                        `bot_tick` int(11) NOT NULL DEFAULT '0',
+                    PRIMARY KEY (`id`)
+                    ) ENGINE=MyISAM DEFAULT CHARSET=latin1 AUTO_INCREMENT=1";
+            if(!$this->db->query($sql)) {
+                $this->sdl->log('<b>Error:</b> cannot create FHB_bot table - ABORTED', $log);
+                return;
+            }
+
+            // Should work now
+            $Bot_exe=$this->db->query('SELECT * FROM FHB_Bot LIMIT 0,1');
+        }
+
+        // Check if the BOT exists
+        $num_bot=$this->db->num_rows($Bot_exe);
+        if($num_bot<1)
+        {
+            $sql = 'INSERT INTO FHB_Bot (user_id,user_name,user_tick,user_race,user_loginname,planet_id,ship_t_1,ship_t_2)
+                    VALUES ("0","","0","0","","0","0","0")';
+            if(!$this->db->query($sql)) {
+                $this->sdl->log('<b>Error:</b> cannot insert FHB_bot data - ABORTED', $log);
+                return;
+            }
+        }
+
+        // So now we should have valid data
+        $this->bot = $this->db->queryrow('SELECT * FROM FHB_Bot LIMIT 0,1');
+
+        // Check whether the bot already lives
+        if($this->bot['user_id'] == 0) {
+            $sql = 'INSERT INTO user (user_active, user_name, user_loginname, user_password, user_email, user_auth_level,
+                                      user_race, user_gfxpath, user_skinpath, user_registration_time, user_registration_ip,
+                                      user_birthday, user_gender, plz, country,user_enable_sig,user_message_sig,
+                                      user_signature, user_notepad, user_options, message_basement)
+                    VALUES (1, "Quark(NPG)", "Bot", "'.md5("bundu").'", "xxx@xxx.de", '.STGC_BOT.',
+                            5, "", "skin1/", '.time().', "100.0.0.1",
+                            "20.04.2007", "w", 76149 , "DE",1,"<br><br><p><b>I.A. of the Ferengi Trade Guild</b></p>",
+                            "I live in the computing centre Karlsruhe - so now however conclusion with merry","","","")';
+            if(!$this->db->query($sql))
+            {
+                $this->sdl->log('<b>Error:</b> could not create Ramona - ABORTED', $log);
+                return;
+            }
+
+            $this->sdl->log('Ramona is created', $log);
+
+            // Update BOT card
+            $bot_UID = $this->db->insert_id();
+
+            $sql = 'UPDATE FHB_Bot
+                    SET user_id="'.$bot_UID.'",
+                        user_name="Quark(NPG)",
+                        user_tick="'.$ACTUAL_TICK.'",
+                        user_loginname="Bot",
+                        user_race="5"
+                    WHERE id="'.$this->bot['id'].'"';
+
+            if(!$this->db->query($sql)) {
+                $this->sdl->log('<b>Error:</b> could not update Ramona ID card - ABORTED', $log);
+                return;
+            }
+
+            // Avoid a DB query
+            $this->bot['user_id'] = $bot_UID;
+        }
+
+        // Check whether the bot has a planet
+        if($this->bot['planet_id'] == 0) {
+            $this->sdl->log('<b>Ramona needs a new body</b>', $log);
+
+            while($this->bot['planet_id'] == 0 or $this->bot['planet_id'] == 'empty') {
+                $this->sdl->log('New planet', $log);
+                $this->db->lock('starsystems_slots');
+                $this->bot['planet_id'] = create_planet($this->bot['user_id'], 'quadrant', 4);
+                $this->db->unlock();
+
+                if($this->bot['planet_id'] == 0) {
+                    $this->sdl->log('<b>Error:</b> could not create Ramona\'s planet - ABORTED', $log);
+                    return;
+                }
+
+                $sql = 'UPDATE user
+                        SET user_points = "400",
+                            user_planets = "1",
+                            last_active = "4294967295",
+                            user_attack_protection = "'.($ACTUAL_TICK + 1500).'",
+                            user_capital = "'.$this->bot['planet_id'].'",
+                            active_planet = "'.$this->bot['planet_id'].'"
+                        WHERE user_id = "'.$this->bot['user_id'].'"';
+
+                if(!$this->db->query($sql))
+                    $this->sdl->log('<b>Error:</b> Could not update Ramona\'s attack protection info - CONTINUED', $log);
+
+                // Bot gets better values for her body, she should always looks good
+                $this->sdl->log('Better values for the Planet', $log);
+                $sql = 'UPDATE planets SET planet_points = 500,building_1 = 9,building_2 = 9,building_3 = 9,
+                            building_4 = 9,building_5 = 9,building_6 = 9,building_7 = 9,building_8 = 9,
+                            building_9 = 9,building_10 = 9,building_11 = 9,building_12 = 9,building_13 = 9,
+                            unit_1 = 2000,unit_2 = 2000,unit_3 = 2000,unit_4 = 500,unit_5 = 500,unit_6=500,
+                            planet_name = "Dealer Base",
+                            research_1 = 9,research_2 = 9,research_3 = 9,research_4 = 9,research_5 = 9,
+                            workermine_1 = 1600,workermine_2 = 1600,workermine_3 = 1600,resource_4 = 4000
+                        WHERE planet_owner = '.$this->bot['user_id'].' and planet_id='.$this->bot['planet_id'];
+
+                if(!$this->db->query($sql))
+                    $this->sdl->log('<b>Error:</b> Could not improve Ramona\'s planet - CONTINUED', $log);
+
+                $sql = 'UPDATE FHB_Bot SET planet_id='.$this->bot['planet_id'].' WHERE user_id = '.$this->bot['user_id'];
+
+                if(!$this->db->query($sql))
+                    $this->sdl->log('<b>Error:</b> could not update Ramona ID card with planet info - CONTINUED', $log);
+            }
+        }
+
+        // Check whether the ship already has templates
+        $reloading=0;
+        if($this->bot['ship_t_1'] == 0) {
+/*              $sql = 'INSERT INTO ship_templates
+                    (owner, timestamp, name, description, race, ship_torso, ship_class, component_1, component_2, component_3, component_4, component_5, component_6, component_7, component_8, component_9, component_10,
+                    value_1, value_2, value_3, value_4, value_5, value_6, value_7, value_8, value_9, value_10, value_11, value_12, value_13, value_14, value_15,
+                    resource_1, resource_2, resource_3, resource_4, unit_5, unit_6, min_unit_1, min_unit_2, min_unit_3, min_unit_4, max_unit_1, max_unit_2, max_unit_3, max_unit_4, buildtime) VALUES
+                    ("'.$this->bot['user_id'].'","'.time().'","Ferengi Trade Ship - Alpha","Transport","'.$this->bot['user_race'].'",1,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+                    "50","50","0","250","250","40","40","40","50","9.99","40","40","1","1","0",
+                    "200000","200000","200000","40000","5000","5000","5000","2500","2500","5000","5000","2500","2500",2000,0)';*/
+            $sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
+                                                component_1, component_2, component_3, component_4, component_5,
+                                                component_6, component_7, component_8, component_9, component_10,
+                                                value_1, value_2, value_3, value_4, value_5, 
+                                                value_6, value_7, value_8, value_9, value_10,
+                                                value_11, value_12, value_13, value_14, value_15,
+                                                resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
+                                                min_unit_1, min_unit_2, min_unit_3, min_unit_4,
+                                                max_unit_1, max_unit_2, max_unit_3, max_unit_4, buildtime)
+                    VALUES ("'.$this->bot['user_id'].'","'.time().'","NPC Quark Trade","Transport","'.$this->bot['user_race'].'",1,0,
+                            -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+                            "50","50","0","250","250",
+                            "40","40","40","50","9.99",
+                            "40","40","1","1","0",
+                            "200000","200000","200000","40000","5000","5000",
+                            "5000","2500","2500","5000",
+                            "5000","2500","2500",2000,0)';
+            if(!$this->db->query($sql)) {
+                $this->sdl->log('<b>Error:</b> could not save BOT template 1 - ABORTED', $log);
+                return;
+            }
+
+            // Update ship template id with the freshly created one
+            $this->bot['ship_t_1'] = $this->db->insert_id();
+            $reloading++;
+        }
+        if($this->bot['ship_t_2']==0)
+        {
+/*              $sql= 'INSERT INTO ship_templates
+                    (owner, timestamp, name, description, race, ship_torso, ship_class, component_1, component_2, component_3, component_4, component_5, component_6, component_7, component_8, component_9, component_10,
+                    value_1, value_2, value_3, value_4, value_5, value_6, value_7, value_8, value_9, value_10, value_11, value_12, value_13, value_14, value_15,
+                    resource_1, resource_2, resource_3, resource_4, unit_5, unit_6, min_unit_1, min_unit_2, min_unit_3, min_unit_4, max_unit_1, max_unit_2, max_unit_3, max_unit_4, buildtime) VALUES
+                    ("'.$this->bot['user_id'].'","'.time().'","Light Hunter - Alpha","Combat ship","'.$this->bot['user_race'].'",3,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+                    "4000","4000","100","6000","6000","60","60","60","60","9.99","60","60","1","1","0",
+                    "500000","500000","500000","50000","5000","10000","10000","2500","2500","5000","5000","2500","2500",2000,0)';*/
+            $sql= 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
+                                               component_1, component_2, component_3, component_4, component_5,
+                                               component_6, component_7, component_8, component_9, component_10,
+                                               value_1, value_2, value_3, value_4, value_5,
+                                               value_6, value_7, value_8, value_9, value_10,
+                                               value_11, value_12, value_13, value_14, value_15,
+                                               resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
+                                               min_unit_1, min_unit_2, min_unit_3, min_unit_4,
+                                               max_unit_1, max_unit_2, max_unit_3, max_unit_4, buildtime)
+                    VALUES ("'.$this->bot['user_id'].'","'.time().'","NPC Quark Hunter","Combat ship","'.$this->bot['user_race'].'",3,0,
+                            -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+                            "4000","4000","100","6000","6000",
+                            "60","60","60","60","9.99",
+                            "60","60","1","1","0",
+                            "500000","500000","500000","50000","5000","10000",
+                            "10000","2500","2500","5000",
+                            "5000","2500","2500",2000,0)';
+            if(!$this->db->query($sql)) {
+                $this->sdl->log('<b>Error:</b> could not save BOT template 2 - ABORTED', $log);
+                return;
+            }
+
+            // Update ship template id with the freshly created one
+            $this->bot['ship_t_2'] = $this->db->insert_id();
+            $reloading++;
+        }
+        if($reloading > 0) {
+            $this->sdl->log('Update BOT ship templates', $log);
+
+            $sql = 'UPDATE FHB_Bot
+                    SET ship_t_1 = '.$this->bot['ship_t_1'].',
+                        ship_t_2 = '.$this->bot['ship_t_2'].'
+                    WHERE user_id = '.$this->bot['user_id'];
+
+            if(!$this->db->query($sql)) 
+                $this->sdl->log('<b>Error:</b> could not update Ramona ID card with ship templates info - CONTINUED', $log);
+        }
+        $this->sdl->finish_job('Ramona basic system', $log);
+
+        // ########################################################################################
+        // ########################################################################################
+        // Change the BOT password
+        $this->ChangePassword($log);
+    }
+
 	public function Execute($debuggen=0,$title="",$type=0,$color="#ffffff")
 	{
-		global $sdl;
+		global $sdl,$ACTUAL_TICK,$STARDATE;
 
 		$starttime = ( microtime() + time() );
 		$debug_array_logen=0;
@@ -66,146 +292,15 @@ class Ferengi extends NPC
 
 		$this->sdl->log('<br><b>-------------------------------------------------------------</b><br>'.
 			'<b>Starting Bot Scheduler at '.date('d.m.y H:i:s', time()).'</b>', TICK_LOG_FILE_NPC);
-		//Damit der Bot auch Leben kann brauchen wir ein paar Infos
-		$Umwelt = $this->db->queryrow('SELECT * FROM config LIMIT 0 , 1');
-		$ACTUAL_TICK = $Umwelt['tick_id'];
-		$STARDATE = $Umwelt['stardate'];
-		$this->sdl->start_job('Ramona basic system', TICK_LOG_FILE_NPC);
-		//Erst feststellung ob der Bot schon ein exitenz besitzt
-		if($Umwelt)
-		{
+
+		//So that the robot can also be life we need some info
+        $this->bot = $this->db->queryrow('SELECT * FROM FHB_Bot LIMIT 0,1');
+        if($this->bot)
 			$this->sdl->log("The conversation with Ramona begins, oh, it is not beautiful, and then, it has such a great personality", TICK_LOG_FILE_NPC);
-			$Bot_exe=$this->db->query('SELECT * FROM FHB_Bot LIMIT 0,1');
-			$num_bot=$this->db->num_rows($Bot_exe);
-			if($num_bot<1)
-			{
-				$sql='INSERT INTO FHB_Bot (user_id,user_name,user_tick,user_race,user_loginname,planet_id,ship_t_1,ship_t_2)
-				VALUES ("0","","0","0","","0","0","0")';
-				if(!$this->db->query($sql))
-				{
-					$this->sdl->log('<b>Error:</b> Abort the program because of errors when creating the user', TICK_LOG_FILE_NPC);
-					return;
-				}
-			}
-			//So now we give the bot some data so that it is also Registered
-			$this->bot = $this->db->queryrow('SELECT * FROM FHB_Bot LIMIT 0,1');
-			//Check whether the bot already lives
-			if($this->bot['user_id']==0){
-				$this->sdl->log('Ramona is created', TICK_LOG_FILE_NPC);
-				$sql = 'INSERT INTO user (user_active, user_name, user_loginname, user_password, user_email, user_auth_level, user_race, user_gfxpath, user_skinpath, user_registration_time, user_registration_ip, user_birthday, user_gender, plz, country,user_enable_sig,user_message_sig,user_signature)
-					VALUES (1, "Quark(NPG)", "Bot", "'.md5("bundu").'", "xxx@xxx.de", 1, 5, "", "skin1/", '.time().', "100.0.0.1", "20.04.2007", "w", 76149 , "Deutschland",1,"<br><br><p><b>I.A. of the Ferengi Trade Guild</b></p>","I live in the computing centre Karlsruhe - so now however conclusion with merry")';
-
-				if(!$this->db->query($sql))
-				{
-					$this->sdl->log('<b>Error:</b> Bot: Could not create Ramona', TICK_LOG_FILE_NPC);
-				}else{
-					$sql = 'Select * FROM user WHERE user_name="Quark(NPG)" and user_loginname="Bot" and user_auth_level=1';
-					$Bot_zw = $this->db->queryrow($sql);
-					if(!$Bot_zw['user_id'])
-					{
-						$this->sdl->log('<b>Error:</b> The variable $Bot_zw has no content', TICK_LOG_FILE_NPC);
-						//break;
-					}
-					$sql = 'UPDATE FHB_Bot SET user_id="'.$Bot_zw['user_id'].'",user_name="'.$Bot_zw['user_name'].'",user_tick="'.$ACTUAL_TICK.'",user_loginname="'.$Bot_zw['user_loginname'].'",user_race="'.$Bot_zw['user_race'].'" WHERE id="'.$this->bot['id'].'"';
-					if(!$this->db->query($sql)) {
-						$this->sdl->log('<b>Error:</b> Bot card: Could not change the card', TICK_LOG_FILE_NPC);
-					}
-					$this->bot = $this->db->queryrow('SELECT * FROM FHB_Bot');
-				}
-			}
-			//The bot should also have a body of what looks
-			if($this->bot['planet_id']==0){
-				$this->sdl->log('<b>Ramona needs a new body</b>', TICK_LOG_FILE_NPC);
-				while($this->bot['planet_id']==0 or $this->bot['planet_id']=='empty'){
-					$this->sdl->log('New planet', TICK_LOG_FILE_NPC);
-					$this->db->lock('starsystems_slots');
-					$this->bot['planet_id']=create_planet($this->bot['user_id'], 'quadrant', 4);
-					$this->db->unlock();
-					if($this->bot['planet_id'] == 0)
-					{
-						$this->sdl->log('<b>Error:</b> Bot Planet id doesn\'t go', TICK_LOG_FILE_NPC);
-						return;
-					}
-					$sql = 'UPDATE user SET user_points = "400",user_planets = "1",last_active = "5555555555", user_attack_protection = "'.($ACTUAL_TICK + 1500).'",user_capital = "'.$this->bot['planet_id'].'",active_planet = "'.$this->bot['planet_id'].'" WHERE user_id = "'.$this->bot['user_id'].'"';
-					if(!$this->db->query($sql)) {
-						$this->sdl->log('<b>Error:</b> Bot body: Planet has not been created', TICK_LOG_FILE_NPC);
-					}else{
-						//Bot gets better values for his body, he should also look good
-						$this->sdl->log('Better values for the Planet', TICK_LOG_FILE_NPC);
-						$sql = 'UPDATE planets SET planet_points = 500,building_1 = 9,building_2 = 9,building_3 = 9,
-							building_4 = 9,building_5 = 9,building_6 = 9,building_7 = 9,building_8 = 9,
-							building_9 = 9,building_10 = 9,building_11 = 9,building_12 = 9,building_13 = 9,
-							unit_1 = 2000,unit_2 = 2000,unit_3 = 2000,unit_4 = 500,unit_5 = 500,unit_6=500,
-							planet_name = "Dealer Base",
-							research_1 = 9,research_2 = 9,research_3 = 9,research_4 = 9,research_5 = 9,
-							workermine_1 = 1600,workermine_2 = 1600,workermine_3 = 1600,resource_4 = 4000
-							WHERE planet_owner = '.$this->bot['user_id'].' and planet_id='.$this->bot['planet_id'];
-						if(!$this->db->query($sql)) $this->sdl->log('<b>Error:</b> Bot body: the body could not be improved', TICK_LOG_FILE_NPC);
-						$sql = 'UPDATE FHB_Bot SET planet_id='.$this->bot['planet_id'].' WHERE user_id = '.$this->bot['user_id'];
-						if(!$this->db->query($sql)) $this->sdl->log('<b>Error:</b> Bot card: could not change planet info card', TICK_LOG_FILE_NPC);
-					}
-				}
-			}
-			//Bot shows whether the ship already has templates
-			$neuladen=0;
-			if($this->bot['ship_t_1']==0)
-			{
-				$neuladen++;
-				$sql = 'INSERT INTO ship_templates
-					(owner, timestamp, name, description, race, ship_torso, ship_class, component_1, component_2, component_3, component_4, component_5, component_6, component_7, component_8, component_9, component_10,
-					value_1, value_2, value_3, value_4, value_5, value_6, value_7, value_8, value_9, value_10, value_11, value_12, value_13, value_14, value_15,
-					resource_1, resource_2, resource_3, resource_4, unit_5, unit_6, min_unit_1, min_unit_2, min_unit_3, min_unit_4, max_unit_1, max_unit_2, max_unit_3, max_unit_4, buildtime) VALUES
-					("'.$this->bot['user_id'].'","'.time().'","Ferengi Trade Ship - Alpha","Transport","'.$this->bot['user_race'].'",1,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-					"50","50","0","250","250","40","40","40","50","9.99","40","40","1","1","0",
-					"200000","200000","200000","40000","5000","5000","5000","2500","2500","5000","5000","2500","2500",2000,0)';
-				if(!$this->db->query($sql))  $this->sdl->log('<b>Error:</b> Bot ShipsTemps: template 1 was not saved', TICK_LOG_FILE_NPC);
-
-				// 23/07/12 - AC: Update ship template id with the freshly created one... hoping everything went fine!
-				$this->bot['ship_t_1'] = $this->db->insert_id();
-			}
-			if($this->bot['ship_t_2']==0)
-			{
-				$neuladen++;
-				$sql= 'INSERT INTO ship_templates
-					(owner, timestamp, name, description, race, ship_torso, ship_class, component_1, component_2, component_3, component_4, component_5, component_6, component_7, component_8, component_9, component_10,
-					value_1, value_2, value_3, value_4, value_5, value_6, value_7, value_8, value_9, value_10, value_11, value_12, value_13, value_14, value_15,
-					resource_1, resource_2, resource_3, resource_4, unit_5, unit_6, min_unit_1, min_unit_2, min_unit_3, min_unit_4, max_unit_1, max_unit_2, max_unit_3, max_unit_4, buildtime) VALUES
-					("'.$this->bot['user_id'].'","'.time().'","Light Hunter - Alpha","Combat ship","'.$this->bot['user_race'].'",3,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-					"4000","4000","100","6000","6000","60","60","60","60","9.99","60","60","1","1","0",
-					"500000","500000","500000","50000","5000","10000","10000","2500","2500","5000","5000","2500","2500",2000,0)';
-				if(!$this->db->query($sql))  $this->sdl->log('<b>Error:</b> Bot ShipsTemps: template 2 was not saved', TICK_LOG_FILE_NPC);
-
-				// 23/07/12 - AC: Update ship template id with the freshly created one... hoping everything went fine!
-				$this->bot['ship_t_2'] = $this->db->insert_id();
-			}
-			if($neuladen>0)
-			{
-				$this->sdl->log('Build ship templates', TICK_LOG_FILE_NPC);
-				$Bot_temps=$this->db->query('SELECT id FROM ship_templates s WHERE owner='.$this->bot['user_id']);
-				//$Bot_temps=$this->db->queryrow('SELECT id FROM ship_templates s WHERE owner='.$this->bot['user_id'].'');
-				$zaehler_temps=0;
-				$Bot_neu = array();
-
-				$tempID = $this->db->fetchrow($Bot_temps);
-				$Bot_neu[0]=$tempID['id'];
-				$tempID = $this->db->fetchrow($Bot_temps);
-				$Bot_neu[1]=$tempID['id'];
-
-
-//				$Bot_neu[0]=$Bot_temps[0]['id']; //weis nicht ob das geht
-//				$Bot_neu[1]=$Bot_temps[1]['id'];
-				$sql = 'UPDATE FHB_Bot SET ship_t_1 = '.$Bot_neu[0].',ship_t_2 = '.$Bot_neu[1].' WHERE user_id = '.$this->bot['user_id'];
-				if(!$this->db->query($sql))  $this->sdl->log('<b>Error:</b> Bot ShipsTemps: could not save the template id', TICK_LOG_FILE_NPC);
-			}
-		}else{
-			$this->sdl->log('<b>Error:</b> No access to the bot table=>'.$Bot_exe, TICK_LOG_FILE_NPC);
+		else {
+			$this->sdl->log('<b>Error:</b> No access to the bot table - ABORTED', TICK_LOG_FILE_NPC);
 			return;
 		}
-		$this->sdl->finish_job('Ramona basic system', TICK_LOG_FILE_NPC);
-		// ########################################################################################
-		// ########################################################################################
-		//PW des Bot änderns - nix angreifen
-		$this->ChangePassword();
 		// ########################################################################################
 		// ########################################################################################
 		// Messages answer
@@ -1430,36 +1525,50 @@ class Ferengi extends NPC
 				VALUES ("Alpha-Fleet IVX", '.$this->bot['user_id'].', '.$this->bot['planet_id'].', 0, 4000)';
 			if(!$this->db->query($sql))
 				$this->sdl->log('<b>Error:</b> Could not insert new fleets data', TICK_LOG_FILE_NPC);
-			$fleet_id = $this->db->insert_id();
+			else {
+			    $fleet_id = $this->db->insert_id();
+			    $stpl1_found = true;
+			    $stpl2_found = true;
 
-			if(!$fleet_id) $this->sdl->log('Error - '.$fleet_id.' = empty', TICK_LOG_FILE_NPC);
+			    if(!$fleet_id) $this->sdl->log('Error - '.$fleet_id.' = empty', TICK_LOG_FILE_NPC);
 
-			$sql_a= 'SELECT * FROM ship_templates WHERE id = '.$this->bot['ship_t_1'];
-			$sql_b= 'SELECT * FROM ship_templates WHERE id = '.$this->bot['ship_t_2'];
-			if(($stpl_a = $this->db->queryrow($sql_a)) === false)
-				$this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql_a, TICK_LOG_FILE_NPC);
-			if(($stpl_b = $this->db->queryrow($sql_b)) === false)
-				$this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql_b, TICK_LOG_FILE_NPC);
+			    $sql_a= 'SELECT * FROM ship_templates WHERE id = '.$this->bot['ship_t_1'];
+			    $sql_b= 'SELECT * FROM ship_templates WHERE id = '.$this->bot['ship_t_2'];
+			    if(($stpl_a = $this->db->queryrow($sql_a)) === false)
+				    $this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql_a, TICK_LOG_FILE_NPC);
+			    if(($stpl_b = $this->db->queryrow($sql_b)) === false)
+				    $this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql_b, TICK_LOG_FILE_NPC);
 
-			$units_str_1 = $stpl_a['min_unit_1'].', '.$stpl_a['min_unit_2'].', '.$stpl_a['min_unit_3'].', '.$stpl_a['min_unit_4'];
-			$units_str_2 = $stpl_b['min_unit_1'].', '.$stpl_b['min_unit_2'].', '.$stpl_b['min_unit_3'].', '.$stpl_b['min_unit_4'];
-			$sql_c= 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
-				VALUES ('.$fleet_id.', '.$this->bot['user_id'].', '.$this->bot['ship_t_1'].', '.$stpl_a['value_9'].', '.$stpl_a['value_5'].', '.$game->TIME.', '.$units_str_1.')';
-			$sql_d= 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
-				VALUES ('.$fleet_id.', '.$this->bot['user_id'].', '.$this->bot['ship_t_2'].', '.$stpl_b['value_9'].', '.$stpl_b['value_5'].', '.$game->TIME.', '.$units_str_2.')';
-			for($i = 0; $i < 4000; ++$i)
-			{
-				if($i<400){
-					if(!$this->db->query($sql_c)) {
-						$this->sdl->log('<b>Error:</b> Could not insert new ships #'.$i.' data', TICK_LOG_FILE_NPC);
-					}
-				}else{
-					if(!$this->db->query($sql_d)) {
-						$this->sdl->log('<b>Error:</b> Could not insert new ships #'.$i.' data', TICK_LOG_FILE_NPC);
-					}
-				}
+                // Check if the templates exists
+                if (empty($stpl_a)) $stpl1_found = false;
+                if (empty($stpl_b)) $stpl2_found = false;
+                
+			    $units_str_1 = $stpl_a['min_unit_1'].', '.$stpl_a['min_unit_2'].', '.$stpl_a['min_unit_3'].', '.$stpl_a['min_unit_4'];
+			    $units_str_2 = $stpl_b['min_unit_1'].', '.$stpl_b['min_unit_2'].', '.$stpl_b['min_unit_3'].', '.$stpl_b['min_unit_4'];
+			    $sql_c= 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
+				    VALUES ('.$fleet_id.', '.$this->bot['user_id'].', '.$this->bot['ship_t_1'].', '.$stpl_a['value_9'].', '.$stpl_a['value_5'].', '.$game->TIME.', '.$units_str_1.')';
+			    $sql_d= 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
+				    VALUES ('.$fleet_id.', '.$this->bot['user_id'].', '.$this->bot['ship_t_2'].', '.$stpl_b['value_9'].', '.$stpl_b['value_5'].', '.$game->TIME.', '.$units_str_2.')';
+			    for($i = 0; $i < 4000; ++$i)
+			    {
+				    if($i<400){
+				        // Skip if template not found
+				        if (!$stpl1_found) continue;
+				        
+					    if(!$this->db->query($sql_c)) {
+						    $this->sdl->log('<b>Error:</b> Could not insert new ships #'.$i.' data', TICK_LOG_FILE_NPC);
+					    }
+				    }else{
+				        // Skip if template not found
+				        if (!$stpl2_found) continue;
+
+					    if(!$this->db->query($sql_d)) {
+						    $this->sdl->log('<b>Error:</b> Could not insert new ships #'.$i.' data', TICK_LOG_FILE_NPC);
+					    }
+				    }
+			    }
+			    $this->sdl->log('Fleet: '.$fleet_id.' - 4000 ships created', TICK_LOG_FILE_NPC);
 			}
-			$this->sdl->log('Fleet: '.$fleet_id.' - 4000 ships created', TICK_LOG_FILE_NPC);
 		}
 		// Check whether someone has destroyed some Quark's ships
 		$this->RestoreFleetLosses("Alpha-Fleet IVX",$this->bot['ship_t_2'],4000);
@@ -1473,25 +1582,31 @@ class Ferengi extends NPC
 				VALUES ("Interception Omega", '.$this->bot['user_id'].', '.$this->bot['planet_id'].', 0, 1000)';
 			if(!$this->db->query($sql))
 				$this->sdl->log('<b>Error:</b> Could not insert new fleets data', TICK_LOG_FILE_NPC);
-			$fleet_id= $this->db->insert_id();
+			else {
+			    $fleet_id= $this->db->insert_id();
 
-			if(!$fleet_id) $this->sdl->log('Error - '.$fleet_id.' = empty', TICK_LOG_FILE_NPC);
+			    if(!$fleet_id) $this->sdl->log('Error - '.$fleet_id.' = empty', TICK_LOG_FILE_NPC);
 
-			$sql_b= 'SELECT * FROM ship_templates WHERE id = '.$this->bot['ship_t_2'];
-			if(($stpl_b = $this->db->queryrow($sql_b)) === false)
-				$this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql_b, TICK_LOG_FILE_NPC);
+			    $sql_b= 'SELECT * FROM ship_templates WHERE id = '.$this->bot['ship_t_2'];
+			    if(($stpl_b = $this->db->queryrow($sql_b)) === false)
+				    $this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql_b, TICK_LOG_FILE_NPC);
 
-			$units_str_2 = $stpl_b['min_unit_1'].', '.$stpl_b['min_unit_2'].', '.$stpl_b['min_unit_3'].', '.$stpl_b['min_unit_4'];
-			$sql= 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
-				VALUES ('.$fleet_id.', '.$this->bot['user_id'].', '.$this->bot['ship_t_2'].', '.$stpl_b['value_9'].', '.$stpl_b['value_5'].', '.$game->TIME.', '.$units_str_2.')';
+                if (!empty($stpl_b)) {
+			        $units_str_2 = $stpl_b['min_unit_1'].', '.$stpl_b['min_unit_2'].', '.$stpl_b['min_unit_3'].', '.$stpl_b['min_unit_4'];
+			        $sql= 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
+				        VALUES ('.$fleet_id.', '.$this->bot['user_id'].', '.$this->bot['ship_t_2'].', '.$stpl_b['value_9'].', '.$stpl_b['value_5'].', '.$game->TIME.', '.$units_str_2.')';
 
-			for($i = 0; $i < 1000; ++$i)
-			{
-				if(!$this->db->query($sql)) {
-					$this->sdl->log('<b>Error:</b> Could not insert new ships #'.$i.' data', TICK_LOG_FILE_NPC);
-				}
-			}
-			$this->sdl->log('Fleet: '.$fleet_id.' - 1000 ships created', TICK_LOG_FILE_NPC);
+			        for($i = 0; $i < 1000; ++$i)
+			        {
+				        if(!$this->db->query($sql)) {
+					        $this->sdl->log('<b>Error:</b> Could not insert new ships #'.$i.' data', TICK_LOG_FILE_NPC);
+				        }
+			        }
+			        $this->sdl->log('Fleet: '.$fleet_id.' - 1000 ships created', TICK_LOG_FILE_NPC);
+			    }
+			    else
+            	    $this->sdl->log('<b>Error:</b> Could not found template '.$this->bot['ship_t_2'].'!', TICK_LOG_FILE_NPC);
+            }
 		}
 		// Check whether someone has destroyed some Quark's ships
 		$this->RestoreFleetLosses("Interception Omega",$this->bot['ship_t_2'],1000);
