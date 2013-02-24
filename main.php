@@ -74,6 +74,8 @@ $ACTUAL_TICK = $cfg_data['tick_id'];
 $NEXT_TICK = ($cfg_data['tick_time'] - time());
 $LAST_TICK_TIME = ($cfg_data['tick_time']-TICK_DURATION*60);
 $STARDATE = $cfg_data['stardate'];
+$FUTURE_SHIP = $cfg_data['future_ship'];
+
 
 if($cfg_data['tick_stopped']) {
     $sdl->log('Finished Scheduler in '.round((microtime()+time())-$starttime, 4).' secs<br>Tick has been stopped (Unlock in table "config")');
@@ -713,54 +715,6 @@ $sdl->finish_job('Resourcetrade Scheduler');
 
 // ########################################################################################
 // ########################################################################################
-// Future Humans
-$sdl->start_job('Future Humans Setup&Maintenance');
-
-if($cfg_data['future_ship'] == 0)
-{
-    $sql = 'SELECT count(*) AS fhship_check
-            FROM ship_templates
-            WHERE template_id = '.$cfg_data['future_ship'];
-    $result = $db->queryrow($sql);
-    if($result['fhship_check'] == 0)
-    {
-        // We put the Future Humans Ship Template in the DB
-        $sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
-                            component_1, component_2, component_3, component_4, component_5,
-                            component_6, component_7, component_8, component_9, component_10,
-                            value_1, value_2, value_3, value_4, value_5,
-                            value_6, value_7, value_8, value_9, value_10,
-                            value_11, value_12, value_13, value_14, value_15,
-                            resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
-                            min_unit_1, min_unit_2, min_unit_3, min_unit_4,
-                            max_unit_1, max_unit_2, max_unit_3, max_unit_4,
-                            buildtime, rof, max_torp)
-                VALUES ("'.FUTURE_HUMANS_UID.'","'.time().'","Prometeus","Anti-Borg, Multirole, Heavy Assault Ship",12,11,3,
-                        -1,-1,-1,-1,-1,
-                        -1,-1,-1,-1,-1,
-                        "5000","5000","280","21000","15000",
-                        "36","40","48","46","9.99",
-                        "65","0","480","480","0",
-                        "35000","300000","300000","2900","65","15",
-                        "150","100","85","15",
-                        "400","200","150","25",
-                        2000, 3, 500)';
-
-        if(!$db->query($sql))
-            $sdl->log('<b>FH Error: (Critical)</b> Could not write Future Humans Ship Template - TICK EXECUTION CONTINUED');
-
-        $cfg_data['future_ship'] = $db->insert_id();
-
-        $db->query('UPDATE config SET future_ship = '.$cfg_data['future_ship']);
-
-        $sdl->log('Template created with id '.$cfg_data['future_ship']);
-    }
-}
-
-$sdl->finish_job('Future Humans Setup&Maintenance');
-
-// ########################################################################################
-// ########################################################################################
 // Future Humans Rewards System
 
 $sdl->start_job('Future Humans Rewards');
@@ -777,7 +731,7 @@ else if($db->num_rows() > 0) {
     // Load Future human ship's template
     $sql = 'SELECT id, value_9, value_5, min_unit_1, min_unit_2, min_unit_3, min_unit_4, rof, max_torp
             FROM ship_templates
-            WHERE id = '.$cfg_data['future_ship'];
+            WHERE id = '.$FUTURE_SHIP;
 
     $template = $db->queryrow($sql);
 
