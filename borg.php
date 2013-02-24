@@ -35,7 +35,7 @@ define (BORG_SPHERE, 'Borg Sphere');
 
 define (BORG_CUBE, 'Borg Cube');
 
-define (BORG_TACT, 'Borg Tactical Cube');
+define (BORG_TACT, 'Borg Tact Cube');
 
 define (BORG_RACE,'6'); // Well, this one should be defined in global.php among the other races */
 
@@ -54,8 +54,451 @@ define (BORG_BIGPLAYER, 12000); // Send a cube instead of spheres to player abov
 // Startconfig of Borg
 class Borg extends NPC
 {
+    // Function to create BOT structures
+    public function Install($log = INSTALL_LOG_FILE_NPC)
+    {
+        // We don't use the global variable here since this function can be called also
+        // by the installation script.
+        $environment = $this->db->queryrow('SELECT * FROM config LIMIT 0 , 1');
+        $ACTUAL_TICK = $environment['tick_id'];
+        $FUTURE_SHIP = $Environment['future_ship'];
+
+        $this->sdl->start_job('SevenOfNine basic system', $log);
+
+        $Bot_exe=$this->db->query('SELECT * FROM borg_bot LIMIT 0,1');
+
+        // Create BOT table if it doesn't exist
+        if($Bot_exe === false)
+        {
+            $sql = 'CREATE TABLE `'.$this->db->login['database'].'`.`borg_bot` (
+                        `id` INT( 2 ) NOT NULL AUTO_INCREMENT ,
+                        `user_id` MEDIUMINT( 8 ) UNSIGNED NOT NULL DEFAULT \'0\',
+                        `planet_id` SMALLINT( 5 ) UNSIGNED NOT NULL DEFAULT  \'0\',
+                        `ship_template1` INT( 10 ) UNSIGNED NOT NULL DEFAULT  \'0\',
+                        `ship_template2` INT( 10 ) UNSIGNED NOT NULL DEFAULT  \'0\',
+                        `ship_template3` INT( 10 ) UNSIGNED NOT NULL DEFAULT  \'0\',
+                        `user_tick` INT( 10 ) NOT NULL ,
+                        `attack_quadrant` TINYINT( 3 ) UNSIGNED NOT NULL DEFAULT  \''.BORG_QUADRANT.'\',
+                        `attacked_user1` MEDIUMINT( 8 ) UNSIGNED NOT NULL ,
+                        `attacked_user2` MEDIUMINT( 8 ) UNSIGNED NOT NULL ,
+                        `attacked_user3` MEDIUMINT( 8 ) UNSIGNED NOT NULL ,
+                        `attacked_user4` MEDIUMINT( 8 ) UNSIGNED NOT NULL ,
+                        `last_attacked` MEDIUMINT( 8 ) UNSIGNED NOT NULL DEFAULT  \'0\',
+                        `wrath_size` MEDIUMINT( 8 ) UNSIGNED NOT NULL DEFAULT  \'30\',
+                        PRIMARY KEY (  `id` )
+                    ) ENGINE = MYISAM';
+
+            if(!$this->db->query($sql))
+            {
+                $this->sdl->log('<b>Error:</b> cannot create borg_bot table - ABORTED', $log);
+                return;
+            }
+        }
+
+        $num_bot=$this->db->num_rows($Bot_exe);
+        if($num_bot < 1)
+        {
+            $sql = 'INSERT INTO borg_bot (user_id,user_tick,planet_id,ship_template1,ship_template2,ship_template3)
+                    VALUES ("0","0","0","0","0","0")';
+            if(!$this->db->query($sql))
+            {
+                $this->sdl->log('<b>Error:</b> could not insert borg_bot data - ABORTED', $log);
+                return;
+            }
+        }
+
+        //So now we give the bot some data so that it is also Registered
+        $this->bot = $this->db->queryrow('SELECT * FROM borg_bot LIMIT 0,1');
+
+        //Check whether the bot already lives
+        if($this->bot['user_id']==0)
+        {
+            $this->sdl->log('We need to create SevenOfNine', $log);
+
+            $sql = 'INSERT INTO user (user_id, user_active, user_name, user_loginname, user_password, user_email,
+                                      user_auth_level, user_race, user_gfxpath, user_skinpath, user_registration_time,
+                                      user_registration_ip, user_birthday, user_gender, plz, country,
+                                      user_enable_sig,user_message_sig,
+                                      user_signature, user_notepad, user_options, message_basement)
+                     VALUES ('.BORG_USERID.', 1, "Borg(NPG)", "BorgBot", "'.md5("borgcube").'", "borg@stfc.it",
+                             '.STGC_BOT.', '.BORG_RACE.', "", "skin1/", '.time().',
+                             "127.0.0.1", "23.05.2008", "", 16162 , "IT",
+                             1, "<br><br><p><b>We are the Borg, resistance is futile</b></p>",
+                             "'.BORG_SIGNATURE.'","", "", "")';
+
+            if(!$this->db->query($sql)) {
+                $this->sdl->log('<b>Error:</b> could not create SevenOfNine - ABORTED', $log);
+                return;
+            }
+
+            $sql = 'UPDATE borg_bot
+                    SET user_id="'.BORG_USERID.'",
+                        user_tick="'.$ACTUAL_TICK.'"
+                    WHERE id="'.$this->bot['id'].'"';
+
+            if(!$this->db->query($sql)) {
+                $this->sdl->log('<b>Error:</b> could not update borg_bot table - ABORTED', $log);
+                return;
+            }
+
+            // Avoid a DB query
+            $this->bot['user_id'] = BORG_USERID;
+        } // end user bot creation
+
+        // Check whether the bot has a planet
+        if($this->bot['planet_id'] == 0) {
+            $this->sdl->log('<b>SevenOfNine needs new body</b>', $log);
+
+            while($this->bot['planet_id']==0 or $this->bot['planet_id']=='empty')
+            {
+                $this->sdl->log('Create new planet', $log);
+                $this->db->lock('starsystems_slots');
+                $this->bot['planet_id']=create_planet($this->bot['user_id'], 'quadrant', BORG_QUADRANT);
+                $this->db->unlock();
+                if($this->bot['planet_id'] == 0)
+                {
+                    $this->sdl->log('<b>Error:</b> could not create SevenOfNine\'s planet - ABORTED', $log);
+                    return;
+                }
+
+                $sql = 'UPDATE user
+                        SET user_points = "400",
+                            user_planets = "1",
+                            last_active = "4294967295",
+                            user_capital = "'.$this->bot['planet_id'].'",
+                            active_planet = "'.$this->bot['planet_id'].'"
+                        WHERE user_id = '.$this->bot['user_id'];
+
+                if(!$this->db->query($sql)) {
+                    $this->sdl->log('<b>Error:</b> could not update SevenOfNine\'s attack protection info - CONTINUED', $log);
+                }
+
+                // That one is for resetting the Borg Targets List
+                $sql = 'TRUNCATE TABLE borg_target';
+                if(!$this->db->query($sql)) {
+                    $this->sdl->log('<b>Error:</b> could not reset borg_target - CONTINUED', $log);
+                }
+
+                //Bot gets best values for his body, he should also look good
+                $this->sdl->log('Give best values to the planet', $log);
+                $sql = 'UPDATE planets SET planet_points = 1200,building_1 = 9,building_2 = 15,building_3 = 15,
+                        building_4 = 15,building_5 = 16,building_6 = 9,building_7 = 15,building_8 = 9,
+                        building_9 = 9,building_10 = 35,building_11 = 9,building_12 = 15,building_13 = 35,
+                        unit_1 = 20000,unit_2 = 10000,unit_3 = 5000,unit_4 = 5000,unit_5 = 0,unit_6 = 0,
+                        planet_name = "Unimatrix Zero",
+                        research_1 = 15,research_2 = 15,research_3 = 15,research_4 = 15,research_5 = 9,
+                        workermine_1 = 1600,workermine_2 = 1600,workermine_3 = 1600,resource_4 = 4000
+                        WHERE planet_owner = '.$this->bot['user_id'].' and planet_id='.$this->bot['planet_id'];
+
+                if(!$this->db->query($sql))
+                    $this->sdl->log('<b>Error:</b> could not improve SevenOfNine\'s planet - CONTINUED', $log);
+
+                $sql = 'UPDATE borg_bot SET planet_id='.$this->bot['planet_id'].' WHERE user_id = '.$this->bot['user_id'];
+                if(!$this->db->query($sql))
+                    $this->sdl->log('<b>Error:</b> could not update SevenOfNine ID card with planet info - CONTINUED', $log);
+            } // end while
+        } // end planet creation
+
+        // Check whether the ship already has templates
+        $reload=0;
+        if($this->bot['ship_template1']==0)
+        {
+            /**
+             * Brief comments of SECOND prototype of Borg Sphere:
+             *
+             * Light weapons: 600
+             * Heavy weapons: 600
+             * Planetary weapons: 50
+             * Hull: 700
+             * Shield: 700
+             *
+             * Reaction: 30
+             * Readiness: 30
+             * Agility: 30
+             * Experience: 20
+             * Warp: 10 (Borg has transwarp engines)
+             *
+             * Sensors: 20
+             * Camouflage: 0
+             * Energy available: 200
+             * Energy used: 200
+             *
+             * Resources needed for construction:
+             *
+             * Metal: 50000
+             * Minerals: 50000
+             * Dilithium: 50000
+             * Workers: 500
+             * Technicians: 100
+             * Physicians: 10
+             *
+             * Minimum crew:
+             * 
+             * Drone simple: 100
+             * Assault drone: 25
+             * Elite drone: 25
+             * Commander drone: 5
+             *
+             * Maximum crew:
+             *
+             * Drone simple: 300
+             * Assault drone: 70
+             * Elite drone: 50
+             * Commander drone: 10
+             */ 
+            $reload++;
+            $sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
+                                                component_1, component_2, component_3, component_4, component_5,
+                                                component_6, component_7, component_8, component_9, component_10,
+                                                value_1, value_2, value_3, value_4, value_5,
+                                                value_6, value_7, value_8, value_9, value_10,
+                                                value_11, value_12, value_13, value_14, value_15,
+                                                resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
+                                                min_unit_1, min_unit_2, min_unit_3, min_unit_4,
+                                                max_unit_1, max_unit_2, max_unit_3, max_unit_4,
+                                                buildtime)
+                     VALUES ("'.$this->bot['user_id'].'","'.time().'","'.BORG_SPHERE.'","Exploration ship","'.BORG_RACE.'",6,2,
+                             -1,-1,-1,-1,-1,
+                             -1,-1,-1,-1,-1,
+                             "600","600","50","700","700",
+                             "30","30","30","20","10",
+                             "20","0","200","200","0",
+                             "50000","50000","50000","500","100","10",
+                             "100","25","25","5",
+                             "300","70","50",10,
+                             0)';
+
+            if(!$this->db->query($sql)) {
+                $this->sdl->log('<b>Error:</b> could not save BOT template 1 - ABORTED', $log);
+                return;
+            }
+
+            // Update ship template id with the freshly created one
+            $this->bot['ship_template1'] = $this->db->insert_id();
+        }
+        if($this->bot['ship_template2']==0)
+        {
+            /**
+             * Brief comments of SECOND prototype of Borg Cube:
+             *
+             * Light weapons: 6000
+             * Heavy weapons: 6000
+             * Planetary weapons: 400
+             * Hull: 20000
+             * Shield: 7000
+             *
+             * Reaction: 60
+             * Readiness: 60
+             * Agility: 10
+             * Experience: 60
+             * Warp: 10 (Borg has transwarp engines)
+             *
+             * Sensors: 40
+             * Camouflage: 0
+             * Energy available: 2000
+             * Energy used: 2000
+             *
+             * Resources needed for construction:
+             *
+             * Metal: 500000
+             * Minerals: 500000
+             * Dilithium: 500000
+             * Workers: 50000
+             * Technicians: 10000
+             * Physicians: 1000
+             *
+             * Minimum crew:
+             * 
+             * Drone simple: 10000
+             * Assault drone: 2500
+             * Elite drone: 2500
+             * Commander drone: 500
+             *
+             * Maximum crew:
+             *
+             * Drone simple: 30000
+             * Assault drone: 7000
+             * Elite drone: 5000
+             * Commander drone: 1000
+             */
+            $reload++;
+            $sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
+                                                component_1, component_2, component_3, component_4, component_5,
+                                                component_6, component_7, component_8, component_9, component_10,
+                                                value_1, value_2, value_3, value_4, value_5,
+                                                value_6, value_7, value_8, value_9, value_10,
+                                                value_11, value_12, value_13, value_14, value_15,
+                                                resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
+                                                min_unit_1, min_unit_2, min_unit_3, min_unit_4,
+                                                max_unit_1, max_unit_2, max_unit_3, max_unit_4,
+                                                buildtime)
+                    VALUES ("'.$this->bot['user_id'].'","'.time().'","'.BORG_CUBE.'","Assimilation ship","'.BORG_RACE.'",11,3,
+                            -1,-1,-1,-1,-1,
+                            -1,-1,-1,-1,-1,
+                            "6000","6000","400","20000","7000",
+                            "60","60","10","60","10",
+                            "40","0","2000","2000","0",
+                            "500000","500000","500000","50000","10000","1000",
+                            "10000","2500","2500","500",
+                            "30000","7000","5000","1000",
+                            0)';
+
+            if(!$this->db->query($sql)) {
+                $this->sdl->log('<b>Error:</b> Could not save BOT template 2 - ABORTED', $log);
+                return;
+            }
+
+            // Update ship template id with the freshly created one
+            $this->bot['ship_template2'] = $this->db->insert_id();
+        }
+
+        if($this->bot['ship_template3']==0)
+        {
+            /**
+             * Brief comments of THIRD prototype of Borg Cube:
+             *
+             * Light weapons: 30000
+             * Heavy weapons: 30000
+             * Planetary weapons: 400
+             * Torpedoes: 800
+             * ROF: 16
+             * Hull: 100000
+             * Shield: 60000
+             *
+             * Reaction: 68
+             * Readiness: 68
+             * Agility: 10
+             * Experience: 60
+             * Warp: 10 (Borg has transwarp engines)
+             *
+             * Sensors: 40
+             * Camouflage: 0
+             * Energy available: 8000
+             * Energy used: 8000
+             *
+             * Resources needed for construction:
+             *
+             * Metal: 500000
+             * Minerals: 500000
+             * Dilithium: 500000
+             * Workers: 50000
+             * Technicians: 250
+             * Physicians: 250
+             *
+             * Minimum crew:
+             * 
+             * Drone simple: 10000
+             * Assault drone: 2500
+             * Elite drone: 2500
+             * Commander drone: 500
+             *
+             * Maximum crew:
+             *
+             * Drone simple: 65000   <--- Max 65535
+             * Assault drone: 21000
+             * Elite drone: 15000
+             * Commander drone: 5000
+             */
+            $reload++;
+            $sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
+                                                component_1, component_2, component_3, component_4, component_5,
+                                                component_6, component_7, component_8, component_9, component_10,
+                                                value_1, value_2, value_3, value_4, value_5,
+                                                value_6, value_7, value_8, value_9, value_10,
+                                                value_11, value_12, value_13, value_14, value_15,
+                                                resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
+                                                min_unit_1, min_unit_2, min_unit_3, min_unit_4,
+                                                max_unit_1, max_unit_2, max_unit_3, max_unit_4,
+                                                buildtime)
+                    VALUES ("'.$this->bot['user_id'].'","'.time().'","'.BORG_TACT.'","Combat Ship","'.BORG_RACE.'",11,3,
+                            -1,-1,-1,-1,-1,
+                            -1,-1,-1,-1,-1,
+                            "30000","30000","400","100000","70000",
+                            "68","68","10","60","10",
+                            "40","0","8000","8000","0",
+                            "500000","500000","500000","50000","250","250",
+                            "10000","2500","2500","500",
+                            "65000","21000","15000","5000",
+                            0)';
+
+            if(!$this->db->query($sql)) {
+                $this->sdl->log('<b>Error:</b> Could not save BOT template 3 - ABORTED '.$sql, $log);
+                return;
+            }
+
+            // Update ship template id with the freshly created one
+            $this->bot['ship_template3'] = $this->db->insert_id();
+        }
+
+        if($reload > 0) {
+            $this->sdl->log('Ship templates built', $log);
+
+            $sql = 'UPDATE borg_bot
+                    SET ship_template1 = '.$this->bot['ship_template1'].',
+                        ship_template2 = '.$this->bot['ship_template2'].',
+                        ship_template3 = '.$this->bot['ship_template3'].'
+                    WHERE user_id = '.$this->bot['user_id'];
+            if(!$this->db->query($sql))
+                $this->sdl->log('<b>Error:</b> Could not update SevenOfNine ID card with ship templates info - CONTINUED', $log);
+        }
+
+        $this->sdl->finish_job('SevenOfNine basic system', $log);
+        // ########################################################################################
+        // ########################################################################################
+        // Change the BOT password
+        $this->ChangePassword($log);
+
+        // Future Humans
+        $this->sdl->start_job('Future Humans Setup&Maintenance',$log);
+
+        if($FUTURE_SHIP == 0) {
+            $sql = 'SELECT count(*) AS fhship_check FROM ship_templates
+                    WHERE template_id = '.$FUTURE_SHIP;
+            $result = $this->db->queryrow($sql);
+            if($result['fhship_check'] == 0) {
+                // We put the Future Humans Ship Template in the DB
+                $sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
+                                    component_1, component_2, component_3, component_4, component_5,
+                                    component_6, component_7, component_8, component_9, component_10,
+                                    value_1, value_2, value_3, value_4, value_5,
+                                    value_6, value_7, value_8, value_9, value_10,
+                                    value_11, value_12, value_13, value_14, value_15,
+                                    resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
+                                    min_unit_1, min_unit_2, min_unit_3, min_unit_4,
+                                    max_unit_1, max_unit_2, max_unit_3, max_unit_4,
+                                    buildtime, rof, max_torp)
+                        VALUES ("'.FUTURE_HUMANS_UID.'","'.time().'","Prometeus","Anti-Borg, Multirole, Heavy Assault Ship",12,11,3,
+                                -1,-1,-1,-1,-1,
+                                -1,-1,-1,-1,-1,
+                                "5000","5000","280","21000","15000",
+                                "36","40","48","46","9.99",
+                                "65","0","480","480","0",
+                                "35000","300000","300000","2900","65","15",
+                                "150","100","85","15",
+                                "400","200","150","25",
+                                2000, 3, 500)';
+
+                if(!$this->db->query($sql)) {
+                    $this->sdl->log('<b>Error:</b> could not insert Future Humans Ship Template - ABORTED', $log);
+                    return;
+                }
+
+                $FUTURE_SHIP = $this->db->insert_id();
+
+                if(!$this->db->query('UPDATE config SET future_ship = '.$FUTURE_SHIP))
+                    $this->sdl->log('<b>Error:</b> could not update future ship template id - CONTINUED',$log);
+
+                $this->sdl->log('Template created with id '.$FUTURE_SHIP,$log);
+            }
+        }
+
+        $this->sdl->finish_job('Future Humans Setup&Maintenance',$log);
+    }
+
 	public function Execute($debug=0)
 	{
+        global $ACTUAL_TICK,$FUTURE_SHIP;
+
 		$starttime = ( microtime() + time() );
 
 		// Read debug config
@@ -70,424 +513,35 @@ class Borg extends NPC
 		$this->sdl->log('<br><b>-------------------------------------------------------------</b><br>'.
 			'<b>Starting Borg Bot Scheduler at '.date('d.m.y H:i:s', time()).'</b>', TICK_LOG_FILE_NPC);
 
-		// Bot also enable the life we may need a few more
-		$Environment = $this->db->queryrow('SELECT * FROM config LIMIT 0 , 1');
-		$ACTUAL_TICK = $Environment['tick_id'];
-		$STARDATE = $Environment['stardate'];
-		$FUTURE_SHIP = $Environment['future_ship'];
+        $this->bot = $this->db->queryrow('SELECT * FROM borg_bot LIMIT 0,1');
+        if($this->bot)
+            $this->sdl->log("The conversation with SevenOfNine begins, oh, but I think that there is no possibility to talk with her",TICK_LOG_FILE_NPC);
+        else {
+            $this->sdl->log('<b>Error:</b> no access to the bot table - ABORTED', TICK_LOG_FILE_NPC);
+            return;
+        }
 
-		$this->sdl->start_job('SevenOfNine basic system', TICK_LOG_FILE_NPC);
+        // ########################################################################################
+        // ########################################################################################
+        // Check Borg has a planet
+        $this->sdl->start_job('SevenOfNine integrity check', TICK_LOG_FILE_NPC);
 
-		//Only with adoption Bot has an existence
-		if($Environment)
-		{
-			$this->sdl->log("The conversation with SevenOfNine begins, oh, but I think that there is no possibility to talk with her",
-				TICK_LOG_FILE_NPC);
-			$Bot_exe=$this->db->query('SELECT * FROM borg_bot LIMIT 0,1');
+        // Check ownership of the BOT's planet
+        $sql = 'SELECT planet_owner FROM planets
+                WHERE planet_id = '.$this->bot['planet_id'];
 
-			// Create BOT table if it doesn't exist
-			if($Bot_exe === false)
-			{
-				$sql = 'CREATE TABLE `'.$this->db->login['database'].'`.`borg_bot` (
-				            `id` INT( 2 ) NOT NULL AUTO_INCREMENT ,
-				            `user_id` MEDIUMINT( 8 ) UNSIGNED NOT NULL DEFAULT \'0\',
-				            `planet_id` SMALLINT( 5 ) UNSIGNED NOT NULL DEFAULT  \'0\',
-				            `ship_template1` INT( 10 ) UNSIGNED NOT NULL DEFAULT  \'0\',
-				            `ship_template2` INT( 10 ) UNSIGNED NOT NULL DEFAULT  \'0\',
-				            `ship_template3` INT( 10 ) UNSIGNED NOT NULL DEFAULT  \'0\',
-				            `user_tick` INT( 10 ) NOT NULL ,
-				            `attack_quadrant` TINYINT( 3 ) UNSIGNED NOT NULL DEFAULT  \''.BORG_QUADRANT.'\',
-				            `attacked_user1` MEDIUMINT( 8 ) UNSIGNED NOT NULL ,
-				            `attacked_user2` MEDIUMINT( 8 ) UNSIGNED NOT NULL ,
-				            `attacked_user3` MEDIUMINT( 8 ) UNSIGNED NOT NULL ,
-				            `attacked_user4` MEDIUMINT( 8 ) UNSIGNED NOT NULL ,
-				            `last_attacked` MEDIUMINT( 8 ) UNSIGNED NOT NULL DEFAULT  \'0\',
-				            `wrath_size` MEDIUMINT( 8 ) UNSIGNED NOT NULL DEFAULT  \'30\',
-				            PRIMARY KEY (  `id` )
-				        ) ENGINE = MYISAM';
+        $botplanetowner = $this->db->queryrow($sql);
+        // Owner are still BORG?
+        if($botplanetowner['planet_owner'] != $this->bot['user_id']) {
+            // Just reset the Borg planet_id, and call Install, the Borg Queen will get a new throne!
+            $sql = 'UPDATE borg_bot SET planet_id = 0';
+            if(!$this->db->query($sql))
+                $this->sdl->log('<b>Error:</b> cannot reset Borg main planet id', TICK_LOG_FILE_NPC);
+            else
+                $this->Install(TICK_LOG_FILE_NPC);
+        }
+        $this->sdl->finish_job('SevenOfNine integrity check', TICK_LOG_FILE_NPC);
 
-				if(!$this->db->query($sql))
-				{
-					$this->sdl->log('<b>Error:</b> cannot create borg_bot table - ABORTED', TICK_LOG_FILE_NPC);
-					return;
-				}
-			}
-
-			$num_bot=$this->db->num_rows($Bot_exe);
-			if($num_bot < 1)
-			{
-				$sql = 'INSERT INTO borg_bot (user_id,user_tick,planet_id,ship_template1,ship_template2,ship_template3)
-				        VALUES ("0","0","0","0","0","0")';
-				if(!$this->db->query($sql))
-				{
-					$this->sdl->log('<b>Error:</b> Abort the program because of errors when creating the user', TICK_LOG_FILE_NPC);
-					return;
-				}
-			}
-
-			//So now we give the bot some data so that it is also Registered
-			$this->bot = $this->db->queryrow('SELECT * FROM borg_bot LIMIT 0,1');
-
-			//Check whether the bot already lives
-			if($this->bot['user_id']==0)
-			{
-				$this->sdl->log('We need to create SevenOfNine', TICK_LOG_FILE_NPC);
-
-				$sql = 'INSERT INTO user (user_id, user_active, user_name, user_loginname, user_password, user_email,
-				                          user_auth_level, user_race, user_gfxpath, user_skinpath, user_registration_time,
-				                          user_registration_ip, user_birthday, user_gender, plz, country,
-				                          user_enable_sig,user_message_sig,
-				                         user_signature)
-				         VALUES ('.BORG_USERID.', 1, "Borg(NPG)", "BorgBot", "'.md5("borgcube").'", "borg@stfc.it",
-				                 1, '.BORG_RACE.', "", "skin1/", '.time().',
-				                 "127.0.0.1", "23.05.2008", "", 16162 , "Italia",
-				                 1, "<br><br><p><b>We are the Borg, resistance is futile</b></p>",
-				                 "'.BORG_SIGNATURE.'")';
-
-				if(!$this->db->query($sql))
-				{
-					$this->sdl->log('<b>Error:</b> Bot: Could not create SevenOfNine', TICK_LOG_FILE_NPC);
-				}
-				else
-				{
-					$sql = 'Select * FROM user WHERE user_name="Borg(NPG)" and user_loginname="BorgBot" and user_auth_level=1';
-					$Bot_data = $this->db->queryrow($sql);
-					if(!$Bot_data['user_id'])
-					{
-						$this->sdl->log('<b>Error:</b> The variable $Bot_data has no content', TICK_LOG_FILE_NPC);
-						//break;
-					}
-					$sql = 'UPDATE borg_bot SET user_id="'.$Bot_data['user_id'].'",user_tick="'.$ACTUAL_TICK.'" WHERE id="'.$this->bot['id'].'"';
-					if(!$this->db->query($sql)) {
-						$this->sdl->log('<b>Error:</b> Bot card: Could not change the card', TICK_LOG_FILE_NPC);
-					}
-					$this->bot = $this->db->queryrow('SELECT * FROM borg_bot');
-				}
-			} // end user bot creation
-
-			//The bot should also have a body of what looks
-			if($this->bot['planet_id']==0)
-			{
-				$this->sdl->log('<b>SevenOfNine needs new body</b>', TICK_LOG_FILE_NPC);
-
-				while($this->bot['planet_id']==0 or $this->bot['planet_id']=='empty')
-				{
-					$this->sdl->log('Create new planet', TICK_LOG_FILE_NPC);
-					$this->db->lock('starsystems_slots');
-					$this->bot['planet_id']=create_planet($this->bot['user_id'], 'quadrant', BORG_QUADRANT);
-					$this->db->unlock();
-					if($this->bot['planet_id'] == 0)
-					{
-						$this->sdl->log('<b>Error:</b> Bot Planet id doesn\'t go', TICK_LOG_FILE_NPC);
-						return;
-					}
-
-					$sql = 'UPDATE user SET user_points = "400",user_planets = "1",last_active = "5555555555",
-					                        user_capital = "'.$this->bot['planet_id'].'",
-					                        active_planet = "'.$this->bot['planet_id'].'"
-					        WHERE user_id = '.$this->bot['user_id'];
-
-					if(!$this->db->query($sql)) {
-						$this->sdl->log('<b>Error:</b> Bot body: Planet has not been created', TICK_LOG_FILE_NPC);
-					}
-
-					// That one is for resetting the Borg Targets List
-					$sql = 'TRUNCATE TABLE borg_target';
-				 	if(!$this->db->query($sql)) {
-						$this->sdl->log('<b>Error:</b> Bot body: borg_target not reset!', TICK_LOG_FILE_NPC);
-					}
-
-					else
-					{
-						//Bot gets best values for his body, he should also look good
-						$this->sdl->log('Give best values to the planet', TICK_LOG_FILE_NPC);
-						$sql = 'UPDATE planets SET planet_points = 1200,building_1 = 9,building_2 = 15,building_3 = 15,
-							building_4 = 15,building_5 = 16,building_6 = 9,building_7 = 15,building_8 = 9,
-							building_9 = 9,building_10 = 35,building_11 = 9,building_12 = 15,building_13 = 35,
-							unit_1 = 20000,unit_2 = 10000,unit_3 = 5000,unit_4 = 5000,unit_5 = 0,unit_6 = 0,
-							planet_name = "Unimatrix Zero",
-							research_1 = 15,research_2 = 15,research_3 = 15,research_4 = 15,research_5 = 9,
-							workermine_1 = 1600,workermine_2 = 1600,workermine_3 = 1600,resource_4 = 4000
-							WHERE planet_owner = '.$this->bot['user_id'].' and planet_id='.$this->bot['planet_id'];
-
-						if(!$this->db->query($sql))
-							$this->sdl->log('<b>Error:</b> Bot body: the body could not be improved', TICK_LOG_FILE_NPC);
-
-						$sql = 'UPDATE borg_bot SET planet_id='.$this->bot['planet_id'].' WHERE user_id = '.$this->bot['user_id'];
-						if(!$this->db->query($sql))
-							$this->sdl->log('<b>Error:</b> Bot card: could not change planet info card', TICK_LOG_FILE_NPC);
-					}
-				} // end while
-			} // end planet creation
-			// Check ownership of the BOT's planet
-			else {
-				$sql = 'SELECT planet_owner FROM planets
-				        WHERE planet_id = '.$this->bot['planet_id'];
-
-				$botplanetowner = $this->db->queryrow($sql);
-				// Owner are still BORG?
-				if($botplanetowner['planet_owner'] != $this->bot['user_id'])
-				{
-					// Just reset the Borg planet_id, next round the Borg Queen will get a new throne!
-					$sql = 'UPDATE borg_bot SET planet_id = 0';
-					if(!$this->db->query($sql))
-						$this->sdl->log('<b>Error:</b> cannot reset Borg main planet id', TICK_LOG_FILE_NPC);
-				}
-			}
-
-			//Bot shows whether the ship already has templates
-			$reload=0;
-			if($this->bot['ship_template1']==0)
-			{
-				/**
-				 * Brief comments of SECOND prototype of Borg Sphere:
-				 *
-				 * Light weapons: 600
-				 * Heavy weapons: 600
-				 * Planetary weapons: 50
-				 * Hull: 700
-				 * Shield: 700
-				 *
-				 * Reaction: 30
-				 * Readiness: 30
-				 * Agility: 30
-				 * Experience: 20
-				 * Warp: 10 (Borg has transwarp engines)
-				 *
-				 * Sensors: 20
-				 * Camouflage: 0
-				 * Energy available: 200
-				 * Energy used: 200
-				 *
-				 * Resources needed for construction:
-				 *
-				 * Metal: 50000
-				 * Minerals: 50000
-				 * Dilithium: 50000
-				 * Workers: 500
-				 * Technicians: 100
-				 * Physicians: 10
-				 *
-				 * Minimum crew:
-				 * 
-				 * Drone simple: 100
-				 * Assault drone: 25
-				 * Elite drone: 25
-				 * Commander drone: 5
-				 *
-				 * Maximum crew:
-				 *
-				 * Drone simple: 300
-				 * Assault drone: 70
-				 * Elite drone: 50
-				 * Commander drone: 10
-				 */ 
-				$reload++;
-				$sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
-				                                    component_1, component_2, component_3, component_4, component_5,
-				                                    component_6, component_7, component_8, component_9, component_10,
-				                                    value_1, value_2, value_3, value_4, value_5,
-				                                    value_6, value_7, value_8, value_9, value_10,
-				                                    value_11, value_12, value_13, value_14, value_15,
-				                                    resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
-				                                    min_unit_1, min_unit_2, min_unit_3, min_unit_4,
-				                                    max_unit_1, max_unit_2, max_unit_3, max_unit_4,
-				                                    buildtime)
-				         VALUES ("'.$this->bot['user_id'].'","'.time().'","'.BORG_SPHERE.'","Exploration ship","'.BORG_RACE.'",6,2,
-				                 -1,-1,-1,-1,-1,
-				                 -1,-1,-1,-1,-1,
-				                 "600","600","50","700","700",
-				                 "30","30","30","20","10",
-				                 "20","0","200","200","0",
-				                 "50000","50000","50000","500","100","10",
-				                 "100","25","25","5",
-				                 "300","70","50",10,
-				                 0)';
-
-				if(!$this->db->query($sql))
-					$this->sdl->log('<b>Error:</b> Bot ShipsTemps: template 1 was not saved', TICK_LOG_FILE_NPC);
-
-				// 23/07/12 - AC: Update ship template id with the freshly created one... hoping everything went fine!
-				$this->bot['ship_template1'] = $this->db->insert_id();
-			}
-			if($this->bot['ship_template2']==0)
-			{
-				/**
-				 * Brief comments of SECOND prototype of Borg Cube:
-				 *
-				 * Light weapons: 6000
-				 * Heavy weapons: 6000
-				 * Planetary weapons: 400
-				 * Hull: 20000
-				 * Shield: 7000
-				 *
-				 * Reaction: 60
-				 * Readiness: 60
-				 * Agility: 10
-				 * Experience: 60
-				 * Warp: 10 (Borg has transwarp engines)
-				 *
-				 * Sensors: 40
-				 * Camouflage: 0
-				 * Energy available: 2000
-				 * Energy used: 2000
-				 *
-				 * Resources needed for construction:
-				 *
-				 * Metal: 500000
-				 * Minerals: 500000
-				 * Dilithium: 500000
-				 * Workers: 50000
-				 * Technicians: 10000
-				 * Physicians: 1000
-				 *
-				 * Minimum crew:
-				 * 
-				 * Drone simple: 10000
-				 * Assault drone: 2500
-				 * Elite drone: 2500
-				 * Commander drone: 500
-				 *
-				 * Maximum crew:
-				 *
-				 * Drone simple: 30000
-				 * Assault drone: 7000
-				 * Elite drone: 5000
-				 * Commander drone: 1000
-				 */
-				$reload++;
-				$sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
-				                                    component_1, component_2, component_3, component_4, component_5,
-				                                    component_6, component_7, component_8, component_9, component_10,
-				                                    value_1, value_2, value_3, value_4, value_5,
-				                                    value_6, value_7, value_8, value_9, value_10,
-				                                    value_11, value_12, value_13, value_14, value_15,
-				                                    resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
-				                                    min_unit_1, min_unit_2, min_unit_3, min_unit_4,
-				                                    max_unit_1, max_unit_2, max_unit_3, max_unit_4,
-				                                    buildtime)
-				        VALUES ("'.$this->bot['user_id'].'","'.time().'","'.BORG_CUBE.'","Assimilation ship","'.BORG_RACE.'",11,3,
-				                -1,-1,-1,-1,-1,
-				                -1,-1,-1,-1,-1,
-				                "6000","6000","400","20000","7000",
-				                "60","60","10","60","10",
-				                "40","0","2000","2000","0",
-				                "500000","500000","500000","50000","10000","1000",
-				                "10000","2500","2500","500",
-				                "30000","7000","5000","1000",
-				                0)';
-
-				if(!$this->db->query($sql))
-					$this->sdl->log('<b>Error:</b> Bot ShipsTemps: template 2 was not saved', TICK_LOG_FILE_NPC);
-
-				// 23/07/12 - AC: Update ship template id with the freshly created one... hoping everything went fine!
-				$this->bot['ship_template2'] = $this->db->insert_id();
-			}
-
-			if($this->bot['ship_template3']==0)
-			{
-				/**
-				 * Brief comments of THIRD prototype of Borg Cube:
-				 *
-				 * Light weapons: 30000
-				 * Heavy weapons: 30000
-				 * Planetary weapons: 400
-				 * Torpedoes: 800
-				 * ROF: 16
-				 * Hull: 100000
-				 * Shield: 60000
-				 *
-				 * Reaction: 68
-				 * Readiness: 68
-				 * Agility: 10
-				 * Experience: 60
-				 * Warp: 10 (Borg has transwarp engines)
-				 *
-				 * Sensors: 40
-				 * Camouflage: 0
-				 * Energy available: 8000
-				 * Energy used: 8000
-				 *
-				 * Resources needed for construction:
-				 *
-				 * Metal: 500000
-				 * Minerals: 500000
-				 * Dilithium: 500000
-				 * Workers: 50000
-				 * Technicians: 250
-				 * Physicians: 250
-				 *
-				 * Minimum crew:
-				 * 
-				 * Drone simple: 10000
-				 * Assault drone: 2500
-				 * Elite drone: 2500
-				 * Commander drone: 500
-				 *
-				 * Maximum crew:
-				 *
-				 * Drone simple: 90000
-				 * Assault drone: 21000
-				 * Elite drone: 15000
-				 * Commander drone: 5000
-				 */
-				$reload++;
-				$sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
-				                                    component_1, component_2, component_3, component_4, component_5,
-				                                    component_6, component_7, component_8, component_9, component_10,
-				                                    value_1, value_2, value_3, value_4, value_5,
-				                                    value_6, value_7, value_8, value_9, value_10,
-				                                    value_11, value_12, value_13, value_14, value_15,
-				                                    resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
-				                                    min_unit_1, min_unit_2, min_unit_3, min_unit_4,
-				                                    max_unit_1, max_unit_2, max_unit_3, max_unit_4,
-				                                    buildtime)
-				        VALUES ("'.$this->bot['user_id'].'","'.time().'","'.BORG_TACT.'","Combat Ship","'.BORG_RACE.'",11,3,
-				                -1,-1,-1,-1,-1,
-				                -1,-1,-1,-1,-1,
-				                "30000","30000","400","100000","70000",
-				                "68","68","10","60","10",
-				                "40","0","8000","8000","0",
-				                "500000","500000","500000","50000","250","250",
-				                "10000","2500","2500","500",
-				                "90000","21000","15000","5000",
-				                0)';
-
-				if(!$this->db->query($sql))
-					$this->sdl->log('<b>Error:</b> Bot ShipsTemps: template 3 was not saved', TICK_LOG_FILE_NPC);
-
-				// 23/07/12 - AC: Update ship template id with the freshly created one... hoping everything went fine!
-				$this->bot['ship_template3'] = $this->db->insert_id();
-			}
-
-			if($reload>0)
-			{
-				$this->sdl->log('Ship templates built', TICK_LOG_FILE_NPC);
-				$Bot_temps=$this->db->query('SELECT id FROM ship_templates s WHERE owner='.$this->bot['user_id']);
-				$zaehler_temps=0;
-				$Bot_neu = array();
-
-				$tempID = $this->db->fetchrow($Bot_temps);
-				$Bot_neu[0]=$tempID['id'];
-				$tempID = $this->db->fetchrow($Bot_temps);
-				$Bot_neu[1]=$tempID['id'];
-				$tempID = $this->db->fetchrow($Bot_temps);
-				$Bot_neu[2]=$tempID['id'];
-
-
-				$sql = 'UPDATE borg_bot SET ship_template1 = '.$Bot_neu[0].',ship_template2 = '.$Bot_neu[1].',ship_template3 = '.$Bot_neu[2].' WHERE user_id = '.$this->bot['user_id'];
-				if(!$this->db->query($sql))
-					$this->sdl->log('<b>Error:</b> Bot ShipsTemps: could not save the template id', TICK_LOG_FILE_NPC);
-			}
-		}else{
-			$this->sdl->log('<b>Error:</b> No access to environment table!', TICK_LOG_FILE_NPC);
-			return;
-		}
-		$this->sdl->finish_job('SevenOfNine basic system', TICK_LOG_FILE_NPC);
-		// ########################################################################################
-		// ########################################################################################
-		//PW des Bot änderns - nix angreifen
-		$this->ChangePassword();
 		// ########################################################################################
 		// ########################################################################################
 		// Messages answer
