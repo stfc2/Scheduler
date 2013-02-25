@@ -113,48 +113,30 @@ $sdl->finish_job('Mine Job'); // terminates the timer
 
 $sdl->start_job('Building Scheduler');
 
-$sql = 'SELECT si.*, u.user_race, p.planet_type,p.research_4,p.building_queue,p.building_1,p.building_2,p.building_3,p.building_4,p.building_5,p.building_6,p.building_7,p.building_8,p.building_9,p.building_10,p.building_11,p.building_12
-        FROM (scheduler_instbuild si) LEFT JOIN (planets p) ON p.planet_id=si.planet_id LEFT JOIN (user u) ON u.user_id=p.planet_owner
-        WHERE si.build_finish <= '.$ACTUAL_TICK;
+$sql = 'SELECT *
+        FROM scheduler_instbuild
+        WHERE build_finish <= '.$ACTUAL_TICK;
 
 if(($q_inst = $db->query($sql)) === false) {
     $sdl->log('<b>Error:</b> Could not query scheduler instbuild data! CONTINUED');
 }
 else if($db->num_rows() > 0)
 {
-    $n_instbuild = 0;
     while($build = $db->fetchrow($q_inst)) {
         $recompute_static = (in_array($build['installation_type'], array(1, 2, 3, 11))) ? 1 : 0;
 
         $sql = 'UPDATE planets
                 SET building_'.($build['installation_type'] + 1).' = building_'.($build['installation_type'] + 1).' + 1,
-                    recompute_static = '.$recompute_static.', building_queue=0
+                    recompute_static = '.$recompute_static.'
                 WHERE planet_id = '.$build['planet_id'];
 
         if(!$db->query($sql)) {
             $sdl->log('<b>Error:</b> Query sched_instbuild @ planets failed!  TICK EXECUTION CONTINUED');
         }
-
-        // Queue processing:
-        if ($build['building_queue']>0)
-        {
-            $build['building_'.($build['installation_type']+1)]++;
-            $sql = 'INSERT INTO scheduler_instbuild (installation_type,planet_id,build_finish)
-                    VALUES ("'.($build['building_queue']-1).'",
-                            "'.$build['planet_id'].'",
-                            "'.($ACTUAL_TICK+GetBuildingTimeTicks($build['building_queue']-1,$build,$build['user_race'])).'")';
-            if ($db->query($sql)==false) {
-                $sdl->log('<b>Error:</b> building_query: Could not call INSERT INTO in scheduler_instbuild TICK EXECUTION CONTINUED');
-            }
-        }
-
-
-        ++$n_instbuild;
     }
 
     $sql = 'DELETE FROM scheduler_instbuild
-            WHERE build_finish <= '.$ACTUAL_TICK.'
-            LIMIT '.$n_instbuild;
+            WHERE build_finish <= '.$ACTUAL_TICK;
 
     if(!$db->query($sql)) {
         $sdl->log('<b>Error:</b> Could not delete instbuild data - TICK EXECUTION CONTINUED');
