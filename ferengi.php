@@ -1679,7 +1679,7 @@ class Ferengi extends NPC
 			$zaehlera++;
 		}
 		//zuerst einmal ohne Where, vielleicht ein zaehler um das Problem zu lösen? Aber Tap ist ja wieder offline - wegen seinem motorrad
-		$simpleGraph2 = &new simpleGraph();
+		$simpleGraph2 = new simpleGraph();
 		$simpleGraph2->create("430", "200");
 		$simpleGraph2->headline("Sales figures ".$art);
 		$simpleGraph2->line($ausgabe);
