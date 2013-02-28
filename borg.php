@@ -29,25 +29,25 @@
   @Action: carry on destruction to the galaxy
 */
 
-define (BORG_SIGNATURE, 'We are the Borg. Lower your shields and surrender your ships.<br>We will add your biological and technological distinctiveness to our own.<br>Your culture will adapt to service us. Resistance is futile.');
+define ('BORG_SIGNATURE', 'We are the Borg. Lower your shields and surrender your ships.<br>We will add your biological and technological distinctiveness to our own.<br>Your culture will adapt to service us. Resistance is futile.');
 
-define (BORG_SPHERE, 'Borg Sphere');
+define ('BORG_SPHERE', 'Borg Sphere');
 
-define (BORG_CUBE, 'Borg Cube');
+define ('BORG_CUBE', 'Borg Cube');
 
-define (BORG_TACT, 'Borg Tact Cube');
+define ('BORG_TACT', 'Borg Tact Cube');
 
-define (BORG_RACE,'6'); // Well, this one should be defined in global.php among the other races */
+define ('BORG_RACE','6'); // Well, this one should be defined in global.php among the other races */
 
-define (BORG_QUADRANT, 2); // Default Borg belong to Delta quadrant
+define ('BORG_QUADRANT', 2); // Default Borg belong to Delta quadrant
 
-define (BORG_CYCLE, 1200); // One attack each how many tick?
+define ('BORG_CYCLE', 1200); // One attack each how many tick?
 
-define (BORG_CHANCE, 80); // Attack is not sistematic, leave a little chance
+define ('BORG_CHANCE', 80); // Attack is not sistematic, leave a little chance
 
-define (BORG_MINATTACK, 10); // Attack only players with at least n planets
+define ('BORG_MINATTACK', 10); // Attack only players with at least n planets
 
-define (BORG_BIGPLAYER, 12000); // Send a cube instead of spheres to player above this points
+define ('BORG_BIGPLAYER', 12000); // Send a cube instead of spheres to player above this points
 
 /* ######################################################################################## */
 /* ######################################################################################## */
