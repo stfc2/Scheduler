@@ -786,7 +786,6 @@ $sdl->start_job('Mayflower is coming - settlers are the real workforce');
 $settlers = new Settlers($db,$sdl);
 $settlers->Execute(1);
 $sdl->finish_job('Mayflower is coming - settlers are the real workforce');
-define('TICK_LOG_FILE_NPC','');
 
 // ########################################################################################
 // ########################################################################################
