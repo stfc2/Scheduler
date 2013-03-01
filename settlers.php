@@ -64,7 +64,7 @@ class Settlers extends NPC
 
 	public function Execute($debug=0)
 	{
-		global $ACTUAL_TICK;
+		global $ACTUAL_TICK,$cfg_data;
 		$starttime = ( microtime() + time() );
 
 		$this->sdl->log('<br><b>-------------------------------------------------------------</b><br>'.
@@ -375,7 +375,7 @@ class Settlers extends NPC
 				if($s_q['ship_queue'] == 0 && ($planet_to_serve['planet_type'] == 'h' || $planet_to_serve['planet_type'] == 'k' || $planet_to_serve['planet_type'] == 'l'))
 				{
 					$_buildtime = 65; // Yep, no access to the DB, let's avoid it...
-					$sql = 'INSERT INTO scheduler_shipbuild SET ship_type = '.$Environment['settler_tmp_1'].', planet_id = '.$planet_to_serve['planet_id'].', start_build = '.$ACTUAL_TICK.', finish_build = '.($ACTUAL_TICK + $_buildtime).', unit_1 = 15, unit_2 = 0, unit_3 = 0, unit_4 = 1';
+					$sql = 'INSERT INTO scheduler_shipbuild SET ship_type = '.$cfg_data['settler_tmp_1'].', planet_id = '.$planet_to_serve['planet_id'].', start_build = '.$ACTUAL_TICK.', finish_build = '.($ACTUAL_TICK + $_buildtime).', unit_1 = 15, unit_2 = 0, unit_3 = 0, unit_4 = 1';
 					$this->sdl->log('SQL A - 3.1 '.$sql, TICK_LOG_FILE_NPC);
 					$this->db->query($sql);
 					$sql = 'UPDATE planets SET npc_last_action = '.($ACTUAL_TICK + 760).' WHERE planet_id = '.$planet_to_serve['planet_id'];
@@ -387,7 +387,7 @@ class Settlers extends NPC
 				if($s_q['ship_queue'] == 0 && ($planet_to_serve['planet_type'] == 'e' || $planet_to_serve['planet_type'] == 'f' || $planet_to_serve['planet_type'] == 'g' || $planet_to_serve['planet_type'] == 'x' || $planet_to_serve['planet_type'] == 'y'))
 				{
 					$_buildtime = 420; // Yep, no access to the DB, let's avoid it...
-					$sql = 'INSERT INTO scheduler_shipbuild SET ship_type = '.$Environment['settler_tmp_3'].', planet_id = '.$planet_to_serve['planet_id'].', start_build = '.$ACTUAL_TICK.', finish_build = '.($ACTUAL_TICK + $_buildtime).', unit_1 = 200, unit_2 = 95, unit_3 = 65, unit_4 = 6';
+					$sql = 'INSERT INTO scheduler_shipbuild SET ship_type = '.$cfg_data['settler_tmp_3'].', planet_id = '.$planet_to_serve['planet_id'].', start_build = '.$ACTUAL_TICK.', finish_build = '.($ACTUAL_TICK + $_buildtime).', unit_1 = 200, unit_2 = 95, unit_3 = 65, unit_4 = 6';
 					$this->sdl->log('SQL A - 3.3 '.$sql, TICK_LOG_FILE_NPC);
 					$this->db->query($sql);
 					$sql = 'UPDATE planets SET npc_last_action = '.($ACTUAL_TICK + 1440).' WHERE planet_id = '.$planet_to_serve['planet_id'];
