@@ -320,7 +320,6 @@ while($surrender = $db->fetchrow($query_s_p)) {
                 catresearch_10 = 0,
                 unittrain_actual = 0,
                 unittrainid_nexttime=0,
-                building_queue=0,
                 planet_surrender=0
              WHERE planet_id = '.$surrender['planet_id'];
 
