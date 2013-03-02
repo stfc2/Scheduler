@@ -49,6 +49,8 @@ define ('BORG_MINATTACK', 10); // Attack only players with at least n planets
 
 define ('BORG_BIGPLAYER', 12000); // Send a cube instead of spheres to player above this points
 
+define ('BORG_MAXPLANETS', 1); // Start to assimilate below this planets amount
+
 /* ######################################################################################## */
 /* ######################################################################################## */
 // Startconfig of Borg
@@ -807,7 +809,7 @@ class Borg extends NPC
 		{
 			$this->sdl->log('<b>Error:</b> Bot: Could not read Borg data', TICK_LOG_FILE_NPC);
 		}
-		elseif($res['user_planets'] < 51)
+		elseif($res['user_planets'] < BORG_MAXPLANETS)
 		{ // Begin Settlers Assimilation Program Main Loop
 
 			$this->sdl->log('DEBUG: Borg Planet Count: '.$res['user_planets'], TICK_LOG_FILE_NPC );
@@ -824,13 +826,13 @@ class Borg extends NPC
 				{
 					$this->sdl->log('DEBUG: Is now acting fleet '.$fleet_to_serve['fleet_id'].': '.$fleet_to_serve['fleet_name'], TICK_LOG_FILE_NPC );
 
-					$sql='SELECT planet_id FROM planets WHERE planet_owner = '.INDEPENDENT_USERID.' AND planet_type IN ("m", "n", "y") AND planet_attack_type = 0 ORDER BY planet_owned_date ASC LIMIT 0, 1';
+					$sql='SELECT planet_id FROM planets WHERE planet_owner = '.INDEPENDENT_USERID.' AND planet_type IN ("m", "o", "x", "y") AND planet_attack_type = 0 ORDER BY planet_owned_date ASC LIMIT 0, 1';
 					$primary_target = $this->db->queryrow($sql);
 					if( (!isset($primary_target['planet_id'])) || (empty($primary_target['planet_id'])) ) 
 					{
 						$this->sdl->log('DEBUG: No primary target available, will check secondary', TICK_LOG_FILE_NPC );
 						$primary_target['planet_id'] = 0;
-						$sql='SELECT planet_id FROM planets WHERE planet_owner = '.INDEPENDENT_USERID.' AND planet_type NOT IN ("m", "n", "y") AND planet_attack_type = 0 ORDER BY planet_owned_date ASC LIMIT 0, 1';
+						$sql='SELECT planet_id FROM planets WHERE planet_owner = '.INDEPENDENT_USERID.' AND planet_type NOT IN ("m", "o", "x", "y") AND planet_attack_type = 0 ORDER BY planet_owned_date ASC LIMIT 0, 1';
 						$secondary_target = $this->db->queryrow($sql);
 						if( (!isset($secondary_target['planet_id'])) || (empty($secondary_target['planet_id'])) )
 						{
