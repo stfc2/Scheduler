@@ -379,7 +379,7 @@ class NPC
 				}
 				else {
 					$build_start = $ACTUAL_TICK;
-					$build_finish = $build_start + GetBuildingTimeTicks($building,$planet,$race));
+					$build_finish = $build_start + GetBuildingTimeTicks($building,$planet,$race);
 				}
 
 				$sql = 'INSERT INTO scheduler_instbuild (installation_type,planet_id,build_start,build_finish)
