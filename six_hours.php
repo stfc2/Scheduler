@@ -407,23 +407,6 @@ $sdl->finish_job('Check miners on Borg planets');
 
 
 
-// Keep light the DB: delete old fleet movement!
-$sdl->start_job('Slimming ship movements');
-
-// Delete one week old deactivated moves
-$sql = 'DELETE FROM scheduler_shipmovement
-        WHERE move_finish <= '.($ACTUAL_TICK - ($oneWeek / (TICK_DURATION * 60))).' AND
-              move_status <> 0 AND
-              move_exec_started <> 0';
-
-if(!$db->query($sql)) {
-    $sdl->log('<b>Error:</b> Could not delete scheduler_shipmovement data - CONTINUED');
-}
-
-$sdl->finish_job('Slimming ship movements');
-
-
-
 // ########################################################################################
 // ########################################################################################
 // Quit and close log
