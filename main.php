@@ -1004,8 +1004,7 @@ while($planet = $db->fetchrow($q_planets)) {
                         catresearch_9 = 0,
                         catresearch_10 = 0,
                         unittrain_actual = 0,
-                        unittrainid_nexttime=0,
-                        building_queue=0
+                        unittrainid_nexttime=0
                         WHERE planet_id = '.$planet['planet_id'];
 
 
@@ -2158,7 +2157,6 @@ else {
                         catresearch_10 = 0,
                         unittrain_actual = 0,
                         unittrainid_nexttime=0,
-                        building_queue=0,
                         planet_surrender=0
             WHERE planet_owner = '.$user['user_id'];
 

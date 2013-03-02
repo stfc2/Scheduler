@@ -308,7 +308,8 @@ class NPC
 		$res = BUILD_ERR_DB;
 
 		// Building queue full?
-		if ($planet['building_queue'] != 0)
+		$this->db->queryrow('SELECT * FROM scheduler_instbuild WHERE planet_id='.$planet['planet_id']);
+		if ($this->db->num_rows() >= BUILDING_QUEUE_LEN)
 			return BUILD_ERR_QUEUE;
 
 		// Retrieve some BOT infos
@@ -365,18 +366,27 @@ class NPC
 					$this->sdl->log('<b>Error:</b> Cannot remove resources need for construction from planet #'.$planet['planet_id'].'!', TICK_LOG_FILE_NPC);
 
 				// Check planet activity
-				$userquery=$this->db->query('SELECT * FROM scheduler_instbuild WHERE planet_id='.$planet['planet_id']);
+				$sql = 'SELECT * FROM scheduler_instbuild
+				        WHERE planet_id='.$planet['planet_id'].'
+				        ORDER BY build_finish DESC';
+				$userquery=$this->db->queryrow($sql);
 				if ($this->db->num_rows()>0)
 				{
-					$sql = 'UPDATE planets SET building_queue='.($building+1).'
-					        WHERE planet_id= '.$planet['planet_id'];
+					$build_start = $userquery['build_finish'];
+					// BOT take a little bonus here: future level of the building is not
+					// considered, also for simplicity.
+					$build_finish = $build_start + GetBuildingTimeTicks($building,$planet,$race);
 				}
 				else {
-					$sql = 'INSERT INTO scheduler_instbuild (installation_type,planet_id,build_finish)
-						VALUES ("'.$building.'",
-						        "'.$planet['planet_id'].'",
-						        "'.($ACTUAL_TICK+GetBuildingTimeTicks($building,$planet,$race)).'")';
+					$build_start = $ACTUAL_TICK;
+					$build_finish = $build_start + GetBuildingTimeTicks($building,$planet,$race));
 				}
+
+				$sql = 'INSERT INTO scheduler_instbuild (installation_type,planet_id,build_start,build_finish)
+					    VALUES ("'.$building.'",
+					            "'.$planet['planet_id'].'",
+					            "'.$build_start.'",
+					            "'.$build_finish.'")';
 
 				if (!$this->db->query($sql))
 					$this->sdl->log('<b>Error:</b> cannot add building <b>#'.$building.'</b> to the planet <b>#'.$planet['planet_id'].'</b>',

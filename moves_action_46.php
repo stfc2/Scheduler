@@ -498,8 +498,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                     unittrainendless_1 = 0, unittrainendless_2 = 0, unittrainendless_3 = 0, unittrainendless_4 = 0, unittrainendless_5 = 0, unittrainendless_6 = 0, unittrainendless_7 = 0, unittrainendless_8 = 0, unittrainendless_9 = 0, unittrainendless_10 = 0, 
                     unittrain_actual = 0,
                     unittrainid_nexttime=0,
-                    planet_insurrection_time=0,
-                    building_queue=0
+                    planet_insurrection_time=0
                 WHERE planet_id = '.$this->move['dest'];
 
         if(!$this->db->query($sql)) {

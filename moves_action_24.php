@@ -187,7 +187,7 @@ class moves_action_24 extends moves_common {
                         'h' => 3,
                         'm' => 1,
                         'o' => 1,
-			'x' => 1,
+                        'x' => 1,
                         'y' => 1
                     );
                 break;
@@ -201,7 +201,7 @@ class moves_action_24 extends moves_common {
                         'l' => 20,
                         'm' => 3,
                         'o' => 2,
-			'x' => 1,
+                        'x' => 1,
                         'y' => 1
                     );
                 break;
@@ -214,8 +214,8 @@ class moves_action_24 extends moves_common {
                         'j' => 20,
                         'k' => 9,
                         'n' => 15,
-			'p' => 10,
-			'x' => 1,
+                        'p' => 10,
+                        'x' => 1,
                         'y' => 1
                     );
                 break;
@@ -369,7 +369,6 @@ class moves_action_24 extends moves_common {
                     unittrainnumberleft_10 = 0,
                     unittrain_actual = 0,
                     unittrainid_nexttime=0,
-                    building_queue=0,
                     planet_surrender=0
                 WHERE planet_id = '.$this->move['dest'];
 
@@ -522,7 +521,6 @@ class moves_action_24 extends moves_common {
                     unittrainnumberleft_10 = 0,
                     unittrain_actual = 0,
                     unittrainid_nexttime=0,
-                    building_queue=0,
                     planet_surrender=0
                 WHERE planet_id = '.$this->move['dest'];
 
