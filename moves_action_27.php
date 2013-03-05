@@ -20,6 +20,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+define('LC_FIRST_CONTACT', 1);
+define('LC_DIPLO_SPEECH', 2);
+define('LC_COLO_FOUNDER', 30);
 
 
 
@@ -35,10 +38,6 @@ class moves_action_27 extends moves_common {
         // Beam us down! Energy!
         //
         //#############################################################################
-
-        define('LC_FIRST_CONTACT', 1);
-        define('LC_DIPLO_SPEECH', 2);
-        define('LC_COLO_FOUNDER', 30);
 
         $sql = 'SELECT s.ship_name, s.experience, s.ship_id, t.name FROM ship_fleets f
                        LEFT JOIN ships s ON s.fleet_id = f.fleet_id
@@ -263,6 +262,7 @@ class moves_action_27 extends moves_common {
                               GROUP BY sr.user_id ORDER BY mood_value
                         LIMIT 0,10';
                 $user_mood_query = $this->db->query($sql);
+                $user_mood_data = array();
                 while($user_mood_item = $this->db->fetchrow($user_mood_query)) {
                     $user_mood_data[$index] = $user_mood_item;
                     $index++;
