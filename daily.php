@@ -245,6 +245,53 @@ $sdl->finish_job('Optimize tables');
 
 // #######################################################################################
 // #######################################################################################
+// Compress yesterday's log files
+$sdl->start_job('Compress log files');
+
+// Yesterday date formatted
+$yesterday = date('d-m-Y', strtotime("yesterday"));
+
+// Names of the files we are compressing
+$files = array(
+    $game_path."logs/tick_".$yesterday.".log",
+    $game_path."logs/moves_tick_".$yesterday.".log",
+    $game_path."logs/NPC_BOT_tick_".$yesterday.".log",
+    $game_path."logs/fixall/tick_".$yesterday.".log",
+    $game_path."logs/sixhours/tick_".$yesterday.".log"
+    );
+
+foreach ($files as $key => $file) {
+    $sdl->log("Compressing file ".$file."...");
+
+    // Name of the gz file we are creating
+    $gzfile = $file.".gz";
+
+    // Open the gz file (w9 is the highest compression)
+    if(($fp = gzopen ($gzfile, 'w9')) === false)
+        $sdl->log('<b>Error:</b> cannot create compressed file '.$gzfile);
+    else {
+        // Compress the file
+        gzwrite ($fp, file_get_contents($file));
+
+        // Close the gz file and we are done
+        gzclose($fp);
+    }
+}
+$sdl->finish_job('Compress log files');
+
+
+
+// #######################################################################################
+// #######################################################################################
+// Clean temporary security images
+$sdl->start_job('Clean temporary security images');
+array_map('unlink', glob($game_path."tmpsec/*.jpg"));
+$sdl->finish_job('Clean temporary security images');
+
+
+
+// #######################################################################################
+// #######################################################################################
 // Quit and close log
 
 $db->close();
