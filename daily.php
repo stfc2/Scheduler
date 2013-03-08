@@ -292,6 +292,43 @@ $sdl->finish_job('Clean temporary security images');
 
 // #######################################################################################
 // #######################################################################################
+// Once a month rotate admin end error HTML log files
+$today = getdate();
+if ($today['mday'] == 1) {
+    $sdl->start_job('Rotate log files');
+
+    // Prepare files postfix
+    $date = new DateTime('NOW');
+    $date->modify('-1 day');
+    $postfix = $date->format('_m_y');
+
+    $oldnames = array(
+        $game_path.'logs/admin_log.htm',
+        $game_path.'logs/error_log.htm'
+    );
+
+    $newnames = array(
+        $game_path.'logs/admin_log'.$postfix.'.htm',
+        $game_path.'logs/error_log'.$postfix.'.htm'
+    );
+
+    foreach ($oldnames as $i => $oldname) {
+        $newname = $newnames[$i];
+
+        if (!rename ($oldname, $newname)) {
+            $sdl->log('<b>Error:</b> cannot rename file '.$oldname.' into '.$newname);
+
+        if (!touch($oldname)) {
+            $sdl->log('<b>Error:</b> cannot create new empty  file '.$oldname);
+        }
+    }
+    $sdl->finish_job('Rotate log files');
+}
+
+
+
+// #######################################################################################
+// #######################################################################################
 // Quit and close log
 
 $db->close();
