@@ -735,7 +735,6 @@ class Ferengi extends NPC
 										$sql_2 = 'DELETE FROM treuhandkonto WHERE code="'.$schulden['id'].'"';
 										if(!$this->db->query($sql_2)) 	$this->sdl->log('<b>(Error:5000)ERROR-DELETE</b> <>'.$sql_2.'', TICK_LOG_FILE_NPC);
 
-
 										$sql_1='INSERT INTO FHB_sperr_list VALUES(null,'.$schulden['user_kauf'].','.$ACTUAL_TICK.')';
 										
 										if(!$this->db->query($sql_1)) $this->sdl->log('<b>No entry/b>User:'.$schulden['user_kauf'].' - got no further User Trade <>'.$sql_x.'', TICK_LOG_FILE_NPC);
@@ -793,7 +792,7 @@ class Ferengi extends NPC
 													dei debitori.<br>
 													Totale voci:'.$User_kauf_V['user_trade'].'<br>
 													Attenzione, se persistete, ci saranno severe conseguenze per voi.<br>
-													Questa decisione &egrave importante, se doveste sentirvi trattati in modo sleale,
+													Questa decisione &egrave; importante, se doveste sentirvi trattati in modo sleale,
 													potete appellarvi tramite la normale procedura di reclamo.<br>
 													<br>--------------------------------------<br>
 													Massimo rispetto dalla Gilda del Commercio Ferengi';
@@ -1166,7 +1165,7 @@ class Ferengi extends NPC
 		 ****/
 		$this->sdl->start_job('Update Ramona resources svailability', TICK_LOG_FILE_NPC);
 
-		/* Read resources and units available on Ramona's planet */
+		// Read resources and units available on Ramona's planet
 		$sql='SELECT unit_1, unit_2, unit_3, unit_4, unit_5, unit_6, resource_1, resource_2, resource_3 FROM planets
 			WHERE planet_id = '.$this->bot['planet_id'];
 
@@ -1176,7 +1175,7 @@ class Ferengi extends NPC
 
 		$this->sdl->log('Available units: '.$resources['unit_1'].' -- '.$resources['unit_2'].' -- '.$resources['unit_3'].' -- '.$resources['unit_4'].' -- '.$resources['unit_5'].' -- '.$resources['unit_6'], TICK_LOG_FILE_NPC);
 
-		/* Check if the table for the Commercial Centre is already present */
+		// Check if the table for the Commercial Centre is already present
 		$sql='SELECT unit_1, unit_2, unit_3, unit_4, unit_5, unit_6, ress_1, ress_2, ress_3 FROM FHB_Handels_Lager
 			WHERE id=1';
 
@@ -1184,7 +1183,7 @@ class Ferengi extends NPC
 		{
 			$this->sdl->log('<b>Warning:</b> Table FHB_Handels_Lager was empty! CONTINUED', TICK_LOG_FILE_NPC);
 
-			/* Create an entry item in the table */
+			// Create an entry item in the table
 			$sql = 'INSERT INTO FHB_Handels_Lager (unit_1, unit_2,unit_3, unit_4,unit_5,unit_6,ress_1,ress_2,ress_3)
 				VALUES (0, 0, 0, 0, 0, 0, 0, 0, 0)';
 
@@ -1200,7 +1199,7 @@ class Ferengi extends NPC
 
 			$pick_u[0] = $pick_u[1] = $pick_u[2] = $pick_u[3] = $pick_u[4] = $pick_u[5] = 0;
 
-			/* Pick up units only if there is a little stock pile */
+			// Pick up units only if there is a little stock pile
 			if($tradecenter['unit_1'] < 450)
 			{
 				if($resources['unit_1'] > 500)
@@ -1321,9 +1320,9 @@ class Ferengi extends NPC
 			}
 			// DC ----
 
-			/* Pick up resources only if there is a little stock pile */
-			/* 200408 DC ----  Sorry, non more fundings to the CC */
-			/* 220610 AC ----  But it's needed after a galaxy reset */
+			// Pick up resources only if there is a little stock pile
+			// 200408 DC ----  Sorry, non more fundings to the CC
+			// 220610 AC ----  But it's needed after a galaxy reset
 			if(PICK_RESOURCES_FROM_PLANET) {
 				if($tradecenter['ress_1'] < 350000)
 				{
@@ -1357,13 +1356,13 @@ class Ferengi extends NPC
 					ress_1=ress_1-'.$pick_r[0].',ress_2=ress_2-'.$pick_r[1].',ress_3=ress_3-'.$pick_r[2].' WHERE id=1';
 			}
 
-			/* Update resources and units available in the commercial centre */
+			// Update resources and units available in the commercial centre
 			if(!$this->db->query($update_res)) {
 				$this->sdl->log('<b>Error:</b> Could not update Handelslager - '.$update_res, TICK_LOG_FILE_NPC);
 			}
 			else
 			{
-				/* Remove resources from Ramona's planet */
+				// Remove resources from Ramona's planet
 				if(PICK_RESOURCES_FROM_PLANET) {
 					$sql='UPDATE planets SET
 							unit_1=unit_1-'.$pick_u[0].',unit_2=unit_2-'.$pick_u[1].',unit_3=unit_3-'.$pick_u[2].',
@@ -1382,15 +1381,15 @@ class Ferengi extends NPC
 					$this->sdl->log('<b>Error:</b> Could not update Ramona\'s planet - '.$sql, TICK_LOG_FILE_NPC);
 				}
 
-				/* If needed, we have to tell to Ramona to create some fresh units */
+				// If needed, we have to tell to Ramona to create some fresh units
 				$sql='SELECT unit_1, unit_2, unit_3, unit_4, unit_5, unit_6 FROM planets
 					WHERE planet_id = '.$this->bot['planet_id'];
 
 				if($units = $this->db->queryrow($sql))
 				{
-					/**
-					 ** Actually we simply reinsert initial value in the table...
-					 **/
+					//
+					// Actually we simply reinsert initial value in the table...
+					//
 					$train_u = array();
 
 					$train_u[0] = $train_u[1] = $train_u[2] = $train_u[3] = $train_u[4] = $train_u[5] = 0;
@@ -1408,7 +1407,7 @@ class Ferengi extends NPC
 					if($units['unit_6'] <= 500)
 						$train_u[5] = 1000;
 
-					/* Have we something to do? */
+					// Have we something to do?
 					if($train_u[0] != 0 || $train_u[1] != 0 || $train_u[2] != 0 ||
 					   $train_u[3] != 0 || $train_u[4] != 0 || $train_u[5] != 0)
 					{
@@ -1418,16 +1417,6 @@ class Ferengi extends NPC
 							unit_1=unit_1+'.$train_u[0].',unit_2=unit_2+'.$train_u[1].',unit_3=unit_3+'.$train_u[2].',
 							unit_4=unit_4+'.$train_u[3].',unit_5=unit_5+'.$train_u[4].',unit_6=unit_6+'.$train_u[5].'
 							WHERE planet_id = '.$this->bot['planet_id'];
-
-/*						$sql='UPDATE planets SET
-							unittrainid_1 = 1, unittrainnumber_1 = '.$train_u[0].',
-							unittrainid_2 = 2, unittrainnumber_2 = '.$train_u[1].',
-							unittrainid_3 = 3, unittrainnumber_3 = '.$train_u[2].',
-							unittrainid_4 = 4, unittrainnumber_4 = '.$train_u[3].',
-							unittrainid_5 = 5, unittrainnumber_5 = '.$train_u[4].',
-							unittrainid_6 = 6, unittrainnumber_6 = '.$train_u[5].',
-							unittrain_actual = 1
-							WHERE planet_id = '.$this->bot['planet_id'];*/
 
 						if(!$this->db->query($sql)) {
 							$this->sdl->log('<b>Error:</b> Could not instruct Ramona to produce new units - '.$sql, TICK_LOG_FILE_NPC);
