@@ -317,6 +317,7 @@ if ($today['mday'] == 1) {
 
         if (!rename ($oldname, $newname)) {
             $sdl->log('<b>Error:</b> cannot rename file '.$oldname.' into '.$newname);
+        }
 
         if (!touch($oldname)) {
             $sdl->log('<b>Error:</b> cannot create new empty  file '.$oldname);
