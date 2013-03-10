@@ -223,9 +223,22 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
         $this->log(MV_M_NOTICE, 'Colony: Settlers being attacked!!! They gonna be mad!');
 
         if(!empty($this->move['user_alliance']) && $this->move['user_alliance_status'] > 2) 
-            $sql = 'INSERT INTO settlers_relations SET planet_id = '.$this->move['dest'].', user_id = '.$this->move['user_id'].', alliance_id = '.$this->move['user_alliance'].', race_id = '.$this->move['race_id'].', timestamp = '.time().', log_code = 10, mood_modifier = - 10';
+            $sql = 'INSERT INTO settlers_relations
+                    SET planet_id = '.$this->move['dest'].',
+                        user_id = '.$this->move['user_id'].',
+                        alliance_id = '.$this->move['user_alliance'].',
+                        race_id = '.$this->move['user_race'].',
+                        timestamp = '.time().',
+                        log_code = 10,
+                        mood_modifier = - 10';
         else
-            $sql = 'INSERT INTO settlers_relations SET planet_id = '.$this->move['dest'].', user_id = '.$this->move['user_id'].', race_id = '.$this->move['race_id'].', timestamp = '.time().', log_code = 10, mood_modifier = - 10';
+            $sql = 'INSERT INTO settlers_relations
+                    SET planet_id = '.$this->move['dest'].',
+                        user_id = '.$this->move['user_id'].',
+                        race_id = '.$this->move['user_race'].',
+                        timestamp = '.time().',
+                        log_code = 10,
+                        mood_modifier = - 10';
 
         if(!$this->db->query($sql)) {
             $this->log(MV_M_DATABASE, 'Could not update settlers moods! CONTINUE!');
