@@ -1014,7 +1014,7 @@ $id_unit=array();
 
 $id_build=array();
 
-$id_tech=array();
+$id_tech1=array();
 
 $id_tech2=array();
 
