@@ -261,7 +261,7 @@ $files = array(
     );
 
 foreach ($files as $key => $file) {
-    $sdl->log("Compressing file ".$file."...");
+    //$sdl->log("Compressing file ".$file."...");
 
     // Name of the gz file we are creating
     $gzfile = $file.".gz";
