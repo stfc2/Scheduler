@@ -698,6 +698,11 @@ $total_dmg[1]=$dfd_alive[0]*GetAttackUnit(0,$dfd_race)+$dfd_alive[1]*GetAttackUn
 $total_dfd[0]=$atk_alive[0]*GetDefenseUnit(0,$atk_race)+$atk_alive[1]*GetDefenseUnit(1,$atk_race)+$atk_alive[2]*GetDefenseUnit(2,$atk_race)+$atk_alive[3]*GetDefenseUnit(3,$atk_race)+$RACE_DATA[$atk_race][21]*$atk_alive[4]*0.25;
 $total_dfd[1]=$dfd_alive[0]*GetDefenseUnit(0,$dfd_race)+$dfd_alive[1]*GetDefenseUnit(1,$dfd_race)+$dfd_alive[2]*GetDefenseUnit(2,$dfd_race)+$dfd_alive[3]*GetDefenseUnit(3,$dfd_race)+$RACE_DATA[$dfd_race][21]*$dfd_alive[4]*1.3;
 
+// Defenders and attackers should never be zero, but since
+// it happened one time let's add a little check here...
+if ($total_dfd[1] == 0) $total_dfd[1] = 1;
+if ($total_dfd[0] == 0) $total_dfd[0] = 1;
+
 
 if ($total_dmg[0]/$total_dfd[1]>$total_dmg[1]/$total_dfd[0])
 {
