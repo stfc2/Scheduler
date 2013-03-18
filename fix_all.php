@@ -396,7 +396,7 @@ else {
                 SET unread_log_entries = '.$user['n_logs'].' WHERE user_id = '.$user['user_id'];
                 
         if(!$db->query($sql)) {
-            message(DATABASE_ERROR, 'Could not update user unread log entries data');
+            $sdl->log('<b>Error:</b> could not update user unread log entries data');
         }
 	 }
 }
