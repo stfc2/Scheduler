@@ -37,7 +37,7 @@ define('PICK_RESOURCES_FROM_PLANET',1); // 1 = remove resources from BOT's plane
 // Startconfig of Ferengi
 class Ferengi extends NPC
 {
-    function Comparison($first,$second,$debug=0)
+    /*function Comparison($first,$second,$debug=0)
     {
         if($first==$second)
         {
@@ -45,7 +45,7 @@ class Ferengi extends NPC
         }else{
             return 1;
         }
-    }
+    }*/
 
     // Function to create BOT structures
     public function Install($log = INSTALL_LOG_FILE_NPC)
@@ -589,323 +589,369 @@ class Ferengi extends NPC
 
         // ########################################################################################
         // ########################################################################################
-        // Trust Account monitor
-        $this->sdl->start_job('Trust Account monitor', TICK_LOG_FILE_NPC);
-        $schulden_bezahlt=0;
-        $schuldner=0;
-        $spassbieter=0;
-        $nachrichten_a =0;
-        $konten=0;
-        $zeit_raum = 20*24*6;
-        $zeit_raum_h = 20*24*3;
-        $sql_a=$this->db->query('SELECT * FROM schulden_table WHERE status="0"');
-        if(0<$this->db->num_rows($sql_a))
-        {
-            $this->sdl->log('Examine debts....', TICK_LOG_FILE_NPC);
+        // Trust accounts monitor
+        $this->sdl->start_job('Trust accounts monitor', TICK_LOG_FILE_NPC);
+        $paid_debts=0;
+        $debtors=0;
+        $fun_providers=0;
+        $messages=0;
+        $accounts=0;
+        $period = 20*24*6;      // Payment deadline
+        $period_h = 20*24*3;    // Half of the previous value
 
-            $sql = 'SELECT * FROM schulden_table WHERE status=0';
-            if(($handel = $this->db->query($sql)) === false) {
-                $this->sdl->log('<b>Error:</b> Could not query scheduler shiptrade data! CONTINUED //'.$sql, TICK_LOG_FILE_NPC);
-            }else{
-                $treffera=$this->db->num_rows();
-                while($schulden= $this->db->fetchrow($handel))
-                {
-                    if($schulden['id']==null)
+        // Retrieve all debts still not solved
+        $sql = 'SELECT * FROM schulden_table WHERE status=0';
+        if(($trades = $this->db->query($sql)) === false) {
+            $this->sdl->log('<b>Error:</b> cannot query scheduler shiptrade data! - SKIPPED', TICK_LOG_FILE_NPC);
+        }
+        else {
+            $names = array ('unit_1','unit_2','unit_3','unit_4','unit_5','unit_6',
+                            'ress_1','ress_2','ress_3','id');
+
+            $this->sdl->log('Examining debts....', TICK_LOG_FILE_NPC);
+
+            while($debt = $this->db->fetchrow($trades))
+            {
+                // Retrieve trust account for the current auction
+                $accounts = $this->db->query('SELECT *,code AS id FROM treuhandkonto WHERE code="'.$debt['id'].'"');
+                $num = $this->db->num_rows();
+                if($num > 1) {
+                    $this->sdl->log('<b>PROGRAMMING ERROR:</b> apparently, there are more then one trust accounts on the same debts_table - SKIPPED', TICK_LOG_FILE_NPC);
+                }else if($num <= 0) {
+                    $this->sdl->log('<b>BUG ERROR:</b> apparently, there is no trust account for the debts_table - SKIPPED', TICK_LOG_FILE_NPC);
+                }else if($num == 1) {
+                    $account=$this->db->fetchrow($accounts);
+
+                    // Now we look whether everything were already paid
+                    $debt_paid_off = true;
+                    foreach ($names as $key) {
+                        if($debt[$key] != $account[$key])
+                            $debt_paid_off = false;
+                    }
+/*                    $wert[1]=$this->Comparison($account['unit_1'],$debt['unit_1']);
+                    $wert[2]=$this->Comparison($account['unit_2'],$debt['unit_2']);
+                    $wert[3]=$this->Comparison($account['unit_3'],$debt['unit_3']);
+                    $wert[4]=$this->Comparison($account['unit_4'],$debt['unit_4']);
+                    $wert[5]=$this->Comparison($account['unit_5'],$debt['unit_5']);
+                    $wert[6]=$this->Comparison($account['unit_6'],$debt['unit_6']);
+                    $wert[7]=$this->Comparison($account['ress_1'],$debt['ress_1']);
+                    $wert[8]=$this->Comparison($account['ress_2'],$debt['ress_2']);
+                    $wert[9]=$this->Comparison($account['ress_3'],$debt['ress_3']);
+                    $wert[10]=$this->Comparison($account['id'],$debt['id']);
+                    $wert_ende=0;
+                    
+                    for($aaa=1;$aaa<11;$aaa++)
                     {
-                        $this->sdl->log('<b>Error:</b>No ID available', TICK_LOG_FILE_NPC);
-                    }else{
-                        $sql = $this->db->query('SELECT * FROM treuhandkonto WHERE code="'.$schulden['id'].'"');
-                        $treffer=$this->db->num_rows();
-                        if($treffer>1){
-                            $this->sdl->log('<b>(Error:1000)Programming error:</b>Apparently, there are several trust accounts on the same schulden_table --'.$sql, TICK_LOG_FILE_NPC);
-                        }else if($treffer<=0){
-                            $this->sdl->log('<b>(Error:2000)Bug:</b>Apparently, there is no trust account to the schulden_table -- '.$sql, TICK_LOG_FILE_NPC);
-                        }else if($treffer==1){
-                            $treuhand=$this->db->fetchrow($sql);
-                            //Now we look whether everything were already paid
-                            $wert[1]=$this->Comparison($treuhand['unit_1'],$schulden['unit_1']);
-                            $wert[2]=$this->Comparison($treuhand['unit_2'],$schulden['unit_2']);
-                            $wert[3]=$this->Comparison($treuhand['unit_3'],$schulden['unit_3']);
-                            $wert[4]=$this->Comparison($treuhand['unit_4'],$schulden['unit_4']);
-                            $wert[5]=$this->Comparison($treuhand['unit_5'],$schulden['unit_5']);
-                            $wert[6]=$this->Comparison($treuhand['unit_6'],$schulden['unit_6']);
-                            $wert[7]=$this->Comparison($treuhand['ress_1'],$schulden['ress_1']);
-                            $wert[8]=$this->Comparison($treuhand['ress_2'],$schulden['ress_2']);
-                            $wert[9]=$this->Comparison($treuhand['ress_3'],$schulden['ress_3']);
-                            $wert[10]=$this->Comparison($treuhand['code'],$schulden['id']);
-                            $wert_ende=0;
-                            
-                            for($aaa=1;$aaa<11;$aaa++)
+                        if($wert[$aaa]==1)
+                        {
+                            $wert_ende=1;
+                        }
+                    }*/
+                    if(!$debt_paid_off)
+                    {
+                        // Look if anyone has missed his trading
+                        $this->sdl->log('Everything not paid: user #'.$debt['user_kauf'].' trust account  #'.$account['code'],
+                            TICK_LOG_FILE_NPC);
+                        if($account['timestep']!=$debt['timestep'])
+                        {
+                            $this->sdl->log('<b>Error:</b> user #'.$debt['user_kauf'].' debts and trust account '.$debt['id'].'/'.$account['code'].' have different time steps', TICK_LOG_FILE_NPC);
+                        }else {
+                            // Check if there's still time to pay the debt and purchaser
+                            // has not been warned yet
+                            if (($account['timestep']+$period_h) <= $ACTUAL_TICK &&
+                                ($account['timestep']+$period) > $ACTUAL_TICK &&
+                                $debt['mahnung'] == 0)
                             {
-                                if($wert[$aaa]==1)
+                                // Look who got new reminder
+                                $debtors++;
+
+                                // Here we should decide if we want to be more strict
+                                // and also smear players that paid after this warning.
+                                // NOTE: if so, we'll need to change < operator into <=
+                                // at lines 1073 and 1118 in job Users lock ahead.
+                                //$this->db->query('UPDATE user SET user_trade=user_trade+1 WHERE user_id="'.$debt['user_kauf'].'"');
+
+                                /* 10/03/08 - AC: Recover language of the sender */
+                                $sql = 'SELECT language FROM user WHERE user_id='.$debt['user_kauf'];
+                                if(!($language = $this->db->queryrow($sql)))
                                 {
-                                    $wert_ende=1;
+                                    $this->sdl->log('<b>Error:</b> Cannot read user language!', TICK_LOG_FILE_NPC);
+                                    $language['language'] = 'ENG';
                                 }
-                            }
-                            if($wert_ende==1)
-                            {
-                                // Look if anyone has missed his trading
-                                $this->sdl->log('--//--||=Everything not paid=||--\\--||'.$schulden['user_kauf'].'||'.$treuhand['code'].'||', TICK_LOG_FILE_NPC);
-                                if($treuhand['timestep']!=$schulden['timestep'])
+
+                                switch($language['language'])
                                 {
-                                    $this->sdl->log('<b>(Error:3000)</b> - Someone having '.$schulden['user_kauf'].' with code '.$schulden['id'].'/'.$treuhand['code'].' have different time steps', TICK_LOG_FILE_NPC);
-                                }else {
-                                    if(($treuhand['timestep']+$zeit_raum_h)<=$ACTUAL_TICK && ($treuhand['timestep']+$zeit_raum)>$ACTUAL_TICK && $schulden['mahnung']==0)
-                                    {
-                                        // Look who got new reminder
-                                        $schuldner++;
-                                        $User_kauf_V = $this->db->queryrow('SELECT user_id,user_trade FROM user WHERE user_id="'.$schulden['user_kauf'].'"');
-                                        $this->db->query('UPDATE user SET user_trade="'.($User_kauf_V['user_trade']+1).'" WHERE user_id="'.$User_kauf_V['user_id'].'"');
-
-                                        /* 10/03/08 - AC: Recover language of the sender */
-                                        $sql = 'SELECT language FROM user WHERE user_id='.$schulden['user_kauf'];
-                                        if(!($language = $this->db->queryrow($sql)))
-                                        {
-                                            $this->sdl->log('<b>Error:</b> Cannot read user language!', TICK_LOG_FILE_NPC);
-                                            $language['language'] = 'ENG';
-                                        }
-
-                                        switch($language['language'])
-                                        {
-                                            case 'GER':
-                                                $text='<center><b>Guten Tag</b></center>
-                                                    <br>
-                                                    Sie sind dabei die Frist zur Bezahlung zu &Uuml;berschreiten, f&uuml;r einen Handel
-                                                    den sie Abgeschlossen haben.<br>
-                                                    Hiermit werden sie ermahnt, sollten sie ihre Schulden nicht bezahlen
-                                                    werden entsprechende Ma&beta;nahmen eingeleitet.
-                                                    <br>--------------------------------------<br>
-                                                    Hochachtungsvoll Ferengi Handelsgilde';
-                                                $title = '<b>Mahnung die Erste</b>';
-                                            break;
-                                            case 'ENG':
-                                                $text='<center><b>Good morning</b></center><br><br>
-                                                    You are about to exceed the time limit for payment, for a trade you have completed.
-                                                    Remember that appropriate measures will be take if you should not pay your debts.
-                                                    <br>--------------------------------------<br>
-                                                    Full respect from The Ferengi Trade Guild';
-                                                $title = '<b>Warning</b>';
-                                            break;
-                                            case 'ITA':
-                                                $text='<center><b>Buongiorno</b></center><br><br>
-                                                    Il termine di pagamento per un commercio che avete concluso si sta avvicinando.<br>
-                                                    Si ricorda che saranno intraprese appropriate misure se non dovesse pagare i suoi debiti.
-                                                    <br>--------------------------------------<br>
-                                                    Massimo rispetto dalla Gilda del Commercio Ferengi';
-                                                $title = '<b>Avvertimento</b>';
-                                            break;
-                                        }
-
-                                        $this->MessageUser($this->bot['user_id'],$schulden['user_kauf'],$title,$text);
-                                        $nachrichten_a++;
-                                        //User bekommt verwarnung
-                                        if(!$this->db->query('UPDATE schulden_table SET mahnung=mahnung+1 WHERE id="'.$treuhand['code'].'" and user_ver="'.$schulden['user_ver'].'"')) $this->sdl->log('<b>Error:</b> Could not write warning -- UPDATE schulden_table SET mahnung=mahnung+1 WHERE id="'.$treuhand['code'].'" and user_ver="'.$schulden['user_ver'].'"', TICK_LOG_FILE_NPC);
-                                    }
-                                    if($ACTUAL_TICK>=($zeit_raum+$treuhand['timestep']))
-                                    {
-
-                                        $spassbieter++;
-                                        $konten++;
-
-                                        // Delete entries
-                                        $sql_1 = 'DELETE FROM schulden_table WHERE user_ver="'.$schulden['user_ver'].'" and user_kauf="'.$schulden['user_kauf'].'" and id="'.$schulden['id'].'"';
-                                        if(!$this->db->query($sql_1))     $this->sdl->log('<b>(Error:5000)ERROR-DELETE</b> <>'.$sql_1.'', TICK_LOG_FILE_NPC);
-                                        $sql_2 = 'DELETE FROM treuhandkonto WHERE code="'.$schulden['id'].'"';
-                                        if(!$this->db->query($sql_2))     $this->sdl->log('<b>(Error:5000)ERROR-DELETE</b> <>'.$sql_2.'', TICK_LOG_FILE_NPC);
-
-                                        $sql_1='INSERT INTO FHB_sperr_list VALUES(null,'.$schulden['user_kauf'].','.$ACTUAL_TICK.')';
-                                        
-                                        if(!$this->db->query($sql_1)) $this->sdl->log('<b>No entry/b>User:'.$schulden['user_kauf'].' - got no further User Trade <>'.$sql_x.'', TICK_LOG_FILE_NPC);
-                                        //So jetzt noch beide Benachrichtigen
-                                        //TODO Log buch machen - grund wieso es noch nicht gemacht wurde:
-                                        /*
-                                         [01:38] <Tobi|away> Nachricht oder Log?
-                                         [01:38] <Mojo1987> log
-                                         [01:39] <Tobi|away> hm
-                                         [01:39] <Tobi|away> hast du schonmal logbuch gemacht?
-                                         [01:40] <Mojo1987> nee von log hab ich keinen schimmer :D
-                                         */
-                                        $nachrichten_a++;
-
-                                        /* 10/03/08 - AC: Recover language of the sender */
-                                        $sql = 'SELECT language FROM user WHERE user_id='.$schulden['user_kauf'];
-                                        if(!($language = $this->db->queryrow($sql)))
-                                        {
-                                            $this->sdl->log('<b>Error:</b> Cannot read user language!', TICK_LOG_FILE_NPC);
-                                            $language['language'] = 'ENG';
-                                        }
-
-                                        switch($language['language'])
-                                        {
-                                            case 'GER':
-                                                $text='<center><b>Guten Tag</b></center><br><br>
-                                                    Sie haben die Frist zur Bezahlung ihrer Schulden Überschritten,
-                                                    damit wird der Handel R&uuml;ckg&auml;ngig gemacht. Sie erhalten daf&uuml;r einen
-                                                    Eintrag in das Schuldnerbuch.<br>
-                                                    Gesamt Eintr&auml;ge:'.$User_kauf_V['user_trade'].'<br>
-                                                    Sollten sie weiter Auffallen wird das ernsthafte Konsequenzen f&uuml;r sie haben.<br>
-                                                    Dieser Beschluss ist G&uuml;ltig, sollten sie das Gef&uuml;hl haben ungerecht
-                                                    behandelt zu werden, können sie sich &uuml;ber den normalen Beschwerde Weg
-                                                    beschweren.<br>
-                                                    <br>--------------------------------------<br>
-                                                    Hochachtungsvoll Ferengi Handelsgilde';
-                                                $title = '<b>Mahnung mit Folgen</b>';
-                                            break;
-                                            case 'ENG':
-                                                $text='<center><b>Good morning</b></center><br><br>
-                                                    You have crossed the term of the payment of your debts, thus the trade
-                                                    is reversed. You&#146;ll get for it an entry in the debtor&#146;s book.<br>
-                                                    Total entries:'.$User_kauf_V['user_trade'].'<br>
-                                                    Attention, if you continue, there will be severe consequences for you.<br>
-                                                    This decision is important, if you should feel to be treated unfairly, you can
-                                                    appeal through the normal way of complain.<br>
-                                                    <br>--------------------------------------<br>
-                                                    Full respect from The Ferengi Trade Guild';
-                                                $title = '<b>Reminder with consequences</b>';
-                                            break;
-                                            case 'ITA':
-                                                $text='<center><b>Buongiorno</b></center><br><br>
-                                                    Avete superato il termine ultimo per il pagamento dei vostri debiti, pertanto
-                                                    lo scambio sar&agrave; annullato. Per questo ricever&agrave; una nota nel libro
-                                                    dei debitori.<br>
-                                                    Totale voci:'.$User_kauf_V['user_trade'].'<br>
-                                                    Attenzione, se persistete, ci saranno severe conseguenze per voi.<br>
-                                                    Questa decisione &egrave; importante, se doveste sentirvi trattati in modo sleale,
-                                                    potete appellarvi tramite la normale procedura di reclamo.<br>
-                                                    <br>--------------------------------------<br>
-                                                    Massimo rispetto dalla Gilda del Commercio Ferengi';
-                                                $title = '<b>Avviso delle conseguenze</b>';
-                                            break;
-                                        }
-
-                                        $this->MessageUser($this->bot['user_id'],$schulden['user_kauf'],$title,$text);
-
-
-                                        $this->sdl->log('User: '.$schulden['user_ver'].' bekommt sein Schiff: '.$schulden['ship_id'], TICK_LOG_FILE_NPC);
-                                        $sql_c='INSERT INTO `FHB_warteschlange` VALUES (NULL , '.$schulden['user_ver'].', '.$schulden['ship_id'].')';
-                                        if(!$this->db->query($sql_c))   $this->sdl->log('<b>Error: (Critical)</b>could not put ship in the queue //'.$sql_c, TICK_LOG_FILE_NPC);
-                                        $nachrichten_a++;    
-                                        $user_name=$this->db->queryrow('SELECT user_name FROM user WHERE user_id='.$schulden['user_kauf'].'');
-
-                                        /* 10/03/08 - AC: Recover language of the sender */
-                                        $sql = 'SELECT language FROM user WHERE user_id='.$schulden['user_kauf'];
-                                        if(!($language = $this->db->queryrow($sql)))
-                                        {
-                                            $this->sdl->log('<b>Error:</b> Cannot read user language!', TICK_LOG_FILE_NPC);
-                                            $language['language'] = 'ENG';
-                                        }
-
-                                        switch($language['language'])
-                                        {
-                                            case 'GER':
-                                                $text='<center><b>Guten Tag</b></center><br><br>
-                                                    Ihr Handel mit '.$user_name.' wurde r&uuml;ckg&auml;ngig gemacht, ihr Schiff steht
-                                                    ihnen absofort wieder zurverf&uuml;gung. Sollte es jedoch nicht wieder
-                                                    zurverf&uuml;gung stehen, wenden sie sich bitte an den Support.<br>
-                                                    Um ihren Handelspartner k&uuml;mmern wir uns schon. Er wird eine gerechte Strafe
-                                                    bekommen<br>
-                                                    <br>--------------------------------------<br>
-                                                    Hochachtungsvoll Ferengi Handelsgilde';
-                                                $title = '<b>Handel'.$schulden['code'].' ist nichtig</b>';
-                                            break;
-                                            case 'ENG':
-                                                $text='<center><b>Good morning</b></center><br><br>
-                                                    Your trade with '.$user_name.' was undone, your ship will come back.
-                                                    If it does not return at home, please contact Support.<br>
-                                                    We already take care of your trading partner.
-                                                    He will receive a fair punishment.<br>
-                                                    <br>--------------------------------------<br>
-                                                    Full respect from The Ferengi Trade Guild';
-                                                $title = '<b>Trade'.$schulden['code'].' is void</b>';
-                                            break;
-                                            case 'ITA':
-                                                $text='<center><b>Buongiorno</b></center><br><br>
-                                                    Il vostro commercio con '.$user_name.' &egrave; stato annullato, la vostra nave
-                                                    ritorner&agrave; indietro. Se non dovesse tornare, per favore contattare il
-                                                    Supporto.<br>
-                                                    Ci siamo gi&agrave; presi cura della vostra controparte commerciale.
-                                                    Ricever&agrave; una giusta punizione.<br>
-                                                    <br>--------------------------------------<br>
-                                                    Massimo rispetto dalla Gilda del Commercio Ferengi';
-                                                $title = '<b>Scambio'.$schulden['code'].' annullato</b>';
-                                            break;
-                                        }
-
-                                        $this->MessageUser($this->bot['user_id'],$schulden['user_ver'],$title,$text);
-                                    }
+                                    case 'GER':
+                                        $text='<center><b>Guten Tag</b></center>
+                                            <br>
+                                            Sie sind dabei die Frist zur Bezahlung zu &Uuml;berschreiten, f&uuml;r einen Handel
+                                            den sie Abgeschlossen haben.<br>
+                                            Hiermit werden sie ermahnt, sollten sie ihre Schulden nicht bezahlen
+                                            werden entsprechende Ma&beta;nahmen eingeleitet.
+                                            <br>--------------------------------------<br>
+                                            Hochachtungsvoll Ferengi Handelsgilde';
+                                        $title = '<b>Mahnung die Erste</b>';
+                                    break;
+                                    case 'ENG':
+                                        $text='<center><b>Good morning</b></center><br><br>
+                                            You are about to exceed the time limit for payment, for a trade you have completed.
+                                            Remember that appropriate measures will be take if you should not pay your debts.
+                                            <br>--------------------------------------<br>
+                                            Full respect from The Ferengi Trade Guild';
+                                        $title = '<b>Warning</b>';
+                                    break;
+                                    case 'ITA':
+                                        $text='<center><b>Buongiorno</b></center><br><br>
+                                            Il termine di pagamento per un commercio che avete concluso si sta avvicinando.<br>
+                                            Si ricorda che saranno intraprese appropriate misure se non dovesse pagare i suoi debiti.
+                                            <br>--------------------------------------<br>
+                                            Massimo rispetto dalla Gilda del Commercio Ferengi';
+                                        $title = '<b>Avvertimento</b>';
+                                    break;
                                 }
+
+                                $this->MessageUser($this->bot['user_id'],$debt['user_kauf'],$title,$text);
+                                $messages++;
+
+                                // User gets warning
+                                $sql = 'UPDATE schulden_table SET mahnung=mahnung+1
+                                        WHERE id="'.$account['code'].'" AND user_ver="'.$debt['user_ver'].'"';
+                                if(!$this->db->query($sql))
+                                    $this->sdl->log('<b>Error:</b> cannot write user warning - CONTINUED', TICK_LOG_FILE_NPC);
                             }
-                            elseif($wert_ende==0)
+                            // If payment deadline is overdue
+                            if($ACTUAL_TICK>=($period+$account['timestep']))
                             {
-                                $this->sdl->log('!!!||=Comparison--\\--'.$treuhand['unit_1'].'||'.$schulden['unit_1'].'||', TICK_LOG_FILE_NPC);
-                                $this->sdl->log('!!!||=Comparison--\\--'.$treuhand['unit_2'].'||'.$schulden['unit_2'].'||', TICK_LOG_FILE_NPC);
-                                $this->sdl->log('!!!||=Comparison--\\--'.$treuhand['unit_3'].'||'.$schulden['unit_3'].'||', TICK_LOG_FILE_NPC);
-                                $this->sdl->log('!!!||=Comparison--\\--'.$treuhand['unit_4'].'||'.$schulden['unit_4'].'||', TICK_LOG_FILE_NPC);
-                                $this->sdl->log('!!!||=Comparison--\\--'.$treuhand['unit_5'].'||'.$schulden['unit_5'].'||', TICK_LOG_FILE_NPC);
-                                $this->sdl->log('!!!||=Comparison--\\--'.$treuhand['unit_6'].'||'.$schulden['unit_6'].'||', TICK_LOG_FILE_NPC);
-                                $this->sdl->log('!!!||=Comparison--\\--'.$treuhand['ress_1'].'||'.$schulden['ress_1'].'||', TICK_LOG_FILE_NPC);
-                                $this->sdl->log('!!!||=Comparison--\\--'.$treuhand['ress_2'].'||'.$schulden['ress_2'].'||', TICK_LOG_FILE_NPC);
-                                $this->sdl->log('!!!||=Comparison--\\--'.$treuhand['ress_3'].'||'.$schulden['ress_3'].'||', TICK_LOG_FILE_NPC);
-                                $this->sdl->log('!!!||=Comparison--\\--'.$schulden['id'].'||'.$treuhand['code'].'||', TICK_LOG_FILE_NPC);
-                                // Debt to finish and make visible
-                                $schulden_bezahlt++;
-                                $sql_1 ='UPDATE schulden_table SET status="1" WHERE id='.$treuhand['code'].'';
-                                if(!$this->db->query($sql_1)) {
-                                    $this->sdl->log('<b>Error:</b> schulden_table, was at '.$sql.' = status will not change', TICK_LOG_FILE_NPC);
+                                $fun_providers++;
+                                $accounts++;
+
+                                // Delete entries
+                                // AC: this query's pretty insane, id is unique, there's
+                                // no need to complicate the WHERE clause...
+                                $sql = 'DELETE FROM schulden_table
+                                        WHERE user_ver="'.$debt['user_ver'].'" AND
+                                              user_kauf="'.$debt['user_kauf'].'" AND
+                                              id="'.$debt['id'].'"';
+                                if(!$this->db->query($sql))
+                                    $this->sdl->log('<b>Error:</b> cannot delete debts_table for auction #'.$debt['id'],
+                                        TICK_LOG_FILE_NPC);
+
+                                $sql = 'DELETE FROM treuhandkonto WHERE code="'.$debt['id'].'"';
+                                if(!$this->db->query($sql))
+                                    $this->sdl->log('<b>Error:</b> cannot delete trust account for auction #'.$debt['id'],
+                                        TICK_LOG_FILE_NPC);
+
+                                // Prepare to lock the user from the trade center
+                                $sql = 'INSERT INTO FHB_sperr_list VALUES(null,'.$debt['user_kauf'].','.$ACTUAL_TICK.')';
+                                if(!$this->db->query($sql))
+                                    $this->sdl->log('<b>Error:</b> cannot insert user #'.$debt['user_kauf'].' in the blacklist',
+                                        TICK_LOG_FILE_NPC);
+
+                                //So jetzt noch beide Benachrichtigen
+                                //TODO Log buch machen - grund wieso es noch nicht gemacht wurde:
+                                /*
+                                 [01:38] <Tobi|away> Nachricht oder Log?
+                                 [01:38] <Mojo1987> log
+                                 [01:39] <Tobi|away> hm
+                                 [01:39] <Tobi|away> hast du schonmal logbuch gemacht?
+                                 [01:40] <Mojo1987> nee von log hab ich keinen schimmer :D
+                                 */
+                                //$nachrichten_a++;
+
+                                // Retrieve some info about the debtor
+                                $sql = 'SELECT user_name,user_trade,language FROM user
+                                        WHERE user_id='.$debt['user_kauf'];
+                                if(!($debtor = $this->db->queryrow($sql)))
+                                {
+                                    $this->sdl->log('<b>Error:</b> cannot read debtor data! - CONTINUED',
+                                        TICK_LOG_FILE_NPC);
+                                    $debtor['language'] = 'ENG';
                                 }
-                                $messaget_c='<center><b>Guten Tag</b></center>
-                                    <br>
-                                    Sie haben Neue Ressourcen und/oder Truppen auf ihrem Treuhandkonto.
-                                    <br>--------------------------------------<br>
-                                    Hochachtungsvoll Ferengi Handelsgilde';
 
-                                // Ship given to the user
-                                $this->sdl->log('User: '.$schulden['user_kauf'].' got a ship: '.$schulden['ship_id'], TICK_LOG_FILE_NPC);
-                                $messaget_a='<center><b>Guten Tag</b></center>
-                                    <br>
-                                    Sie können ihr ersteigertes Schiff abhohlen.
-                                    <br>--------------------------------------<br>
-                                    Hochachtungsvoll Ferengi Handelsgilde';
+                                // Here we should check if user_trade must be increased
+                                // by one or not.
+                                // $debtor['user_trade']++;
 
-                                $sql_c='INSERT INTO `FHB_warteschlange` VALUES (NULL , '.$schulden['user_kauf'].', '.$schulden['ship_id'].')';
-                                if(!$this->db->query($sql_c))   $this->sdl->log('<b>Error: (Critical)</b>could not put ship in the queue //'.$sql_c, TICK_LOG_FILE_NPC);
-                                $konten++;
+                                switch($debtor['language'])
+                                {
+                                    case 'GER':
+                                        $text='<center><b>Guten Tag</b></center><br><br>
+                                            Sie haben die Frist zur Bezahlung ihrer Schulden Überschritten,
+                                            damit wird der Handel R&uuml;ckg&auml;ngig gemacht. Sie erhalten daf&uuml;r einen
+                                            Eintrag in das Schuldnerbuch.<br>
+                                            Gesamt Eintr&auml;ge: '.$debtor['user_trade'].'<br>
+                                            Sollten sie weiter Auffallen wird das ernsthafte Konsequenzen f&uuml;r sie haben.<br>
+                                            Dieser Beschluss ist G&uuml;ltig, sollten sie das Gef&uuml;hl haben ungerecht
+                                            behandelt zu werden, können sie sich &uuml;ber den normalen Beschwerde Weg
+                                            beschweren.<br>
+                                            <br>--------------------------------------<br>
+                                            Hochachtungsvoll Ferengi Handelsgilde';
+                                        $title = '<b>Mahnung mit Folgen</b>';
+                                    break;
+                                    case 'ENG':
+                                        $text='<center><b>Good morning</b></center><br><br>
+                                            You have crossed the term of the payment of your debts, thus the trade
+                                            is reversed. You&#146;ll get for it an entry in the debtor&#146;s book.<br>
+                                            Total entries: '.$debtor['user_trade'].'<br>
+                                            Attention, if you continue, there will be severe consequences for you.<br>
+                                            This decision is important, if you should feel to be treated unfairly, you can
+                                            appeal through the normal way of complain.<br>
+                                            <br>--------------------------------------<br>
+                                            Full respect from The Ferengi Trade Guild';
+                                        $title = '<b>Reminder with consequences</b>';
+                                    break;
+                                    case 'ITA':
+                                        $text='<center><b>Buongiorno</b></center><br><br>
+                                            Avete superato il termine ultimo per il pagamento dei vostri debiti, pertanto
+                                            lo scambio sar&agrave; annullato. Per questo ricever&agrave; una nota nel libro
+                                            dei debitori.<br>
+                                            Totale voci: '.$debtor['user_trade'].'<br>
+                                            Attenzione, se persistete, ci saranno severe conseguenze per voi.<br>
+                                            Questa decisione &egrave; importante, se doveste sentirvi trattati in modo sleale,
+                                            potete appellarvi tramite la normale procedura di reclamo.<br>
+                                            <br>--------------------------------------<br>
+                                            Massimo rispetto dalla Gilda del Commercio Ferengi';
+                                        $title = '<b>Avviso delle conseguenze</b>';
+                                    break;
+                                }
 
+                                $this->MessageUser($this->bot['user_id'],$debt['user_kauf'],$title,$text);
+                                $messages++;
+
+                                $sql = 'INSERT INTO `FHB_warteschlange` VALUES (NULL,'.$debt['user_ver'].','.$debt['ship_id'].')';
+                                if(!$this->db->query($sql))
+                                    $this->sdl->log('<b>CRITICAL ERROR:</b> cannot put ship in the queue - CONTINUED'.$sql,
+                                        TICK_LOG_FILE_NPC);
+
+                                $this->sdl->log('User #'.$debt['user_ver'].' got his ship #'.$debt['ship_id'].' back',
+                                    TICK_LOG_FILE_NPC);
+
+                                /* 10/03/08 - AC: Recover language of the sender */
+                                $sql = 'SELECT language FROM user WHERE user_id='.$debt['user_ver'];
+                                if(!($language = $this->db->queryrow($sql)))
+                                {
+                                    $this->sdl->log('<b>Error:</b> Cannot read user language!', TICK_LOG_FILE_NPC);
+                                    $language['language'] = 'ENG';
+                                }
+
+                                switch($language['language'])
+                                {
+                                    case 'GER':
+                                        $text='<center><b>Guten Tag</b></center><br><br>
+                                            Ihr Handel mit '.$debtor['user_name'].' wurde r&uuml;ckg&auml;ngig gemacht, ihr Schiff steht
+                                            ihnen absofort wieder zurverf&uuml;gung. Sollte es jedoch nicht wieder
+                                            zurverf&uuml;gung stehen, wenden sie sich bitte an den Support.<br>
+                                            Um ihren Handelspartner k&uuml;mmern wir uns schon. Er wird eine gerechte Strafe
+                                            bekommen<br>
+                                            <br>--------------------------------------<br>
+                                            Hochachtungsvoll Ferengi Handelsgilde';
+                                        $title = '<b>Handel'.$debt['code'].' ist nichtig</b>';
+                                    break;
+                                    case 'ENG':
+                                        $text='<center><b>Good morning</b></center><br><br>
+                                            Your trade with '.$debtor['user_name'].' was undone, your ship will come back.
+                                            If it does not return at home, please contact Support.<br>
+                                            We already take care of your trading partner.
+                                            He will receive a fair punishment.<br>
+                                            <br>--------------------------------------<br>
+                                            Full respect from The Ferengi Trade Guild';
+                                        $title = '<b>Trade'.$debt['code'].' is void</b>';
+                                    break;
+                                    case 'ITA':
+                                        $text='<center><b>Buongiorno</b></center><br><br>
+                                            Il vostro commercio con '.$debtor['user_name'].' &egrave; stato annullato, la vostra nave
+                                            ritorner&agrave; indietro. Se non dovesse tornare, per favore contattare il
+                                            Supporto.<br>
+                                            Ci siamo gi&agrave; presi cura della vostra controparte commerciale.
+                                            Ricever&agrave; una giusta punizione.<br>
+                                            <br>--------------------------------------<br>
+                                            Massimo rispetto dalla Gilda del Commercio Ferengi';
+                                        $title = '<b>Scambio'.$debt['code'].' annullato</b>';
+                                    break;
+                                }
+
+                                $this->MessageUser($this->bot['user_id'],$debt['user_ver'],$title,$text);
                             }
                         }
                     }
+                    else
+                    {
+                        foreach ($names as $key) {
+                            $this->sdl->log('Comparison between '.$account[$key].' and '.$debt[$key].' ends successfully',
+                                TICK_LOG_FILE_NPC);
+                        }
+
+                        // Debt paid off and made visible
+                        $paid_debts++;
+                        $sql ='UPDATE schulden_table SET status="1" WHERE id='.$account['code'].'';
+                        if(!$this->db->query($sql)) {
+                            $this->sdl->log('<b>Error:</b> cannot update schulden_table to "everything paid" - CONTINUED',
+                                TICK_LOG_FILE_NPC);
+                        }
+
+                        // Message to the vendor
+                        $messaget_c='<center><b>Guten Tag</b></center>
+                            <br>
+                            Sie haben Neue Ressourcen und/oder Truppen auf ihrem Treuhandkonto.
+                            <br>--------------------------------------<br>
+                            Hochachtungsvoll Ferengi Handelsgilde';
+
+                        // Give the ship to the purchaser
+                        $sql = 'INSERT INTO `FHB_warteschlange` VALUES (NULL , '.$debt['user_kauf'].', '.$debt['ship_id'].')';
+                        if(!$this->db->query($sql)) {
+                            $this->sdl->log('<b>CRITICAL ERROR:</b> cannot put ship in the queue - SKIPPED',
+                                TICK_LOG_FILE_NPC);
+                        }
+                        else {
+                            $this->sdl->log('User #'.$debt['user_kauf'].' got his new ship #'.$debt['ship_id'],
+                                TICK_LOG_FILE_NPC);
+
+                            // Message to the purchaser
+                            $messaget_a='<center><b>Guten Tag</b></center>
+                                <br>
+                                Sie können ihr ersteigertes Schiff abhohlen.
+                                <br>--------------------------------------<br>
+                                Hochachtungsvoll Ferengi Handelsgilde';
+                        }
+                        $accounts++;
+                    }
                 }
             }
-        }else{
-            $this->sdl->log('[MESSAGE]No debts available', TICK_LOG_FILE_NPC);
         }
+
         // Empty accounts destruction
         $deleted_accounts = 0;
-        if(($konton_destroy=$this->db->query('SELECT * FROM schulden_table WHERE status=2'))==true)
+        if(($destructible_debts=$this->db->query('SELECT * FROM schulden_table WHERE status=2'))==true)
         {
-            while($konton_destroy_t=$this->db->fetchrow($konton_destroy))
+            while($debt_to_remove=$this->db->fetchrow($destructible_debts))
             {
-                $sql_e='DELETE FROM schulden_table WHERE id='.$konton_destroy_t['id'].' AND status=2';
-                if(!$this->db->query($sql_e))
-                {
-                    $this->sdl->log('<b>Error: (Critical)</b>Could not delete entry in schulden_table //Code:'.$konton_destroy_t['id'].'//'.$sql_c, TICK_LOG_FILE_NPC);
-                }else{
-                    $sql_d='DELETE FROM treuhandkonto WHERE code="'.$konton_destroy_t['id'].'"';
-                    if(!$this->db->query($sql_d))
-                    {
-                        $this->sdl->log('<b>Error: (Critical)</b>Could not delete entry in treuhandkonto //Code:'.$konton_destroy_t['id'].'//'.$sql_c, TICK_LOG_FILE_NPC);
+                $sql = 'DELETE FROM schulden_table WHERE id='.$debt_to_remove['id'].' AND status=2';
+                if(!$this->db->query($sql)) {
+                    $this->sdl->log('<b>CRITICAL ERROR:</b> cannot delete entry: '.$debt_to_remove['id'].' in debts_table',
+                        TICK_LOG_FILE_NPC);
+                }
+                else {
+                    $sql = 'DELETE FROM treuhandkonto WHERE code="'.$debt_to_remove['id'].'"';
+                    if(!$this->db->query($sql)) {
+                        $this->sdl->log('<b>CRITICAL ERROR:</b> cannot delete entry:'.$debt_to_remove['id'].' in treuhandkonto',
+                            TICK_LOG_FILE_NPC);
                     }
                     $deleted_accounts++;
                 }
             }
         }
-        else{$this->sdl->log('[Empties accounts] Accounts query was not executed || '.$konton_destroy.' = status will not change', TICK_LOG_FILE_NPC);}
-        $this->sdl->log('Paid debts: '.$schulden_bezahlt, TICK_LOG_FILE_NPC);
-        $this->sdl->log('Number of debtors: '.$schuldner, TICK_LOG_FILE_NPC);
+        else {
+            $this->sdl->log('<b>Error:</b> cannot execute empties accounts query, status not changed',
+                TICK_LOG_FILE_NPC);
+        }
+
+        $this->sdl->log('New accounts    : '.$accounts, TICK_LOG_FILE_NPC);
+        $this->sdl->log('Paid debts      : '.$paid_debts, TICK_LOG_FILE_NPC);
+        $this->sdl->log('Debtors         : '.$debtors, TICK_LOG_FILE_NPC);
         $this->sdl->log('Deleted accounts: '.$deleted_accounts, TICK_LOG_FILE_NPC);
-        $this->sdl->log('Number of fun bidders: '.$spassbieter, TICK_LOG_FILE_NPC);
-        $this->sdl->log('Number of messages: '.$nachrichten_a++, TICK_LOG_FILE_NPC);
-        $this->sdl->finish_job('Trust Account monitor', TICK_LOG_FILE_NPC);
+        $this->sdl->log('Fun bidders     : '.$fun_providers, TICK_LOG_FILE_NPC);
+        $this->sdl->log('Warnings sent   : '.$messages, TICK_LOG_FILE_NPC);
+        $this->sdl->finish_job('Trust accounts monitor', TICK_LOG_FILE_NPC);
         // ########################################################################################
         // ########################################################################################
         // Calculate troops sales
