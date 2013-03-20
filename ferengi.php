@@ -595,7 +595,7 @@ class Ferengi extends NPC
         $debtors=0;
         $fun_providers=0;
         $messages=0;
-        $accounts=0;
+        $queued_ships=0;
         $period = 20*24*6;      // Payment deadline
         $period_h = 20*24*3;    // Half of the previous value
 
@@ -723,7 +723,7 @@ class Ferengi extends NPC
                             if($ACTUAL_TICK>=($period+$account['timestep']))
                             {
                                 $fun_providers++;
-                                $accounts++;
+                                $queued_ships++;
 
                                 // Delete entries
                                 // AC: this query's pretty insane, id is unique, there's
@@ -913,7 +913,7 @@ class Ferengi extends NPC
                                 <br>--------------------------------------<br>
                                 Hochachtungsvoll Ferengi Handelsgilde';
                         }
-                        $accounts++;
+                        $queued_ships++;
                     }
                 }
             }
@@ -945,7 +945,7 @@ class Ferengi extends NPC
                 TICK_LOG_FILE_NPC);
         }
 
-        $this->sdl->log('New accounts    : '.$accounts, TICK_LOG_FILE_NPC);
+        $this->sdl->log('Queued ships    : '.$queued_ships, TICK_LOG_FILE_NPC);
         $this->sdl->log('Paid debts      : '.$paid_debts, TICK_LOG_FILE_NPC);
         $this->sdl->log('Debtors         : '.$debtors, TICK_LOG_FILE_NPC);
         $this->sdl->log('Deleted accounts: '.$deleted_accounts, TICK_LOG_FILE_NPC);
