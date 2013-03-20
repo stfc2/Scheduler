@@ -999,47 +999,50 @@ class Ferengi extends NPC
         // ########################################################################################
         // ########################################################################################
         // Users lock for TC
-        $this->sdl->start_job('User lock', TICK_LOG_FILE_NPC);
-        $sql = "SELECT count(*) as anzahl,user_id FROM FHB_sperr_list GROUP By user_id";
-        if(!$temps=$this->db->query($sql)) $this->sdl->log('<b>Error:</b> User query went wrong -- '.$sql, TICK_LOG_FILE_NPC);
-        $anzahl_sperren=0; 
-        $user_liste='';
-        while($result = $this->db->fetchrow($temps))
+        $this->sdl->start_job('Users lock', TICK_LOG_FILE_NPC);
+        $sql = "SELECT count(*) as number,user_id FROM FHB_sperr_list GROUP By user_id";
+        if(!$blacklist=$this->db->query($sql))
+            $this->sdl->log('<b>Error:</b> cannot read blacklist data - SKIP',
+                TICK_LOG_FILE_NPC);
+
+        $number_locks=0; 
+        $users_list='';
+        while($result = $this->db->fetchrow($blacklist))
         {
-            $sperre=0;
-            if($result['anzahl']>0)
+            $block=0;
+            if($result['number']>0)
             {
-                if($result['anzahl']<3)
+                if($result['number']<3)
                 {
-                    $sperre=$result['anzahl']*480*2;
-                }else if($result['anzahl']>2)
+                    $block=$result['number']*480*2;
+                }else if($result['number']>2)
                 {
-                    $sperre=(pow($result['anzahl'],2))*360;
+                    $block=(pow($result['number'],2))*360;
                 }
-                $sql_abfrage_1='SELECT user_id,user_trade,trade_tick FROM user WHERE user_id="'.$result['user_id'].'"';
+                $block_min = $block * TICK_DURATION;
 
-                if(!($sql_abfrage_1=$this->db->queryrow($sql_abfrage_1))) $this->sdl->log('<b>Error:</b> User query went wrong -- '.$sql_abfrage_1, TICK_LOG_FILE_NPC);
+                $sql = 'SELECT user_id,user_trade,trade_tick,language FROM user WHERE user_id="'.$result['user_id'].'"';
+                if(!($user=$this->db->queryrow($sql)))
+                    $this->sdl->log('<b>Error:</b> cannot query user data - SKIPPED', TICK_LOG_FILE_NPC);
 
-                if($sql_abfrage_1['user_trade']<$result['anzahl'] && $sql_abfrage_1['trade_tick']!=0)
+                if($user['user_trade']<$result['number'] && $user['trade_tick']!=0)
                 {
-                    $anzahl_sperren++;
-                    $sql_x='UPDATE user SET user_trade='.$result['anzahl'].',trade_tick=trade_tick+'.$sperre.' WHERE user_id="'.$result['user_id'].'"';
-                    $this->sdl->log('User:'.$result['user_id'].' has gotten a higher punishment - We, which was done to those injustice, are bad', TICK_LOG_FILE_NPC);
-                    if(!$this->db->query($sql_x)) $this->sdl->log('<b>Error:</b> User '.$result['user_id'].' cannot be locked for '.$sperre.' ticks</b>', TICK_LOG_FILE_NPC);
+                    $number_locks++;
+                    $sql = 'UPDATE user SET user_trade='.$result['number'].',
+                                            trade_tick=trade_tick+'.$block.'
+                            WHERE user_id="'.$result['user_id'].'"';
+                    if(!$this->db->query($sql))
+                        $this->sdl->log('<b>Error:</b> User #'.$result['user_id'].' cannot be locked for '.$block.' ticks',
+                            TICK_LOG_FILE_NPC);
 
-                    /* 17/03/08 - AC: Recover language of the sender */
-                    $sql = 'SELECT language FROM user WHERE user_id='.$result['user_id'];
-                    if(!($language = $this->db->queryrow($sql)))
-                    {
-                        $this->sdl->log('<b>Error:</b>Cannot read user language!', TICK_LOG_FILE_NPC);
-                        $language['language'] = 'ENG';
-                    }
+                    $this->sdl->log('User: #'.$result['user_id'].' has gotten a higher punishment - We, which has done this injustice, are bad', TICK_LOG_FILE_NPC);
 
-                    switch($language['language'])
+                    // Retrieve language of the sender
+                    switch($user['language'])
                     {
                         case 'GER':
                             $text ='<b>Sie haben einen Bann f&uuml;rs HZ bekommen</b>
-                                <br>Aufgrund ihrer erneuten Schulden bei Auktionen bekommen sie eine weitere Sperre von '.$sperre.' Ticks.<br>
+                                <br>Aufgrund ihrer erneuten Schulden bei Auktionen bekommen sie eine weitere Sperre von '.$block.' Ticks.<br>
                                 Beschwerden sind sinnlos. Einfach das n&auml;chste mal bezahlen.<br><br>
                                 Der Grund kann aber auch fehlverhalten im HZ sein.
                                 <br>--------------------------------------<br>
@@ -1048,7 +1051,7 @@ class Ferengi extends NPC
                         break;
                         case 'ENG':
                             $text ='<b>You have received a ban for CC</b>
-                                <br>Due to your renewed debts with auctions you get a further block of '.$sperre.' Ticks.<br>
+                                <br>Due to your renewed debts with auctions you get a further block of '.$block.' Ticks.<br>
                                 Complaints are senseless. Simply pay the next time.<br><br>
                                 However, the reason can also be failures in the CC.
                                 <br>--------------------------------------<br>
@@ -1057,7 +1060,7 @@ class Ferengi extends NPC
                         break;
                         case 'ITA':
                             $text='<b>Avete ricevuto una sospesione per il CC</b>
-                                <br>A causa dei vostri rinnovati debiti con le aste avete ricevuto un blocco di '.$sperre.' tick.<br>
+                                <br>A causa dei vostri rinnovati debiti con le aste avete ricevuto un blocco di '.$block.' tick.<br>
                                 Reclamare &egrave; insensato. Basta pagare la prossima volta.<br><br>
                                 Tuttavia, ci potrebbe essere un errore nel sistema del CC.
                                 <br>--------------------------------------<br>
@@ -1067,27 +1070,25 @@ class Ferengi extends NPC
                     }
                     $this->MessageUser($this->bot['user_id'],$result['user_id'],$title,$text);
 
-                }else if($sql_abfrage_1['user_trade']<$result['anzahl'] && $sql_abfrage_1['trade_tick']==0)
+                }else if($user['user_trade']<$result['number'] && $user['trade_tick']==0)
                 {
-                    $anzahl_sperren++;
-                    $endtick=$sperre+$ACTUAL_TICK;
-                    $sql_x='UPDATE user SET user_trade='.$result['anzahl'].',trade_tick='.($sperre+$ACTUAL_TICK).' WHERE user_id="'.$result['user_id'].'"';
-                    $this->sdl->log('User:'.$result['user_id'].' was banned - which he will meet his doom', TICK_LOG_FILE_NPC);
-                    if(!$this->db->query($sql_x)) $this->sdl->log('<b>Error:</b> User '.$result['user_id'].' cannot be locked for '.($sperre*3).' minutes.</b>', TICK_LOG_FILE_NPC);
+                    $number_locks++;
+                    $endtick=$block+$ACTUAL_TICK;
+                    $sql = 'UPDATE user SET user_trade='.$result['number'].',
+                                            trade_tick='.$endtick.'
+                            WHERE user_id="'.$result['user_id'].'"';
+                    if(!$this->db->query($sql))
+                        $this->sdl->log('<b>Error:</b> User #'.$result['user_id'].' cannot be locked for '.$block_min.' minutes.',
+                            TICK_LOG_FILE_NPC);
 
-                    /* 17/03/08 - AC: Recover language of the sender */
-                    $sql = 'SELECT language FROM user WHERE user_id='.$result['user_id'];
-                    if(!($language = $this->db->queryrow($sql)))
-                    {
-                        $this->sdl->log('<b>Error:</b> Cannot read user language!', TICK_LOG_FILE_NPC);
-                        $language['language'] = 'ENG';
-                    }
+                    $this->sdl->log('User: #'.$result['user_id'].' was banned - he will meet his doom', TICK_LOG_FILE_NPC);
 
-                    switch($language['language'])
+                    // Retrieve language of the sender
+                    switch($user['language'])
                     {
                         case 'GER':
                             $text ='<b>Sie haben einen Bann f&uuml;rs HZ bekommen</b>
-                                <br>Aufgrund ihrer Schulden bei Auktionen bekommen sie eine Sperre von '.($sperre*3).' Minuten.<br>
+                                <br>Aufgrund ihrer Schulden bei Auktionen bekommen sie eine Sperre von '.$block_min.' Minuten.<br>
                                 Beschwerden sind sinnlos. Einfach das n&auml;chste mal bezahlen.<br><br>
                                 Der Grund kann aber auch fehlverhalten im HZ sein.
                                 <br>--------------------------------------<br>
@@ -1096,7 +1097,7 @@ class Ferengi extends NPC
                         break;
                         case 'ENG':
                             $text ='<b>You have received a ban for CC</b>
-                                <br>Due to your debts with auctions you get a block of '.($sperre*3).' minutes.<br>
+                                <br>Due to your debts with auctions you get a block of '.$block_min.' minutes.<br>
                                 Complaints are senseless. Simply pay the next time.<br><br>
                                 However, the reason can also be failures in the CC.
                                 <br>--------------------------------------<br>
@@ -1105,7 +1106,7 @@ class Ferengi extends NPC
                         break;
                         case 'ITA':
                             $text='<b>Avete ricevuto una sospesione per il CC</b>
-                                <br>A causa dei vostri debiti con le aste avete ricevuto un blocco di '.($sperre*3).' minuti.<br>
+                                <br>A causa dei vostri debiti con le aste avete ricevuto un blocco di '.$block_min.' minuti.<br>
                                 Reclamare &egrave; insensato. Basta pagare la prossima volta.<br><br>
                                 Tuttavia, ci potrebbe essere un errore nel sistema del CC.
                                 <br>--------------------------------------<br>
@@ -1115,19 +1116,16 @@ class Ferengi extends NPC
                     }
                     $this->MessageUser($this->bot['user_id'],$result['user_id'],$title,$text);
                 }
-                else if($sql_abfrage_1['user_trade']==$result['anzahl'])
+                else if($user['user_trade']==$result['number'])
                 {
-                    $user_liste.='| '.$result['user_id'].' |';
+                    $users_list.='| '.$result['user_id'].' |';
 
                 }
-                
-                
             }
-            
         }
-        $this->sdl->log('User '.$user_liste.' have their penalties and let me turn my problem in women clarify matters.', TICK_LOG_FILE_NPC);
-        $this->sdl->log('There were '.$anzahl_sperren.' User locked', TICK_LOG_FILE_NPC);
-        $this->sdl->finish_job('User lock', TICK_LOG_FILE_NPC);
+        $this->sdl->log('Users '.$users_list.' have their penalties now let me turn to my problems in women clarify matters.', TICK_LOG_FILE_NPC);
+        $this->sdl->log('There were '.$number_locks.' users locked', TICK_LOG_FILE_NPC);
+        $this->sdl->finish_job('Users lock', TICK_LOG_FILE_NPC);
         // ########################################################################################
         // ########################################################################################
 
