@@ -444,16 +444,32 @@ class Ferengi extends NPC
                     }
                     else
                     {
-                        // Use the maximum bid achieved to calculate the amount of resources has to be paid
-                        $end_price[0]=($tradedata['resource_1']+($purchaser['max_bid'])*$tradedata['add_resource_1']);
-                        $end_price[1]=($tradedata['resource_2']+($purchaser['max_bid'])*$tradedata['add_resource_2']);
-                        $end_price[2]=($tradedata['resource_3']+($purchaser['max_bid'])*$tradedata['add_resource_3']);
-                        $end_price[3]=($tradedata['unit_1']+($purchaser['max_bid'])*$tradedata['add_unit_1']);
-                        $end_price[4]=($tradedata['unit_2']+($purchaser['max_bid'])*$tradedata['add_unit_2']);
-                        $end_price[5]=($tradedata['unit_3']+($purchaser['max_bid'])*$tradedata['add_unit_3']);
-                        $end_price[6]=($tradedata['unit_4']+($purchaser['max_bid'])*$tradedata['add_unit_4']);
-                        $end_price[7]=($tradedata['unit_5']+($purchaser['max_bid'])*$tradedata['add_unit_5']);
-                        $end_price[8]=($tradedata['unit_6']+($purchaser['max_bid'])*$tradedata['add_unit_6']);
+                        $sql = 'SELECT * FROM bidding
+                                WHERE trade_id ="'.$tradedata['id'].'"
+                                ORDER BY max_bid DESC LIMIT 1,1';
+                        $prelast_bid=$this->db->queryrow($sql);
+
+                        $sql = 'SELECT * FROM bidding
+                                WHERE trade_id ="'.$tradedata['id'].'"
+                                ORDER BY max_bid DESC LIMIT 1';
+                        $last_bid=$this->db->queryrow($sql);
+
+                        $this->sdl->log('Last Bid: '.$last_bid['max_bid'].' and Prelast Bid: '.$prelast_bid['max_bid'], TICK_LOG_FILE_NPC);
+
+                        // To test if there is a tie then max_bid +1
+                        if ($last_bid['max_bid']!=$prelast_bid['max_bid']) {
+                            $prelast_bid['max_bid']++;
+                        }
+
+                        $end_price[0]=$tradedata['resource_1'] + $prelast_bid['max_bid'] * $tradedata['add_resource_1'];
+                        $end_price[1]=$tradedata['resource_2'] + $prelast_bid['max_bid'] * $tradedata['add_resource_2'];
+                        $end_price[2]=$tradedata['resource_3'] + $prelast_bid['max_bid'] * $tradedata['add_resource_3'];
+                        $end_price[3]=$tradedata['unit_1'] + $prelast_bid['max_bid'] * $tradedata['add_unit_1'];
+                        $end_price[4]=$tradedata['unit_2'] + $prelast_bid['max_bid'] * $tradedata['add_unit_2'];
+                        $end_price[5]=$tradedata['unit_3'] + $prelast_bid['max_bid'] * $tradedata['add_unit_3'];
+                        $end_price[6]=$tradedata['unit_4'] + $prelast_bid['max_bid'] * $tradedata['add_unit_4'];
+                        $end_price[7]=$tradedata['unit_5'] + $prelast_bid['max_bid'] * $tradedata['add_unit_5'];
+                        $end_price[8]=$tradedata['unit_6'] + $prelast_bid['max_bid'] * $tradedata['add_unit_6'];
                     }
 
                     // Vendor:
