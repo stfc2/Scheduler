@@ -356,25 +356,27 @@ class Ferengi extends NPC
         // ########################################################################################
         // ########################################################################################
         // Shiptrade Scheduler
-        //So damit die Truppen dann auch wirklich bezhalt werden müssen, jetzt muss es nur noch tapsicher gemacht werden
+        // So, in order, the troops will have to be paid really well, now it just needs to be made​safe, Tap
         $this->sdl->start_job('Shiptrade Scheduler', TICK_LOG_FILE_NPC);
-        $alpha_zaehler='0';
-        $sql = 'SELECT s.*,u.user_name,u.num_auctions,COUNT(b.id) AS num_bids FROM (ship_trade s)
-            LEFT JOIN (user u) ON u.user_id=s.user
-            LEFT JOIN (bidding b) ON b.trade_id=s.id
-            WHERE s.scheduler_processed = 0 AND s.end_time <='.$ACTUAL_TICK.' GROUP BY s.id';
+
+        $sql = 'SELECT s.*,u.user_name,u.num_auctions,u.language,COUNT(b.id) AS num_bids FROM (ship_trade s)
+                LEFT JOIN (user u) ON u.user_id=s.user
+                LEFT JOIN (bidding b) ON b.trade_id=s.id
+                WHERE s.scheduler_processed = 0 AND s.end_time <='.$ACTUAL_TICK.' GROUP BY s.id';
         if(($q_strade = $this->db->query($sql)) === false) {
-            $this->sdl->log('<b>Error:</b> Could not query scheduler shiptrade data! CONTINUED', TICK_LOG_FILE_NPC);
+            $this->sdl->log('<b>Error:</b> cannot query scheduler shiptrade data! - CONTINUED', TICK_LOG_FILE_NPC);
         }
         else
         {
             $n_shiptrades = 0;
-            while($tradedata = $this->db->fetchrow($q_strade)) 
+            while($tradedata = $this->db->fetchrow($q_strade))
             {
+                // Check if auction had no bids
                 if ($tradedata['num_bids']<1)
                 {
-                    $this->sdl->log('shiptrade['.$tradedata['id'].'] had no bids', TICK_LOG_FILE_NPC);
-                    // Seller:
+                    $this->sdl->log('<i>Notice:</i> shiptrade['.$tradedata['id'].'] had no bids', TICK_LOG_FILE_NPC);
+
+                    // Vendor:
                     $log_data=array(
                         'player_name' => '',
                         'auction_id' => $tradedata['id'],
@@ -382,24 +384,17 @@ class Ferengi extends NPC
                         'resource_1' => 0,
                         'resource_2' => 0,
                         'resource_3' => 0,
-                        'unit_1'=>0,
-                        'unit_2'=>0,
-                        'unit_3'=>0,
-                        'unit_4'=>0,
-                        'unit_5'=>0,
-                        'unit_6'=>0,
+                        'unit_1' => 0,
+                        'unit_2' => 0,
+                        'unit_3' => 0,
+                        'unit_4' => 0,
+                        'unit_5' => 0,
+                        'unit_6' => 0,
                         'ship_id' => $tradedata['ship_id'],
                     );
 
-                    /* 02/04/08 - AC: Recover language of the sender */
-                    $sql = 'SELECT language FROM user WHERE user_id='.$tradedata['user'];
-                    if(!($language = $this->db->queryrow($sql)))
-                    {
-                        $this->sdl->log('<b>Error:</b> Cannot read user language!', TICK_LOG_FILE_NPC);
-                        $language['language'] = 'ENG';
-                    }
-
-                    switch($language['language'])
+                    // Retrieve language of the vendor
+                    switch($tradedata['language'])
                     {
                         case 'GER':
                             $log_title = 'Auktion benachrichtigung (Erfolgslos)';
@@ -410,29 +405,33 @@ class Ferengi extends NPC
                         case 'ITA':
                             $log_title = 'Notifica asta (non riuscita)';
                         break;
+                        default:
+                            $log_title = 'Auction notification (no success)';
                     }
-                    /* */
 
-                    add_logbook_entry($tradedata['user'], LOGBOOK_AUCTION_VENDOR, $log_title, $log_data);
+                    if(!add_logbook_entry($tradedata['user'], LOGBOOK_AUCTION_VENDOR, $log_title, $log_data))
+                        $this->sdl->log('<b>Error:</b> Logbook could not be written - '.$tradedata['user'], TICK_LOG_FILE_NPC);;
+
+                    // Unlock the auctioned ship
                     if ($this->db->query('UPDATE ships SET ship_untouchable=0 WHERE ship_id='.$tradedata['ship_id'])!=true)
-                        $this->sdl->log('<b>Error (Critical)</b>: shiptrade['.$tradedata['id'].']: failed to free ship['.$tradedata['ship_id'].']!', TICK_LOG_FILE_NPC);
+                        $this->sdl->log('<b>CRITICAL ERROR</b>: shiptrade['.$tradedata['id'].']: failed to free ship['.$tradedata['ship_id'].']! - CONTINUED',
+                            TICK_LOG_FILE_NPC);
                 }
                 else
                 {
-                    $this->sdl->log('Trade id: '.$tradedata['id'], TICK_LOG_FILE_NPC);
-                    $hbieter= $this->db->queryrow('SELECT b.*,u.user_id,u.user_name FROM (bidding b) LEFT JOIN (user u) ON u.user_id=b.user WHERE b.trade_id ="'.$tradedata['id'].'" ORDER BY b.max_bid DESC LIMIT 1');
+                    $this->sdl->log('Trade id: '.$tradedata['id'].' ended successfully', TICK_LOG_FILE_NPC);
 
-                    $endprice[0]=-1;
-                    $endprice[1]=-1;
-                    $endprice[2]=-1;
-                    $endprice[3]=-1;
-                    $endprice[4]=-1;
-                    $endprice[5]=-1;
-                    $endprice[6]=-1;
-                    $endprice[7]=-1;
-                    $endprice[8]=-1;
+                    // Retrieve higher bidder
+                    $sql = 'SELECT b.*,u.user_id,u.user_name,u.language
+                            FROM (bidding b) LEFT JOIN (user u) ON u.user_id=b.user
+                            WHERE b.trade_id ="'.$tradedata['id'].'"
+                            ORDER BY b.max_bid DESC LIMIT 1';
+                    $purchaser = $this->db->queryrow($sql);
+
+                    // Check if there was only one bid
                     if ($tradedata['num_bids']<2)
                     {
+                        // End price is simply the entry price
                         $end_price[0]=$tradedata['resource_1'];
                         $end_price[1]=$tradedata['resource_2'];
                         $end_price[2]=$tradedata['resource_3'];
@@ -445,154 +444,131 @@ class Ferengi extends NPC
                     }
                     else
                     {
-                        $prelast_bid=$this->db->queryrow('SELECT * FROM bidding  WHERE trade_id ="'.$tradedata['id'].'" ORDER BY max_bid DESC LIMIT 1,1');
-                        // Um zu testen, ob ein Gleichstand besteht, dann wird ja nicht max_bid +1
-                        $last_bid=$this->db->queryrow('SELECT * FROM bidding WHERE trade_id ="'.$tradedata['id'].'" ORDER BY max_bid DESC LIMIT 1');
-                        $this->sdl->log('Last Bid:'.$last_bid['max_bid'].' and Prelastbid:'.$prelast_bid['max_bid'], TICK_LOG_FILE_NPC);
-                        if ($last_bid['max_bid']!=$prelast_bid['max_bid'])
-                        {
-                            $end_price[0]=($tradedata['resource_1']+($prelast_bid['max_bid']+1)*$tradedata['add_resource_1']);
-                            $end_price[1]=($tradedata['resource_2']+($prelast_bid['max_bid']+1)*$tradedata['add_resource_2']);
-                            $end_price[2]=($tradedata['resource_3']+($prelast_bid['max_bid']+1)*$tradedata['add_resource_3']);
-                            $end_price[3]=($tradedata['unit_1']+($prelast_bid['max_bid']+1)*$tradedata['add_unit_1']);
-                            $end_price[4]=($tradedata['unit_2']+($prelast_bid['max_bid']+1)*$tradedata['add_unit_2']);
-                            $end_price[5]=($tradedata['unit_3']+($prelast_bid['max_bid']+1)*$tradedata['add_unit_3']);
-                            $end_price[6]=($tradedata['unit_4']+($prelast_bid['max_bid']+1)*$tradedata['add_unit_4']);
-                            $end_price[7]=($tradedata['unit_5']+($prelast_bid['max_bid']+1)*$tradedata['add_unit_5']);
-                            $end_price[8]=($tradedata['unit_6']+($prelast_bid['max_bid']+1)*$tradedata['add_unit_6']);
-                        }
-                        else
-                        {
-                            $end_price[0]=($tradedata['resource_1']+($prelast_bid['max_bid'])*$tradedata['add_resource_1']);
-                            $end_price[1]=($tradedata['resource_2']+($prelast_bid['max_bid'])*$tradedata['add_resource_2']);
-                            $end_price[2]=($tradedata['resource_3']+($prelast_bid['max_bid'])*$tradedata['add_resource_3']);
-                            $end_price[3]=($tradedata['unit_1']+($prelast_bid['max_bid'])*$tradedata['add_unit_1']);
-                            $end_price[4]=($tradedata['unit_2']+($prelast_bid['max_bid'])*$tradedata['add_unit_2']);
-                            $end_price[5]=($tradedata['unit_3']+($prelast_bid['max_bid'])*$tradedata['add_unit_3']);
-                            $end_price[6]=($tradedata['unit_4']+($prelast_bid['max_bid'])*$tradedata['add_unit_4']);
-                            $end_price[7]=($tradedata['unit_5']+($prelast_bid['max_bid'])*$tradedata['add_unit_5']);
-                            $end_price[8]=($tradedata['unit_6']+($prelast_bid['max_bid'])*$tradedata['add_unit_6']);
-                        }
+                        // Use the maximum bid achieved to calculate the amount of resources has to be paid
+                        $end_price[0]=($tradedata['resource_1']+($purchaser['max_bid'])*$tradedata['add_resource_1']);
+                        $end_price[1]=($tradedata['resource_2']+($purchaser['max_bid'])*$tradedata['add_resource_2']);
+                        $end_price[2]=($tradedata['resource_3']+($purchaser['max_bid'])*$tradedata['add_resource_3']);
+                        $end_price[3]=($tradedata['unit_1']+($purchaser['max_bid'])*$tradedata['add_unit_1']);
+                        $end_price[4]=($tradedata['unit_2']+($purchaser['max_bid'])*$tradedata['add_unit_2']);
+                        $end_price[5]=($tradedata['unit_3']+($purchaser['max_bid'])*$tradedata['add_unit_3']);
+                        $end_price[6]=($tradedata['unit_4']+($purchaser['max_bid'])*$tradedata['add_unit_4']);
+                        $end_price[7]=($tradedata['unit_5']+($purchaser['max_bid'])*$tradedata['add_unit_5']);
+                        $end_price[8]=($tradedata['unit_6']+($purchaser['max_bid'])*$tradedata['add_unit_6']);
                     }
 
-                    if ($end_price[0]<0 || $end_price[1]<0 || $end_price[2]<0 || $end_price[3]<0 || $end_price[4]<0 ||
-                        $end_price[5]<0 || $end_price[6]<0 || $end_price[7]<0 || $end_price[8]<0)
+                    // Vendor:
+                    $log_data=array(
+                        'player_name' => $purchaser['user_name'],
+                        'player_id' => $purchaser['user_id'],
+                        'auction_id' => $tradedata['id'],
+                        'auction_name' => $tradedata['header'],
+                        'resource_1' => $end_price[0],
+                        'resource_2' => $end_price[1],
+                        'resource_3' => $end_price[2],
+                        'unit_1' => $end_price[3],
+                        'unit_2' => $end_price[4],
+                        'unit_3' => $end_price[5],
+                        'unit_4' => $end_price[6],
+                        'unit_5' => $end_price[7],
+                        'unit_6' => $end_price[8],
+                        'ship_id' => $tradedata['ship_id'],
+                    );
+
+                    // Retrieve language of the vendor
+                    switch($tradedata['language'])
                     {
-                        $this->sdl->log('<b>Error:</b> shiptrade['.$tradedata['id'].'] had '.$tradedata['num_bids'].' bids but didn\'t find end_price', TICK_LOG_FILE_NPC);
+                        case 'GER':
+                            $log_title = 'Auktion benachrichtigung (Verkauft)';
+                        break;
+                        case 'ENG':
+                            $log_title = 'Auction notification (sold)';
+                        break;
+                        case 'ITA':
+                            $log_title = 'Notifica asta (vendita)';
+                        break;
+                        default:
+                             $log_title = 'Auction notification (sold)';
                     }
-                    else
+
+                    if(!add_logbook_entry($tradedata['user'], LOGBOOK_AUCTION_VENDOR, $log_title, $log_data))
+                        $this->sdl->log('<b>Error:</b> Logbook could not be written - '.$tradedata['user'], TICK_LOG_FILE_NPC);;
+
+                    // Purchaser:
+                    $log_data=array(
+                        'player_name' => $tradedata['user'],
+                        'auction_id' => $tradedata['id'],
+                        'auction_name' => $tradedata['header'],
+                        'resource_1' => $end_price[0],
+                        'resource_2' => $end_price[1],
+                        'resource_3' => $end_price[2],
+                        'unit_1' => $end_price[3],
+                        'unit_2' => $end_price[4],
+                        'unit_3' => $end_price[5],
+                        'unit_4' => $end_price[6],
+                        'unit_5' => $end_price[7],
+                        'unit_6' => $end_price[8],
+                        'ship_id' => $tradedata['ship_id'],
+                    );
+
+                    // Retireve language of the purchaser
+                    switch($purchaser['language'])
                     {
-                        // Seller:
-                        $log_data=array(
-                            'player_name' => $hbieter['user_name'],
-                            'player_id' => $hbieter['user_id'],
-                            'auction_id' => $tradedata['id'],
-                            'auction_name' => $tradedata['header'],
-                            'resource_1' => $end_price[0],
-                            'resource_2' => $end_price[1],
-                            'resource_3' => $end_price[2],
-                            'unit_1' => $end_price[3],
-                            'unit_2' => $end_price[4],
-                            'unit_3' => $end_price[5],
-                            'unit_4' => $end_price[6],
-                            'unit_5' => $end_price[7],
-                            'unit_6' => $end_price[8],
-                            'ship_id' => $tradedata['ship_id'],
-                        );
+                        case 'GER':
+                            $log_title = 'Auktion benachrichtigung (Gekauft)';
+                        break;
+                        case 'ENG':
+                            $log_title = 'Auction notification (bought)';
+                        break;
+                        case 'ITA':
+                            $log_title = 'Notifica asta (acquisto)';
+                        break;
+                        default:
+                             $log_title = 'Auction notification (bought)';
+                    }
 
-                        /* 02/04/08 - AC: Recover language of the sender */
-                        $sql = 'SELECT language FROM user WHERE user_id='.$tradedata['user'];
-                        if(!($language = $this->db->queryrow($sql)))
-                        {
-                            $this->sdl->log('<b>Error:</b> Cannot read user language!', TICK_LOG_FILE_NPC);
-                            $language['language'] = 'ENG';
-                        }
+                    if(!add_logbook_entry($hbieter['user_id'], LOGBOOK_AUCTION_PURCHASER, $log_title, $log_data))
+                        $this->sdl->log('<b>Error:</b> Logbook could not be written - '.$purchaser['user_id'], TICK_LOG_FILE_NPC);
 
-                        switch($language['language'])
-                        {
-                            case 'GER':
-                                $log_title = 'Auktion benachrichtigung (Verkauft)';
-                            break;
-                            case 'ENG':
-                                $log_title = 'Auction notification (sold)';
-                            break;
-                            case 'ITA':
-                                $log_title = 'Notifica asta (vendita)';
-                            break;
-                            default:
-                                 $log_title = 'Auction notification (sold)';
-                        }
-                        /* */
+                    $this->sdl->log('Bidder ID: '.$purchaser['user_id'].' and Seller ID: '.$tradedata['user'], TICK_LOG_FILE_NPC);
 
-                        if(!add_logbook_entry($tradedata['user'], LOGBOOK_AUCTION_VENDOR, $log_title, $log_data))
-                            $this->sdl->log('<b>Error:</b> Logbook could not be written - '.$tradedata['user'], TICK_LOG_FILE_NPC);;
+                    // Insert payment request for purchase user
+                    $sql = 'INSERT INTO schulden_table (user_ver,user_kauf,ship_id,
+                                                        ress_1,ress_2,ress_3,
+                                                        unit_1,unit_2,unit_3,
+                                                        unit_4,unit_5,unit_6,
+                                                        timestep,auktions_id)
+                            VALUES ('.$tradedata['user'].','.$hbieter['user_id'].','.$tradedata['ship_id'].',
+                                    '.$end_price[0].','.$end_price[1].','.$end_price[2].',
+                                    '.$end_price[3].','.$end_price[4].','.$end_price[5].',
+                                    '.$end_price[6].','.$end_price[7].','.$end_price[8].',
+                                    '.$ACTUAL_TICK.','.$tradedata['id'].')';
 
-                        // Purchaser:
-                        $log_data=array(
-                            'player_name' => $tradedata['user'],
-                            'auction_id' => $tradedata['id'],
-                            'auction_name' => $tradedata['header'],
-                            'resource_1' => $end_price[0],
-                            'resource_2' => $end_price[1],
-                            'resource_3' => $end_price[2],
-                            'unit_1' => $end_price[3],
-                            'unit_2' => $end_price[4],
-                            'unit_3' => $end_price[5],
-                            'unit_4' => $end_price[6],
-                            'unit_5' => $end_price[7],
-                            'unit_6' => $end_price[8],
-                            'ship_id' => $tradedata['ship_id'],
-                        );
+                    if(!$this->db->query($sql))
+                    {
+                        $this->sdl->log('<b>CRITICAL ERROR:</b> debts were not saved: "'.$sql.'" -  CONTINUED',
+                            TICK_LOG_FILE_NPC);
+                    }else{
+                        $code=$this->db->insert_id();
 
-                        /* 02/04/08 - AC: Recover language of the sender */
-                        $sql = 'SELECT language FROM user WHERE user_id='.$hbieter['user_id'];
-                        if(!($language = $this->db->queryrow($sql)))
-                        {
-                            $this->sdl->log('<b>Error:</b> Cannot read user language!', TICK_LOG_FILE_NPC);
-                            $language['language'] = 'ENG';
-                        }
+                        $this->sdl->log('Payment request inserted [Code]: '.$code, TICK_LOG_FILE_NPC);
 
-                        switch($language['language'])
-                        {
-                            case 'GER':
-                                $log_title = 'Auktion benachrichtigung (Gekauft)';
-                            break;
-                            case 'ENG':
-                                $log_title = 'Auction notification (bought)';
-                            break;
-                            case 'ITA':
-                                $log_title = 'Notifica asta (acquisto)';
-                            break;
-                            default:
-                                 $log_title = 'Auction notification (bought)';
-                        }
-                        /* */
-
-                        if(!add_logbook_entry($hbieter['user_id'], LOGBOOK_AUCTION_PURCHASER, $log_title, $log_data))
-                            $this->sdl->log('<b>Error:</b> Logbook could not be written - '.$hbieter['user_id'], TICK_LOG_FILE_NPC);
-                        $this->sdl->log('Bidder:'.$hbieter['user_id'].' and Seller:'.$tradedata['user'], TICK_LOG_FILE_NPC);
-                        $sql='INSERT INTO schulden_table (user_ver,user_kauf,ship_id,ress_1,ress_2,ress_3,unit_1,unit_2,unit_3,unit_4,unit_5,unit_6,timestep,auktions_id)
-                            VALUES ('.$tradedata['user'].','.$hbieter['user_id'].','.$tradedata['ship_id'].','.$end_price[0].','.$end_price[1].','.$end_price[2].','.$end_price[3].','.$end_price[4].','.$end_price[5].','.$end_price[6].','.$end_price[7].','.$end_price[8].','.$ACTUAL_TICK.','.$tradedata['id'].')';
+                        // Create an account for vendor user
+                        $sql='INSERT INTO treuhandkonto (code,timestep) VALUES ('.$code.','.$ACTUAL_TICK.')';
                         if(!$this->db->query($sql))
-                        {
-                            $this->sdl->log('<b>Error: (Critical)</b> Debts were not saved: "'.$sql.'" - TICK EXECUTION CONTINUED', TICK_LOG_FILE_NPC);
-                        }else{
-                            $code=$this->db->insert_id();
-                            $this->sdl->log('[Code]: '.$code.'', TICK_LOG_FILE_NPC);
-                            $sql='INSERT INTO treuhandkonto (code,timestep) VALUES ('.$code.','.$ACTUAL_TICK.')';
-                            if(!$this->db->query($sql)) $this->sdl->log('<b>Error:</b> <b>Auction</b>Could not set number -'.$code, TICK_LOG_FILE_NPC);
-                            $sql='SELECT * FROM treuhandkonto WHERE code='.$code.'';
-                            $Auktionsnummer = $this->db->queryrow($sql);
-                            //Schiff dem NPC geben
-                            $plani=$this->bot['planet_id']*(-1);
-                            $sql='UPDATE ships SET user_id="'.$this->bot['user_id'].'", fleet_id="'.$plani.'" WHERE ship_id="'.$tradedata['ship_id'].'"';
-                            $this->sdl->log('Ramona gets a ship ('.$plani.')...'.$sql, TICK_LOG_FILE_NPC);    
-                            if(!$this->db->query($sql))
-                            {
-                                $this->sdl->log('<b>Error: (Critical)</b>Could not give the ship to the Bot - '.$sql, TICK_LOG_FILE_NPC);
-                            }else{
-                                $this->sdl->log('shiptrade['.$tradedata['id'].'], processed sucessfully', TICK_LOG_FILE_NPC);
-                            }
+                            $this->sdl->log('<b>CRITICAL ERROR:</b> cannot create auction trust account number: '.$code.' CONTINUED',
+                                TICK_LOG_FILE_NPC);
+
+                        // Ship enters in the spacedock of the BOT
+                        $spacedock=$this->bot['planet_id']*(-1);
+                        $sql = 'UPDATE ships SET user_id="'.$this->bot['user_id'].'",
+                                                 fleet_id="'.$spacedock.'"
+                                WHERE ship_id="'.$tradedata['ship_id'].'"';
+                        if(!$this->db->query($sql)) {
+                            $this->sdl->log('<b>CRITICAL ERROR:</b> cannot give the ship to Ramona - '.$sql, TICK_LOG_FILE_NPC);
+                        }
+                        else {
+                            $this->sdl->log('Ramona got a ship ('.$spacedock.')... shiptrade['.$tradedata['id'].'], processed sucessfully',
+                                TICK_LOG_FILE_NPC);
                         }
                     }
                 }
@@ -601,10 +577,11 @@ class Ferengi extends NPC
             }
 
             $sql = 'UPDATE ship_trade SET scheduler_processed=1
-                WHERE end_time <= '.$ACTUAL_TICK.' AND scheduler_processed=0
-                LIMIT '.$n_shiptrades;
+                    WHERE end_time <= '.$ACTUAL_TICK.' AND scheduler_processed=0
+                    LIMIT '.$n_shiptrades;
             if(!$this->db->query($sql)) {
-                $this->sdl->log('<b>Error: (Critical)</b> Could not update scheduler_shiptrade data - TICK EXECUTION CONTINUED -'.$sql, TICK_LOG_FILE_NPC);
+                $this->sdl->log('<b>CRITICAL ERROR:</b> cannot update scheduler_shiptrade data - CONTINUED -'.$sql,
+                    TICK_LOG_FILE_NPC);
             }
             unset($tradedata);
         }
