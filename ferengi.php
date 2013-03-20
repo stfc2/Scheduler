@@ -25,11 +25,11 @@ define('PICK_RESOURCES_FROM_PLANET',1); // 1 = remove resources from BOT's plane
 
 //#######################################################################################
 //#######################################################################################
-//Changelog sonst kapier ich bei Ramona bald nix mehr - Frauen eben
+// Changelog sonst kapier ich bei Ramona bald nix mehr - Frauen eben
 
 /* 14. Juni 2007
-  @Thema: Truppenverkaufszahlen Graphenbrechnung
-  @Action: geändert  bzw verbessert
+  @Thema: Troop sales figures graph interruption
+  @Action: changed or improved
 */
 
 //#######################################################################################
@@ -293,7 +293,7 @@ class Ferengi extends NPC
         $this->sdl->log('<br><b>-------------------------------------------------------------</b><br>'.
             '<b>Starting Bot Scheduler at '.date('d.m.y H:i:s', time()).'</b>', TICK_LOG_FILE_NPC);
 
-        //So that the robot can also be life we need some info
+        // We need some info to allow the BOT to live
         $this->bot = $this->db->queryrow('SELECT * FROM FHB_Bot LIMIT 0,1');
         if($this->bot)
             $this->sdl->log("The conversation with Ramona begins, oh, it is not beautiful, and then, it has such a great personality", TICK_LOG_FILE_NPC);
@@ -301,6 +301,7 @@ class Ferengi extends NPC
             $this->sdl->log('<b>Error:</b> No access to the bot table - ABORTED', TICK_LOG_FILE_NPC);
             return;
         }
+
         // ########################################################################################
         // ########################################################################################
         // Messages answer
@@ -927,34 +928,30 @@ class Ferengi extends NPC
         $this->sdl->log('Deleted accounts: '.$deleted_accounts, TICK_LOG_FILE_NPC);
         $this->sdl->log('Number of fun bidders: '.$spassbieter, TICK_LOG_FILE_NPC);
         $this->sdl->log('Number of messages: '.$nachrichten_a++, TICK_LOG_FILE_NPC);
-        $this->sdl->finish_job('Trust Account monitor', TICK_LOG_FILE_NPC);    
+        $this->sdl->finish_job('Trust Account monitor', TICK_LOG_FILE_NPC);
         // ########################################################################################
-        // Calculate quotes
-        // Where tick and class
+        // ########################################################################################
+        // Calculate troops sales
         $this->sdl->start_job('Stock trading ship', TICK_LOG_FILE_NPC);
-        $sql_1 = array();
-        $sql_2 = array();
-        $sql_3 = array();
         $min_tick=$ACTUAL_TICK-(20*24);
         if($min_tick<0) $min_tick=0;
         $max_tick=$ACTUAL_TICK;
-        $new_preis = $ACTUAL_TICK%20;
-        $new_preis=($new_preis==0) ? 'true' : 'false';
-        $this->sdl->log('Actual Tick:'.$ACTUAL_TICK.' -- '.$new_preis.' -- Period of:'.$min_tick.'', TICK_LOG_FILE_NPC);
+        $new_graph = (($ACTUAL_TICK % 20) == 0) ? 'true' : 'false';
+        $this->sdl->log('Actual Tick: '.$ACTUAL_TICK.' -- '.$new_graph.' -- Period of: '.$min_tick, TICK_LOG_FILE_NPC);
 
-        if($new_preis=='true')
+        if($new_graph == 'true')
         {
             $this->sdl->log('New graph is made.....', TICK_LOG_FILE_NPC);
             include("simple_graph.class.php");
             exec('cd '.FILE_PATH_hg.'kurs/; rm -f *.png');
 
             $this->sdl->start_job('Purchase - Unit', TICK_LOG_FILE_NPC);
-            $this->graph_zeichnen("unit_1",$ACTUAL_TICK);
-            $this->graph_zeichnen("unit_2",$ACTUAL_TICK);
-            $this->graph_zeichnen("unit_3",$ACTUAL_TICK);
-            $this->graph_zeichnen("unit_4",$ACTUAL_TICK);
-            $this->graph_zeichnen("unit_5",$ACTUAL_TICK);
-            $this->graph_zeichnen("unit_6",$ACTUAL_TICK);
+            $this->graph_draw("unit_1");
+            $this->graph_draw("unit_2");
+            $this->graph_draw("unit_3");
+            $this->graph_draw("unit_4");
+            $this->graph_draw("unit_5");
+            $this->graph_draw("unit_6");
             $this->sdl->finish_job('Purchase - Unit', TICK_LOG_FILE_NPC);
         }
         $this->sdl->finish_job('Stock trading ship', TICK_LOG_FILE_NPC);
@@ -1608,73 +1605,80 @@ class Ferengi extends NPC
         $this->sdl->log('<b>Finished Scheduler in <font color=#009900>'.round((microtime()+time())-$starttime, 4).' secs</font><br>Executed Queries: <font color=#ff0000>'.$this->db->i_query.'</font></b>', TICK_LOG_FILE_NPC);
     }
 
-    function graph_zeichnen($art,$ticker,$stand="",$temp_id="")
+    function graph_draw($kind)
     {
+        global $ACTUAL_TICK;
 
-        $Umwelt = mysql_query('SELECT * FROM config LIMIT 0 , 1');
-        while($Umwelt_t=mysql_fetch_array($Umwelt))
-        {$ACTUAL_TICK = $Umwelt_t['tick_id'];}
-
-        $sql='SELECT '.$art.', tick FROM FHB_handel_log WHERE art=1  ORDER BY `tick` ASC  ';
-        $sql=mysql_query($sql);
-        $num_rows = mysql_num_rows($sql);
-        $wert=0;
-        $zaehler=0;
-        $zaehlera=0;
-        $end_tick=0;
-        $zw_zw_zw=0;
-        $start_tick=0;
-        $ticker=$ACTUAL_TICK;
-        $zeit=(($ACTUAL_TICK-24176)*3)/60;
-        $zeit=(int)$zeit;
-        while($daten=mysql_fetch_array($sql))
-        {
-            if($tick==0)$tick=$daten['tick'];
-            if($end_tick==0)$end_tick=$daten['tick']+80;
-            if($start_tick==0)$start_tick=$daten['tick'];
-            if($daten['tick']>$ticker) break;
-            if($end_tick<=$daten['tick'] || $daten['tick']==$ACTUAL_TICK || $num_rows==$zaehler)
-            {
-                $arr[$zaehlera]['size']=$wert;
-                $stunden=($ticker-$daten['tick'])*3;
-                $minuten_start=($ticker-$start_tick)*3;
-                $minuten_ende=($ticker-$end_tick)*3;
-                $minuten_start_x=($start_tick)*3;
-                $minuten_ende_y=($end_tick)*3;
-                $stunde=date("H");
-                $start=floor(($minuten_start)/60);
-                $ende=floor(($minuten_ende)/60);
-
-                $ergebniss_start=($stunde+2)-($start-((floor($start/24))*24));
-                if($ergebniss_start<0)$ergebniss_start=24+($ergebniss_start);
-                $ergebniss_ende=($stunde+2)-($ende-((floor($ende/24))*24));
-                if($ergebniss_ende<0)$ergebniss_ende=24+($ergebniss_ende);
-
-                $arr[$zaehlera]['name']=$ergebniss_start.'h-'.$ergebniss_ende.'h';
-                $tick=0;
-                $zaehlera++;
-                $end_tick=$end_tick+80;
-                $start_tick=$end_tick;
-                $wert=0;
-            }
-            $zaehler++;
-            $wert+=$daten[$art];
+        // At the moment the query read ALL the troops traded since the game started...
+        // I believe we can do better then this...
+        $sql = 'SELECT '.$kind.', tick FROM FHB_handel_log WHERE art=1  ORDER BY `tick` ASC';
+        if(($units_sold = $this->db->query($sql)) === false) {
+            $this->sdl->log('<b>Error:</b> cannot read transactions data for units '.$kind.'! SKIP',TICK_LOG_FILE_NPC);
+            return;
         }
-        $zaehlera=$zaehlera-7;
+
+        $num_rows = $this->db->num_rows();
+        $worth=0;
+        $count=0;
+        $count_a=0;
+        $end_tick=0;
+        $start_tick=0;
+        $hour = date("H");
+
+        while($data = $this->db->fetchrow($units_sold))
+        {
+            // Place $end_tick four hours ahead of current read tick
+            if($end_tick == 0) $end_tick = $data['tick'] + (240 / TICK_DURATION);
+            if($start_tick == 0) $start_tick = $data['tick'];
+
+            if($data['tick'] > $ACTUAL_TICK) break;
+
+            if($end_tick <= $data['tick'] || $data['tick'] == $ACTUAL_TICK || $num_rows == $count)
+            {
+                // Calculate elapsed minutes between actual tick and last troops traded
+                $minutes_start   = ($ACTUAL_TICK - $start_tick) * TICK_DURATION;
+                $minutes_end     = ($ACTUAL_TICK - $end_tick) * TICK_DURATION;
+
+                // Convert minutes into hours
+                $start = floor($minutes_start / 60);
+                $end   = floor($minutes_end / 60);
+
+                // Convert hours into human readable time
+                $earnings_start = $hour - ($start - (floor($start / 24) * 24));
+                if($earnings_start < 0) $earnings_start = 24 + $earnings_start;
+                $earnings_end = $hour - ($end - (floor($end / 24) * 24));
+                if($earnings_end < 0) $earnings_end = 24 + ($earnings_end);
+
+                // Setup graph line properties
+                $arr[$count_a]['size']=$worth;
+                $arr[$count_a]['name']=$earnings_start.'h-'.$earnings_end.'h';
+
+                // Prepare to elaborate another frame of 4h
+                $worth=0;
+                $count_a++;
+                $start_tick = $end_tick;
+                $end_tick = $end_tick + (240 / TICK_DURATION);
+            }
+            $count++;
+            $worth+=$data[$kind];
+        }
+
+        // Plot only the last seven four hours frames
+        $count_a=$count_a-7;
         for($aa=0;$aa<7;$aa++)
         {
-            $ausgabe[$aa]['size']=$arr[$zaehlera]['size'];
-            $ausgabe[$aa]['name']=$arr[$zaehlera]['name'];
-            $zaehlera++;
+            $output[$aa]['size']=$arr[$count_a]['size'];
+            $output[$aa]['name']=$arr[$count_a]['name'];
+            $count_a++;
         }
-        //zuerst einmal ohne Where, vielleicht ein zaehler um das Problem zu lösen? Aber Tap ist ja wieder offline - wegen seinem motorrad
+
         $simpleGraph2 = new simpleGraph();
         $simpleGraph2->create("430", "200");
-        $simpleGraph2->headline("Sales figures ".$art);
-        $simpleGraph2->line($ausgabe);
-        $simpleGraph2->showGraph(FILE_PATH_hg."kurs/".$art."_.png");
+        $simpleGraph2->headline("Sales figures ".$kind);
+        $simpleGraph2->line($output);
+        $simpleGraph2->showGraph(FILE_PATH_hg."kurs/".$kind.".png");
         unset($arr);
-        unset($ausgabe);
+        unset($output);
     }
 
 }
