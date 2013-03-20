@@ -935,30 +935,31 @@ class Ferengi extends NPC
         // ########################################################################################
         // ########################################################################################
         // Users release from TC
-        $this->sdl->start_job('User release', TICK_LOG_FILE_NPC);
-        $sql = "SELECT user_id,user_trade,trade_tick FROM user WHERE user_trade>0 AND trade_tick<=".$ACTUAL_TICK." AND trade_tick!=0";
-        if(!$temps=$this->db->query($sql)) $this->sdl->log('<b>Error:</b> User query went wrong -- '.$sql, TICK_LOG_FILE_NPC);
-        $anzahl_freigeben=0; 
+        $this->sdl->start_job('Users release', TICK_LOG_FILE_NPC);
+        $sql = "SELECT user_id,user_trade,trade_tick,language FROM user
+                WHERE user_trade>0 AND
+                      trade_tick<=".$ACTUAL_TICK." AND
+                      trade_tick!=0";
+        if(!$temps=$this->db->query($sql))
+            $this->sdl->log('<b>Error:</b> cannot query user data - SKIP', TICK_LOG_FILE_NPC);
+        $number_released=0; 
         while($result = $this->db->fetchrow($temps))
         {
             //[23:19] <Secius> there is a sql statement
             //[23:19] <Secius> but nothing sends it to the DB
             //[23:19] <Mojo1987> lol
             //[23:19] <Mojo1987> the good^^
-            $sql_x='UPDATE user SET trade_tick=0 WHERE user_id="'.$result['user_id'].'"';
-            $this->sdl->log('User:'.$result['user_id'].' got the freedom to the women of this Galaxy fear to empty', TICK_LOG_FILE_NPC);
-            if(!$this->db->query($sql_x)) $this->sdl->log('<b>Error:</b> update of the user --'.$sql_x, TICK_LOG_FILE_NPC);
-            $anzahl_freigeben++;
+            $sql = 'UPDATE user SET trade_tick=0 WHERE user_id="'.$result['user_id'].'"';
+            if(!$this->db->query($sql))
+                $this->sdl->log('<b>Error:</b> cannot update user data - CONTINUED',
+                    TICK_LOG_FILE_NPC);
 
-            /* 17/03/08 - AC: Recover language of the sender */
-            $sql = 'SELECT language FROM user WHERE user_id='.$result['user_id'];
-            if(!($language = $this->db->queryrow($sql)))
-            {
-                $this->sdl->log('<b>Error:</b> Cannot read user language!', TICK_LOG_FILE_NPC);
-                $language['language'] = 'ENG';
-            }
+            $this->sdl->log('User: #'.$result['user_id'].' got the freedom from the feared womAn of this Galaxy',
+                TICK_LOG_FILE_NPC);
+            $number_released++;
 
-            switch($language['language'])
+            /* Retrieve language of the sender */
+            switch($result['language'])
             {
                 case 'GER':
                     $text ='<b>Ihr HZ-Bann ist zu ende</b>
@@ -983,8 +984,8 @@ class Ferengi extends NPC
                 case 'ITA':
                     $text='<b>La vostra sospensione CC &egrave; terminata</b>
                         <br>
-                        Se non doveste avere accesso al Centro Commerciale, per favore informare lo
-                        staff di supporto - in aggiunta indicare loro la data di questo messaggio.
+                        Se non doveste avere accesso al Centro Commerciale, per favore informate lo
+                        staff di supporto - in aggiunta indicate loro la data di questo messaggio.
                         Altrimenti non potrete essere aiutati da loro.
                         <br>--------------------------------------<br>
                         Presidente delle Finanze Ferengi - e Ministro del Commercio';
@@ -993,8 +994,8 @@ class Ferengi extends NPC
             }
             $this->MessageUser($this->bot['user_id'],$result['user_id'],$title,$text);
         }
-        $this->sdl->log('There were '.$anzahl_freigeben.' user released', TICK_LOG_FILE_NPC);
-        $this->sdl->finish_job('User release', TICK_LOG_FILE_NPC);
+        $this->sdl->log('There were '.$number_released.' users released', TICK_LOG_FILE_NPC);
+        $this->sdl->finish_job('Users release', TICK_LOG_FILE_NPC);
         // ########################################################################################
         // ########################################################################################
         // Users lock for TC
