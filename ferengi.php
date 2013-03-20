@@ -526,7 +526,7 @@ class Ferengi extends NPC
                              $log_title = 'Auction notification (bought)';
                     }
 
-                    if(!add_logbook_entry($hbieter['user_id'], LOGBOOK_AUCTION_PURCHASER, $log_title, $log_data))
+                    if(!add_logbook_entry($purchaser['user_id'], LOGBOOK_AUCTION_PURCHASER, $log_title, $log_data))
                         $this->sdl->log('<b>Error:</b> Logbook could not be written - '.$purchaser['user_id'], TICK_LOG_FILE_NPC);
 
                     $this->sdl->log('Bidder ID: '.$purchaser['user_id'].' and Seller ID: '.$tradedata['user'], TICK_LOG_FILE_NPC);
@@ -537,7 +537,7 @@ class Ferengi extends NPC
                                                         unit_1,unit_2,unit_3,
                                                         unit_4,unit_5,unit_6,
                                                         timestep,auktions_id)
-                            VALUES ('.$tradedata['user'].','.$hbieter['user_id'].','.$tradedata['ship_id'].',
+                            VALUES ('.$tradedata['user'].','.$purchaser['user_id'].','.$tradedata['ship_id'].',
                                     '.$end_price[0].','.$end_price[1].','.$end_price[2].',
                                     '.$end_price[3].','.$end_price[4].','.$end_price[5].',
                                     '.$end_price[6].','.$end_price[7].','.$end_price[8].',
