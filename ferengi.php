@@ -2,10 +2,10 @@
 /*    
     This file is part of STFC.
     Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
-        
+
     STFC is based on STGC,
     Copyright 2003-2007 by Florian Brede (florian_brede@hotmail.com) and Philipp Schmidt
-    
+
     STFC is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
@@ -40,16 +40,6 @@ define('MALL_RESOURCES_AVAILABLE',0);   // 1 = resourses available at the Feregi
 // Startconfig of Ferengi
 class Ferengi extends NPC
 {
-    /*function Comparison($first,$second,$debug=0)
-    {
-        if($first==$second)
-        {
-            return 0;
-        }else{
-            return 1;
-        }
-    }*/
-
     // Function to create BOT structures
     public function Install($log = INSTALL_LOG_FILE_NPC)
     {
@@ -187,13 +177,6 @@ class Ferengi extends NPC
         // Check whether the ship already has templates
         $reloading=0;
         if($this->bot['ship_t_1'] == 0) {
-/*              $sql = 'INSERT INTO ship_templates
-                    (owner, timestamp, name, description, race, ship_torso, ship_class, component_1, component_2, component_3, component_4, component_5, component_6, component_7, component_8, component_9, component_10,
-                    value_1, value_2, value_3, value_4, value_5, value_6, value_7, value_8, value_9, value_10, value_11, value_12, value_13, value_14, value_15,
-                    resource_1, resource_2, resource_3, resource_4, unit_5, unit_6, min_unit_1, min_unit_2, min_unit_3, min_unit_4, max_unit_1, max_unit_2, max_unit_3, max_unit_4, buildtime) VALUES
-                    ("'.$this->bot['user_id'].'","'.time().'","Ferengi Trade Ship - Alpha","Transport","'.$this->bot['user_race'].'",1,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-                    "50","50","0","250","250","40","40","40","50","9.99","40","40","1","1","0",
-                    "200000","200000","200000","40000","5000","5000","5000","2500","2500","5000","5000","2500","2500",2000,0)';*/
             $sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
                                                 component_1, component_2, component_3, component_4, component_5,
                                                 component_6, component_7, component_8, component_9, component_10,
@@ -222,13 +205,6 @@ class Ferengi extends NPC
         }
         if($this->bot['ship_t_2']==0)
         {
-/*              $sql= 'INSERT INTO ship_templates
-                    (owner, timestamp, name, description, race, ship_torso, ship_class, component_1, component_2, component_3, component_4, component_5, component_6, component_7, component_8, component_9, component_10,
-                    value_1, value_2, value_3, value_4, value_5, value_6, value_7, value_8, value_9, value_10, value_11, value_12, value_13, value_14, value_15,
-                    resource_1, resource_2, resource_3, resource_4, unit_5, unit_6, min_unit_1, min_unit_2, min_unit_3, min_unit_4, max_unit_1, max_unit_2, max_unit_3, max_unit_4, buildtime) VALUES
-                    ("'.$this->bot['user_id'].'","'.time().'","Light Hunter - Alpha","Combat ship","'.$this->bot['user_race'].'",3,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-                    "4000","4000","100","6000","6000","60","60","60","60","9.99","60","60","1","1","0",
-                    "500000","500000","500000","50000","5000","10000","10000","2500","2500","5000","5000","2500","2500",2000,0)';*/
             $sql= 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
                                                component_1, component_2, component_3, component_4, component_5,
                                                component_6, component_7, component_8, component_9, component_10,
@@ -629,6 +605,24 @@ class Ferengi extends NPC
 
             while($debt = $this->db->fetchrow($trades))
             {
+                // Retrieve vendor language for message localization
+                $sql = 'SELECT language FROM user WHERE user_id='.$debt['user_ver'];
+                if(!($vendor = $this->db->queryrow($sql)))
+                {
+                    $this->sdl->log('<b>Error:</b> cannot read vendor user language!', TICK_LOG_FILE_NPC);
+                    $vendor['language'] = 'ENG';
+                }
+
+                // Retrieve some info about the purchaser (debtor?)
+                $sql = 'SELECT user_name,user_trade,language FROM user
+                        WHERE user_id='.$debt['user_kauf'];
+                if(!($purchaser = $this->db->queryrow($sql)))
+                {
+                    $this->sdl->log('<b>Error:</b> cannot read purchaser data! - CONTINUED',
+                        TICK_LOG_FILE_NPC);
+                    $purchaser['language'] = 'ENG';
+                }
+
                 // Retrieve trust account for the current auction
                 $accounts = $this->db->query('SELECT *,code AS id FROM treuhandkonto WHERE code="'.$debt['id'].'"');
                 $num = $this->db->num_rows();
@@ -645,25 +639,7 @@ class Ferengi extends NPC
                         if($debt[$key] != $account[$key])
                             $debt_paid_off = false;
                     }
-/*                    $wert[1]=$this->Comparison($account['unit_1'],$debt['unit_1']);
-                    $wert[2]=$this->Comparison($account['unit_2'],$debt['unit_2']);
-                    $wert[3]=$this->Comparison($account['unit_3'],$debt['unit_3']);
-                    $wert[4]=$this->Comparison($account['unit_4'],$debt['unit_4']);
-                    $wert[5]=$this->Comparison($account['unit_5'],$debt['unit_5']);
-                    $wert[6]=$this->Comparison($account['unit_6'],$debt['unit_6']);
-                    $wert[7]=$this->Comparison($account['ress_1'],$debt['ress_1']);
-                    $wert[8]=$this->Comparison($account['ress_2'],$debt['ress_2']);
-                    $wert[9]=$this->Comparison($account['ress_3'],$debt['ress_3']);
-                    $wert[10]=$this->Comparison($account['id'],$debt['id']);
-                    $wert_ende=0;
-                    
-                    for($aaa=1;$aaa<11;$aaa++)
-                    {
-                        if($wert[$aaa]==1)
-                        {
-                            $wert_ende=1;
-                        }
-                    }*/
+
                     if(!$debt_paid_off)
                     {
                         // Look if anyone has missed his trading
@@ -688,15 +664,8 @@ class Ferengi extends NPC
                                 // at lines 1073 and 1118 in job Users lock ahead.
                                 //$this->db->query('UPDATE user SET user_trade=user_trade+1 WHERE user_id="'.$debt['user_kauf'].'"');
 
-                                /* 10/03/08 - AC: Recover language of the sender */
-                                $sql = 'SELECT language FROM user WHERE user_id='.$debt['user_kauf'];
-                                if(!($language = $this->db->queryrow($sql)))
-                                {
-                                    $this->sdl->log('<b>Error:</b> Cannot read user language!', TICK_LOG_FILE_NPC);
-                                    $language['language'] = 'ENG';
-                                }
-
-                                switch($language['language'])
+                                // Retrieve language of the purchaser
+                                switch($purchaser['language'])
                                 {
                                     case 'GER':
                                         $text='<center><b>Guten Tag</b></center>
@@ -764,39 +733,19 @@ class Ferengi extends NPC
                                     $this->sdl->log('<b>Error:</b> cannot insert user #'.$debt['user_kauf'].' in the blacklist',
                                         TICK_LOG_FILE_NPC);
 
-                                //So jetzt noch beide Benachrichtigen
-                                //TODO Log buch machen - grund wieso es noch nicht gemacht wurde:
-                                /*
-                                 [01:38] <Tobi|away> Nachricht oder Log?
-                                 [01:38] <Mojo1987> log
-                                 [01:39] <Tobi|away> hm
-                                 [01:39] <Tobi|away> hast du schonmal logbuch gemacht?
-                                 [01:40] <Mojo1987> nee von log hab ich keinen schimmer :D
-                                 */
-                                //$nachrichten_a++;
-
-                                // Retrieve some info about the debtor
-                                $sql = 'SELECT user_name,user_trade,language FROM user
-                                        WHERE user_id='.$debt['user_kauf'];
-                                if(!($debtor = $this->db->queryrow($sql)))
-                                {
-                                    $this->sdl->log('<b>Error:</b> cannot read debtor data! - CONTINUED',
-                                        TICK_LOG_FILE_NPC);
-                                    $debtor['language'] = 'ENG';
-                                }
-
                                 // Here we should check if user_trade must be increased
                                 // by one or not.
-                                // $debtor['user_trade']++;
+                                // $purchaser['user_trade']++;
 
-                                switch($debtor['language'])
+                                // Retrieve language of the purchaser
+                                switch($purchaser['language'])
                                 {
                                     case 'GER':
                                         $text='<center><b>Guten Tag</b></center><br><br>
                                             Sie haben die Frist zur Bezahlung ihrer Schulden Überschritten,
                                             damit wird der Handel R&uuml;ckg&auml;ngig gemacht. Sie erhalten daf&uuml;r einen
                                             Eintrag in das Schuldnerbuch.<br>
-                                            Gesamt Eintr&auml;ge: '.$debtor['user_trade'].'<br>
+                                            Gesamt Eintr&auml;ge: '.$purchaser['user_trade'].'<br>
                                             Sollten sie weiter Auffallen wird das ernsthafte Konsequenzen f&uuml;r sie haben.<br>
                                             Dieser Beschluss ist G&uuml;ltig, sollten sie das Gef&uuml;hl haben ungerecht
                                             behandelt zu werden, können sie sich &uuml;ber den normalen Beschwerde Weg
@@ -809,7 +758,7 @@ class Ferengi extends NPC
                                         $text='<center><b>Good morning</b></center><br><br>
                                             You have crossed the term of the payment of your debts, thus the trade
                                             is reversed. You&#146;ll get for it an entry in the debtor&#146;s book.<br>
-                                            Total entries: '.$debtor['user_trade'].'<br>
+                                            Total entries: '.$purchaser['user_trade'].'<br>
                                             Attention, if you continue, there will be severe consequences for you.<br>
                                             This decision is important, if you should feel to be treated unfairly, you can
                                             appeal through the normal way of complain.<br>
@@ -822,7 +771,7 @@ class Ferengi extends NPC
                                             Avete superato il termine ultimo per il pagamento dei vostri debiti, pertanto
                                             lo scambio sar&agrave; annullato. Per questo ricever&agrave; una nota nel libro
                                             dei debitori.<br>
-                                            Totale voci: '.$debtor['user_trade'].'<br>
+                                            Totale voci: '.$purchaser['user_trade'].'<br>
                                             Attenzione, se persistete, ci saranno severe conseguenze per voi.<br>
                                             Questa decisione &egrave; importante, se doveste sentirvi trattati in modo sleale,
                                             potete appellarvi tramite la normale procedura di reclamo.<br>
@@ -843,19 +792,12 @@ class Ferengi extends NPC
                                 $this->sdl->log('User #'.$debt['user_ver'].' got his ship #'.$debt['ship_id'].' back',
                                     TICK_LOG_FILE_NPC);
 
-                                /* 10/03/08 - AC: Recover language of the sender */
-                                $sql = 'SELECT language FROM user WHERE user_id='.$debt['user_ver'];
-                                if(!($language = $this->db->queryrow($sql)))
-                                {
-                                    $this->sdl->log('<b>Error:</b> Cannot read user language!', TICK_LOG_FILE_NPC);
-                                    $language['language'] = 'ENG';
-                                }
-
-                                switch($language['language'])
+                                // Retrieve language of the vendor
+                                switch($vendor['language'])
                                 {
                                     case 'GER':
                                         $text='<center><b>Guten Tag</b></center><br><br>
-                                            Ihr Handel mit '.$debtor['user_name'].' wurde r&uuml;ckg&auml;ngig gemacht, ihr Schiff steht
+                                            Ihr Handel mit '.$purchaser['user_name'].' wurde r&uuml;ckg&auml;ngig gemacht, ihr Schiff steht
                                             ihnen absofort wieder zurverf&uuml;gung. Sollte es jedoch nicht wieder
                                             zurverf&uuml;gung stehen, wenden sie sich bitte an den Support.<br>
                                             Um ihren Handelspartner k&uuml;mmern wir uns schon. Er wird eine gerechte Strafe
@@ -866,7 +808,7 @@ class Ferengi extends NPC
                                     break;
                                     case 'ENG':
                                         $text='<center><b>Good morning</b></center><br><br>
-                                            Your trade with '.$debtor['user_name'].' was undone, your ship will come back.
+                                            Your trade with '.$purchaser['user_name'].' was undone, your ship will come back.
                                             If it does not return at home, please contact Support.<br>
                                             We already take care of your trading partner.
                                             He will receive a fair punishment.<br>
@@ -876,7 +818,7 @@ class Ferengi extends NPC
                                     break;
                                     case 'ITA':
                                         $text='<center><b>Buongiorno</b></center><br><br>
-                                            Il vostro commercio con '.$debtor['user_name'].' &egrave; stato annullato, la vostra nave
+                                            Il vostro commercio con '.$purchaser['user_name'].' &egrave; stato annullato, la vostra nave
                                             ritorner&agrave; indietro. Se non dovesse tornare, per favore contattare il
                                             Supporto.<br>
                                             Ci siamo gi&agrave; presi cura della vostra controparte commerciale.
@@ -907,11 +849,34 @@ class Ferengi extends NPC
                         }
 
                         // Message to the vendor
-                        $messaget_c='<center><b>Guten Tag</b></center>
-                            <br>
-                            Sie haben Neue Ressourcen und/oder Truppen auf ihrem Treuhandkonto.
-                            <br>--------------------------------------<br>
-                            Hochachtungsvoll Ferengi Handelsgilde';
+                        switch($vendor['language'])
+                        {
+                            case 'GER':
+                                $text='<center><b>Guten Tag</b></center>
+                                    <br>
+                                    Sie haben Neue Ressourcen und/oder Truppen auf ihrem Treuhandkonto.
+                                    <br>--------------------------------------<br>
+                                    Hochachtungsvoll Ferengi Handelsgilde';
+                                $title = '<b>Ress. zur Verf&uuml;gung</b>';
+                            break;
+                            case 'ITA':
+                                $text='<center><b>Buongiorno</b></center>
+                                    <br>
+                                    Hai nuove risorse e &#47; o truppe sul conto fiduciario.
+                                    <br>--------------------------------------<br>
+                                    Cordiali saluti Gilda del Commercio Ferengi';
+                                $title = '<b>Risorse disponibili</b>';
+                            break;
+                            default:
+                                $text='<center><b>Good morning</b></center>
+                                    <br>
+                                    You have new resources and &#47; or troops on your trust account.
+                                    <br>--------------------------------------<br>
+                                    Sincerely Ferengi Commerce Guild';
+                                $title = '<b>Resources available</b>';
+                            break;
+                        }
+                        $this->MessageUser($this->bot['user_id'],$debt['user_ver'],$title,$text);
 
                         // Give the ship to the purchaser
                         $sql = 'INSERT INTO `FHB_warteschlange` VALUES (NULL , '.$debt['user_kauf'].', '.$debt['ship_id'].')';
@@ -924,11 +889,34 @@ class Ferengi extends NPC
                                 TICK_LOG_FILE_NPC);
 
                             // Message to the purchaser
-                            $messaget_a='<center><b>Guten Tag</b></center>
-                                <br>
-                                Sie können ihr ersteigertes Schiff abhohlen.
-                                <br>--------------------------------------<br>
-                                Hochachtungsvoll Ferengi Handelsgilde';
+                            switch($purchaser['language'])
+                            {
+                                case 'GER':
+                                    $text='<center><b>Guten Tag</b></center>
+                                        <br>
+                                        Sie können ihr ersteigertes Schiff abhohlen.
+                                        <br>--------------------------------------<br>
+                                        Hochachtungsvoll Ferengi Handelsgilde';
+                                    $title = 'Neues Schiff zur Verf&uuml;gung';
+                                break;
+                                case 'ITA':
+                                    $text='<center><b>Buongiorno</b></center>
+                                        <br>
+                                        Puoi ritirare la tua nave vinta all&#39;asta.
+                                        <br> --------------------------------------<br>
+                                        Sincerely Ferengi Trade Guild';
+                                    $title = '<b>Nuova nave disponibile</b>';
+                                break;
+                                default:
+                                    $text='<center><b>Good morning</b></center>
+                                        <br>
+                                        You can withdraw your auctioned ship.
+                                        <br> --------------------------------------<br>
+                                        Sincerely Ferengi Trade Guild';
+                                    $title = '<b>New ship available</b>';
+                                break;
+                            }
+                            $this->MessageUser($this->bot['user_id'],$debt['user_kauf'],$title,$text);
                         }
                         $queued_ships++;
                     }
@@ -979,6 +967,8 @@ class Ferengi extends NPC
         $new_graph = (($ACTUAL_TICK % 20) == 0) ? 'true' : 'false';
         $this->sdl->log('Actual Tick: '.$ACTUAL_TICK.' -- '.$new_graph.' -- Period of: '.$min_tick, TICK_LOG_FILE_NPC);
 
+        // AC: I believe the original intention, since job's name was to graph also ships trading
+
         if($new_graph == 'true')
         {
             $this->sdl->log('New graph is made.....', TICK_LOG_FILE_NPC);
@@ -1007,10 +997,6 @@ class Ferengi extends NPC
         $number_released=0; 
         while($result = $this->db->fetchrow($temps))
         {
-            //[23:19] <Secius> there is a sql statement
-            //[23:19] <Secius> but nothing sends it to the DB
-            //[23:19] <Mojo1987> lol
-            //[23:19] <Mojo1987> the good^^
             $sql = 'UPDATE user SET trade_tick=0 WHERE user_id="'.$result['user_id'].'"';
             if(!$this->db->query($sql))
                 $this->sdl->log('<b>Error:</b> cannot update user data - CONTINUED',
@@ -1351,7 +1337,7 @@ class Ferengi extends NPC
                 // DC ----
 
                 // Pick up resources only if there is a little stock pile
-                // 200408 DC ----  Sorry, non more fundings to the CC
+                // 200408 DC ----  Sorry, no more fundings to the CC
                 // 220610 AC ----  But it's needed after a galaxy reset
                 if(PICK_RESOURCES_FROM_PLANET) {
                     if($tradecenter['ress_1'] < 350000)
@@ -1523,9 +1509,6 @@ class Ferengi extends NPC
             $this->sdl->log('Transactions: '.$transactions, TICK_LOG_FILE_NPC);
         }
         $this->sdl->finish_job('Soldiers Transactions', TICK_LOG_FILE_NPC);
-        /*
-        FHB_stats graph characters
-        */
         // ########################################################################################
         // ########################################################################################
         // Sensors monitoring and user warning
