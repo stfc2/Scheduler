@@ -56,6 +56,11 @@ class NPC
 		$header = addslashes($header);
 		$message = addslashes($message);
 
+		// Avoid sending the message if the receiver is another BOT
+		if(($receiver == FERENGI_USERID) ||
+			($receiver == INDEPENDENT_USERID) ||
+			($receiver == BORG_USERID)) return;
+
 		$sql = 'INSERT INTO message (sender, receiver, subject, text, rread, time)
 		        VALUES ('.$sender.','.$receiver.',"'.$header.'","'.$message.'",0,'.time().')';
 
