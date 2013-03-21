@@ -23,6 +23,9 @@
 define('PICK_RESOURCES_FROM_PLANET',1); // 1 = remove resources from BOT's planet
                                         // 0 = left BOT's planet untouched
 
+define('MALL_RESOURCES_AVAILABLE',0);   // 1 = resourses available at the Feregi's Mall
+                                        // 0 = no resources available
+
 //#######################################################################################
 //#######################################################################################
 // Changelog sonst kapier ich bei Ramona bald nix mehr - Frauen eben
@@ -998,10 +1001,9 @@ class Ferengi extends NPC
         // ########################################################################################
         // Users release from TC
         $this->sdl->start_job('Users release', TICK_LOG_FILE_NPC);
-        $sql = "SELECT user_id,user_trade,trade_tick,language FROM user
+        $sql = "SELECT user_id,language FROM user
                 WHERE user_trade>0 AND
-                      trade_tick<=".$ACTUAL_TICK." AND
-                      trade_tick!=0";
+                      trade_tick<=".$ACTUAL_TICK." AND trade_tick!=0";
         if(!$temps=$this->db->query($sql))
             $this->sdl->log('<b>Error:</b> cannot query user data - SKIP', TICK_LOG_FILE_NPC);
         $number_released=0; 
@@ -1190,281 +1192,277 @@ class Ferengi extends NPC
         $this->sdl->finish_job('Users lock', TICK_LOG_FILE_NPC);
         // ########################################################################################
         // ########################################################################################
+        // Update Ramona resources availability
 
-        /* 04/03/08 - AC: Hmmm, something is missing here... */
+        if(MALL_RESOURCES_AVAILABLE) {
+            $this->sdl->start_job('Update Ramona resources svailability', TICK_LOG_FILE_NPC);
 
-        /****
-         **
-         ** 04/03/08 - AC: Ok, I've guessed that here we need to update the resource availability of Ramona
-         **
-         ****/
-        $this->sdl->start_job('Update Ramona resources svailability', TICK_LOG_FILE_NPC);
+            // Read resources and units available on Ramona's planet
+            $sql='SELECT unit_1, unit_2, unit_3, unit_4, unit_5, unit_6, resource_1, resource_2, resource_3 FROM planets
+                WHERE planet_id = '.$this->bot['planet_id'];
 
-        // Read resources and units available on Ramona's planet
-        $sql='SELECT unit_1, unit_2, unit_3, unit_4, unit_5, unit_6, resource_1, resource_2, resource_3 FROM planets
-            WHERE planet_id = '.$this->bot['planet_id'];
+            $resources = $this->db->queryrow($sql);
 
-        $resources = $this->db->queryrow($sql);
+            $this->sdl->log('Available resources: '.$resources['resource_1'].' -- '.$resources['resource_2'].' -- '.$resources['resource_3'], TICK_LOG_FILE_NPC);
 
-        $this->sdl->log('Available resources: '.$resources['resource_1'].' -- '.$resources['resource_2'].' -- '.$resources['resource_3'], TICK_LOG_FILE_NPC);
+            $this->sdl->log('Available units: '.$resources['unit_1'].' -- '.$resources['unit_2'].' -- '.$resources['unit_3'].' -- '.$resources['unit_4'].' -- '.$resources['unit_5'].' -- '.$resources['unit_6'], TICK_LOG_FILE_NPC);
 
-        $this->sdl->log('Available units: '.$resources['unit_1'].' -- '.$resources['unit_2'].' -- '.$resources['unit_3'].' -- '.$resources['unit_4'].' -- '.$resources['unit_5'].' -- '.$resources['unit_6'], TICK_LOG_FILE_NPC);
+            // Check if the table for the Commercial Centre is already present
+            $sql='SELECT unit_1, unit_2, unit_3, unit_4, unit_5, unit_6, ress_1, ress_2, ress_3 FROM FHB_Handels_Lager
+                WHERE id=1';
 
-        // Check if the table for the Commercial Centre is already present
-        $sql='SELECT unit_1, unit_2, unit_3, unit_4, unit_5, unit_6, ress_1, ress_2, ress_3 FROM FHB_Handels_Lager
-            WHERE id=1';
-
-        if(!($tradecenter = $this->db->queryrow($sql)))
-        {
-            $this->sdl->log('<b>Warning:</b> Table FHB_Handels_Lager was empty! CONTINUED', TICK_LOG_FILE_NPC);
-
-            // Create an entry item in the table
-            $sql = 'INSERT INTO FHB_Handels_Lager (unit_1, unit_2,unit_3, unit_4,unit_5,unit_6,ress_1,ress_2,ress_3)
-                VALUES (0, 0, 0, 0, 0, 0, 0, 0, 0)';
-
-            if(!$this->db->query($sql)) {
-                $this->sdl->log('<b>Error:</b> Could not insert Handelslager - '.$update_res, TICK_LOG_FILE_NPC);
-            }
-        }
-        else
-        {
-            $this->db->lock('FHB_Handels_Lager');
-
-            $pick_u = array();
-
-            $pick_u[0] = $pick_u[1] = $pick_u[2] = $pick_u[3] = $pick_u[4] = $pick_u[5] = 0;
-
-            // Pick up units only if there is a little stock pile
-            if($tradecenter['unit_1'] < 450)
+            if(!($tradecenter = $this->db->queryrow($sql)))
             {
-                if($resources['unit_1'] > 500)
-                    $pick_u[0] = $resources['unit_1'] / 450;
-            }
-            if($tradecenter['unit_2'] < 450)
-            {
-                if($resources['unit_2'] > 500)
-                    $pick_u[1] = $resources['unit_2'] / 450;
-            }
-            if($tradecenter['unit_3'] < 450)
-            {
-                if($resources['unit_3'] > 500)
-                    $pick_u[2] = $resources['unit_3'] / 450;
-            }
-            if($tradecenter['unit_4'] < 200)
-            {
-                if($resources['unit_4'] > 500)
-                    $pick_u[3] = $resources['unit_4'] / 200;
-            }
-            if($tradecenter['unit_5'] < 200)
-            {
-                if($resources['unit_5'] > 500)
-                    $pick_u[4] = $resources['unit_5'] / 200;
-            }
-            if($tradecenter['unit_6'] < 200)
-            {
-                if($resources['unit_6'] > 500)
-                    $pick_u[5] = $resources['unit_6'] / 200;
-            }
+                $this->sdl->log('<b>Warning:</b> Table FHB_Handels_Lager was empty! CONTINUED', TICK_LOG_FILE_NPC);
 
-            $this->sdl->log('Add units: '.$pick_u[0].' -- '.$pick_u[1].' -- '.$pick_u[2].' -- '.$pick_u[3].' -- '.$pick_u[4].' -- '.$pick_u[5], TICK_LOG_FILE_NPC);
+                // Create an entry item in the table
+                $sql = 'INSERT INTO FHB_Handels_Lager (unit_1, unit_2,unit_3, unit_4,unit_5,unit_6,ress_1,ress_2,ress_3)
+                    VALUES (0, 0, 0, 0, 0, 0, 0, 0, 0)';
 
-            // 200408 DC ---- Nothing is for nothing
-            $pick_r = array();
-
-            $pick_r[0] = $pick_r[1] = $pick_r[2] = 0;
-            
-            // Soldier lvl 1
-            if ($pick_u[0] > 0) {
-                $metal_cost   = ($pick_u[0]*280);
-                $mineral_cost = ($pick_u[0]*235);
-                if($metal_cost > $tradecenter['ress_1']  || $mineral_cost > $tradecenter['ress_2'] )
-                    $pick_u[0] = 0;
-                else {
-                    $this->sdl->log('Resources for Lvl 1 Soldiers: Metals '.$metal_cost.' Minerals '.$mineral_cost, TICK_LOG_FILE_NPC);
-                    $pick_r[0] += $metal_cost;
-                    $pick_r[1] += $mineral_cost;
+                if(!$this->db->query($sql)) {
+                    $this->sdl->log('<b>Error:</b> Could not insert Handelslager - '.$update_res, TICK_LOG_FILE_NPC);
                 }
-            }
-            // Soldier lvl 2
-            if ($pick_u[1] > 0) {
-                $metal_cost   = ($pick_u[1]*340);
-                $mineral_cost = ($pick_u[1]*225);
-                if($metal_cost > $tradecenter['ress_1']  || $mineral_cost > $tradecenter['ress_2'] )  
-                    $pick_u[1] = 0;
-                else {
-                    $this->sdl->log('Resources for Lvl 2 Soldiers: Metals '.$metal_cost.' Minerals '.$mineral_cost, TICK_LOG_FILE_NPC);
-                    $pick_r[0] += $metal_cost;
-                    $pick_r[1] += $mineral_cost;
-                }
-            }
-            // Soldier lvl 3
-            if ($pick_u[2] > 0) {
-                $metal_cost     = ($pick_u[2]*650);
-                $mineral_cost   = ($pick_u[2]*450);
-                $dilithium_cost = ($pick_u[2]*350);
-                if($metal_cost > $tradecenter['ress_1']  || $mineral_cost > $tradecenter['ress_2']  || $dilithium_cost > $tradecenter['ress_3'] )
-                    $pick_u[2] = 0;
-                else {
-                    $this->sdl->log('Resources for Lvl 3 Soldiers: Metals '.$metal_cost.' - Minerals '.$mineral_cost.' - Dilithium '.$dilithium_cost, TICK_LOG_FILE_NPC);
-                    $pick_r[0] += $metal_cost;
-                    $pick_r[1] += $mineral_cost;
-                    $pick_r[2] += $dilithium_cost;
-                }
-            }
-            // Captains
-            if ($pick_u[3] > 0) {
-                $metal_cost     = ($pick_u[3]*410);
-                $mineral_cost   = ($pick_u[3]*210);
-                $dilithium_cost = ($pick_u[3]*115);
-                if($metal_cost > $tradecenter['ress_1']  || $mineral_cost > $tradecenter['ress_2']  || $dilithium_cost > $tradecenter['ress_3'] )
-                    $pick_u[3] = 0;
-                else {
-                    $this->sdl->log('Resources for Captains: Metals '.$metal_cost.' - Minerals '.$mineral_cost.' - Dilithium '.$dilithium_cost, TICK_LOG_FILE_NPC);
-                    $pick_r[0] += $metal_cost;
-                    $pick_r[1] += $mineral_cost;
-                    $pick_r[2] += $dilithium_cost;
-                }
-            }
-            // Techs
-            if ($pick_u[4] > 0) {
-                $metal_cost     = ($pick_u[4]*650);
-                $mineral_cost   = ($pick_u[4]*440);
-                $dilithium_cost = ($pick_u[4]*250);
-                if($metal_cost > $tradecenter['ress_1']  || $mineral_cost > $tradecenter['ress_2']  || $dilithium_cost > $tradecenter['ress_3'] )
-                    $pick_u[4] = 0;
-                else {
-                    $this->sdl->log('Resources for Techs: Metals '.$metal_cost.' - Minerals '.$mineral_cost.' - Dilithium '.$dilithium_cost, TICK_LOG_FILE_NPC);
-                    $pick_r[0] += $metal_cost;
-                    $pick_r[1] += $mineral_cost;
-                    $pick_r[2] += $dilithium_cost;
-                }
-            }
-            // Docs
-            if ($pick_u[5] > 0) {
-                $metal_cost     = ($pick_u[5]*1000);
-                $mineral_cost   = ($pick_u[5]*500);
-                $dilithium_cost = ($pick_u[5]*200);
-                if($metal_cost > $tradecenter['ress_1']  || $mineral_cost > $tradecenter['ress_2']  || $dilithium_cost > $tradecenter['ress_3'] ) 
-                    $pick_u[5] = 0;
-                else {
-                    $this->sdl->log('Resources for Docs: Metals '.$metal_cost.' - Minerals '.$mineral_cost.' - Dilithium '.$dilithium_cost, TICK_LOG_FILE_NPC);
-                    $pick_r[0] += $metal_cost;
-                    $pick_r[1] += $mineral_cost;
-                    $pick_r[2] += $dilithium_cost;
-                }
-            }
-            // DC ----
-
-            // Pick up resources only if there is a little stock pile
-            // 200408 DC ----  Sorry, non more fundings to the CC
-            // 220610 AC ----  But it's needed after a galaxy reset
-            if(PICK_RESOURCES_FROM_PLANET) {
-                if($tradecenter['ress_1'] < 350000)
-                {
-                    if($resources['resource_1'] > 150000)
-                        $pick_r[0] = $resources['resource_1']  /  100;
-                }
-                if($tradecenter['ress_2'] < 350000)
-                {
-                    if($resources['resource_2'] > 150000)
-                        $pick_r[1] = $resources['resource_2']  /  100;
-                }
-                if($tradecenter['ress_3'] < 350000)
-                {
-                    if($resources['resource_3'] > 150000)
-                        $pick_r[2] = $resources['resource_3']  /  125;
-                }
-
-                $this->sdl->log('Add resources: '.$pick_r[0].' -- '.$pick_r[1].' -- '.$pick_r[2], TICK_LOG_FILE_NPC);
-
-                $update_res='UPDATE FHB_Handels_Lager SET
-                    unit_1=unit_1+'.$pick_u[0].',unit_2=unit_2+'.$pick_u[1].',unit_3=unit_3+'.$pick_u[2].',
-                    unit_4=unit_4+'.$pick_u[3].',unit_5=unit_5+'.$pick_u[4].',unit_6=unit_6+'.$pick_u[5].',
-                    ress_1=ress_1+'.$pick_r[0].',ress_2=ress_2+'.$pick_r[1].',ress_3=ress_3+'.$pick_r[2].' WHERE id=1';
-                }
-            else {
-                $this->sdl->log('Picking resources from CC: '.$pick_r[0].' -- '.$pick_r[1].' -- '.$pick_r[2], TICK_LOG_FILE_NPC);
-
-                $update_res='UPDATE FHB_Handels_Lager SET
-                    unit_1=unit_1+'.$pick_u[0].',unit_2=unit_2+'.$pick_u[1].',unit_3=unit_3+'.$pick_u[2].',
-                    unit_4=unit_4+'.$pick_u[3].',unit_5=unit_5+'.$pick_u[4].',unit_6=unit_6+'.$pick_u[5].',
-                    ress_1=ress_1-'.$pick_r[0].',ress_2=ress_2-'.$pick_r[1].',ress_3=ress_3-'.$pick_r[2].' WHERE id=1';
-            }
-
-            // Update resources and units available in the commercial centre
-            if(!$this->db->query($update_res)) {
-                $this->sdl->log('<b>Error:</b> Could not update Handelslager - '.$update_res, TICK_LOG_FILE_NPC);
             }
             else
             {
-                // Remove resources from Ramona's planet
-                if(PICK_RESOURCES_FROM_PLANET) {
-                    $sql='UPDATE planets SET
-                            unit_1=unit_1-'.$pick_u[0].',unit_2=unit_2-'.$pick_u[1].',unit_3=unit_3-'.$pick_u[2].',
-                            unit_4=unit_4-'.$pick_u[3].',unit_5=unit_5-'.$pick_u[4].',unit_6=unit_6-'.$pick_u[5].',
-                            resource_1=resource_1-'.$pick_r[0].',resource_2=resource_2-'.$pick_r[1].',
-                            resource_3=resource_3-'.$pick_r[2].'
-                        WHERE planet_id = '.$this->bot['planet_id'];
-                }
-                else {
-                    $sql='UPDATE planets SET
-                            unit_1=unit_1-'.$pick_u[0].',unit_2=unit_2-'.$pick_u[1].',unit_3=unit_3-'.$pick_u[2].',
-                            unit_4=unit_4-'.$pick_u[3].',unit_5=unit_5-'.$pick_u[4].',unit_6=unit_6-'.$pick_u[5].'
-                        WHERE planet_id = '.$this->bot['planet_id'];
-                }
-                if(!$this->db->query($sql)) {
-                    $this->sdl->log('<b>Error:</b> Could not update Ramona\'s planet - '.$sql, TICK_LOG_FILE_NPC);
-                }
+                $this->db->lock('FHB_Handels_Lager');
 
-                // If needed, we have to tell to Ramona to create some fresh units
-                $sql='SELECT unit_1, unit_2, unit_3, unit_4, unit_5, unit_6 FROM planets
-                    WHERE planet_id = '.$this->bot['planet_id'];
+                $pick_u = array();
 
-                if($units = $this->db->queryrow($sql))
+                $pick_u[0] = $pick_u[1] = $pick_u[2] = $pick_u[3] = $pick_u[4] = $pick_u[5] = 0;
+
+                // Pick up units only if there is a little stock pile
+                if($tradecenter['unit_1'] < 450)
                 {
-                    //
-                    // Actually we simply reinsert initial value in the table...
-                    //
-                    $train_u = array();
+                    if($resources['unit_1'] > 500)
+                        $pick_u[0] = $resources['unit_1'] / 450;
+                }
+                if($tradecenter['unit_2'] < 450)
+                {
+                    if($resources['unit_2'] > 500)
+                        $pick_u[1] = $resources['unit_2'] / 450;
+                }
+                if($tradecenter['unit_3'] < 450)
+                {
+                    if($resources['unit_3'] > 500)
+                        $pick_u[2] = $resources['unit_3'] / 450;
+                }
+                if($tradecenter['unit_4'] < 200)
+                {
+                    if($resources['unit_4'] > 500)
+                        $pick_u[3] = $resources['unit_4'] / 200;
+                }
+                if($tradecenter['unit_5'] < 200)
+                {
+                    if($resources['unit_5'] > 500)
+                        $pick_u[4] = $resources['unit_5'] / 200;
+                }
+                if($tradecenter['unit_6'] < 200)
+                {
+                    if($resources['unit_6'] > 500)
+                        $pick_u[5] = $resources['unit_6'] / 200;
+                }
 
-                    $train_u[0] = $train_u[1] = $train_u[2] = $train_u[3] = $train_u[4] = $train_u[5] = 0;
+                $this->sdl->log('Add units: '.$pick_u[0].' -- '.$pick_u[1].' -- '.$pick_u[2].' -- '.$pick_u[3].' -- '.$pick_u[4].' -- '.$pick_u[5], TICK_LOG_FILE_NPC);
 
-                    if($units['unit_1'] <= 500)
-                        $train_u[0] = 1000;
-                    if($units['unit_2'] <= 500)
-                        $train_u[1] = 1000;
-                    if($units['unit_3'] <= 500)
-                        $train_u[2] = 1000;
-                    if($units['unit_4'] <= 500)
-                        $train_u[3] = 1000;
-                    if($units['unit_5'] <= 500)
-                        $train_u[4] = 1000;
-                    if($units['unit_6'] <= 500)
-                        $train_u[5] = 1000;
+                // 200408 DC ---- Nothing is for nothing
+                $pick_r = array();
 
-                    // Have we something to do?
-                    if($train_u[0] != 0 || $train_u[1] != 0 || $train_u[2] != 0 ||
-                       $train_u[3] != 0 || $train_u[4] != 0 || $train_u[5] != 0)
-                    {
-                        $this->sdl->log('Produce new units: '.$train_u[0].' -- '.$train_u[1].' -- '.$train_u[2].' -- '.$train_u[3].' -- '.$train_u[4].' -- '.$train_u[5], TICK_LOG_FILE_NPC);
+                $pick_r[0] = $pick_r[1] = $pick_r[2] = 0;
 
-                        $sql='UPDATE planets SET
-                            unit_1=unit_1+'.$train_u[0].',unit_2=unit_2+'.$train_u[1].',unit_3=unit_3+'.$train_u[2].',
-                            unit_4=unit_4+'.$train_u[3].',unit_5=unit_5+'.$train_u[4].',unit_6=unit_6+'.$train_u[5].'
-                            WHERE planet_id = '.$this->bot['planet_id'];
-
-                        if(!$this->db->query($sql)) {
-                            $this->sdl->log('<b>Error:</b> Could not instruct Ramona to produce new units - '.$sql, TICK_LOG_FILE_NPC);
-                        }
+                // Soldier lvl 1
+                if ($pick_u[0] > 0) {
+                    $metal_cost   = ($pick_u[0]*280);
+                    $mineral_cost = ($pick_u[0]*235);
+                    if($metal_cost > $tradecenter['ress_1']  || $mineral_cost > $tradecenter['ress_2'] )
+                        $pick_u[0] = 0;
+                    else {
+                        $this->sdl->log('Resources for Lvl 1 Soldiers: Metals '.$metal_cost.' Minerals '.$mineral_cost, TICK_LOG_FILE_NPC);
+                        $pick_r[0] += $metal_cost;
+                        $pick_r[1] += $mineral_cost;
                     }
                 }
-                else
-                    $this->sdl->log('<b>Error:</b> Cannot read from Ramona\'s planet!', TICK_LOG_FILE_NPC);
-            }
-            $this->db->unlock('FHB_Handels_Lager');
-        }
+                // Soldier lvl 2
+                if ($pick_u[1] > 0) {
+                    $metal_cost   = ($pick_u[1]*340);
+                    $mineral_cost = ($pick_u[1]*225);
+                    if($metal_cost > $tradecenter['ress_1']  || $mineral_cost > $tradecenter['ress_2'] )  
+                        $pick_u[1] = 0;
+                    else {
+                        $this->sdl->log('Resources for Lvl 2 Soldiers: Metals '.$metal_cost.' Minerals '.$mineral_cost, TICK_LOG_FILE_NPC);
+                        $pick_r[0] += $metal_cost;
+                        $pick_r[1] += $mineral_cost;
+                    }
+                }
+                // Soldier lvl 3
+                if ($pick_u[2] > 0) {
+                    $metal_cost     = ($pick_u[2]*650);
+                    $mineral_cost   = ($pick_u[2]*450);
+                    $dilithium_cost = ($pick_u[2]*350);
+                    if($metal_cost > $tradecenter['ress_1']  || $mineral_cost > $tradecenter['ress_2']  || $dilithium_cost > $tradecenter['ress_3'] )
+                        $pick_u[2] = 0;
+                    else {
+                        $this->sdl->log('Resources for Lvl 3 Soldiers: Metals '.$metal_cost.' - Minerals '.$mineral_cost.' - Dilithium '.$dilithium_cost, TICK_LOG_FILE_NPC);
+                        $pick_r[0] += $metal_cost;
+                        $pick_r[1] += $mineral_cost;
+                        $pick_r[2] += $dilithium_cost;
+                    }
+                }
+                // Captains
+                if ($pick_u[3] > 0) {
+                    $metal_cost     = ($pick_u[3]*410);
+                    $mineral_cost   = ($pick_u[3]*210);
+                    $dilithium_cost = ($pick_u[3]*115);
+                    if($metal_cost > $tradecenter['ress_1']  || $mineral_cost > $tradecenter['ress_2']  || $dilithium_cost > $tradecenter['ress_3'] )
+                        $pick_u[3] = 0;
+                    else {
+                        $this->sdl->log('Resources for Captains: Metals '.$metal_cost.' - Minerals '.$mineral_cost.' - Dilithium '.$dilithium_cost, TICK_LOG_FILE_NPC);
+                        $pick_r[0] += $metal_cost;
+                        $pick_r[1] += $mineral_cost;
+                        $pick_r[2] += $dilithium_cost;
+                    }
+                }
+                // Techs
+                if ($pick_u[4] > 0) {
+                    $metal_cost     = ($pick_u[4]*650);
+                    $mineral_cost   = ($pick_u[4]*440);
+                    $dilithium_cost = ($pick_u[4]*250);
+                    if($metal_cost > $tradecenter['ress_1']  || $mineral_cost > $tradecenter['ress_2']  || $dilithium_cost > $tradecenter['ress_3'] )
+                        $pick_u[4] = 0;
+                    else {
+                        $this->sdl->log('Resources for Techs: Metals '.$metal_cost.' - Minerals '.$mineral_cost.' - Dilithium '.$dilithium_cost, TICK_LOG_FILE_NPC);
+                        $pick_r[0] += $metal_cost;
+                        $pick_r[1] += $mineral_cost;
+                        $pick_r[2] += $dilithium_cost;
+                    }
+                }
+                // Docs
+                if ($pick_u[5] > 0) {
+                    $metal_cost     = ($pick_u[5]*1000);
+                    $mineral_cost   = ($pick_u[5]*500);
+                    $dilithium_cost = ($pick_u[5]*200);
+                    if($metal_cost > $tradecenter['ress_1']  || $mineral_cost > $tradecenter['ress_2']  || $dilithium_cost > $tradecenter['ress_3'] ) 
+                        $pick_u[5] = 0;
+                    else {
+                        $this->sdl->log('Resources for Docs: Metals '.$metal_cost.' - Minerals '.$mineral_cost.' - Dilithium '.$dilithium_cost, TICK_LOG_FILE_NPC);
+                        $pick_r[0] += $metal_cost;
+                        $pick_r[1] += $mineral_cost;
+                        $pick_r[2] += $dilithium_cost;
+                    }
+                }
+                // DC ----
 
-        $this->sdl->finish_job('Update Ramona resources svailability', TICK_LOG_FILE_NPC);
+                // Pick up resources only if there is a little stock pile
+                // 200408 DC ----  Sorry, non more fundings to the CC
+                // 220610 AC ----  But it's needed after a galaxy reset
+                if(PICK_RESOURCES_FROM_PLANET) {
+                    if($tradecenter['ress_1'] < 350000)
+                    {
+                        if($resources['resource_1'] > 150000)
+                            $pick_r[0] = $resources['resource_1']  /  100;
+                    }
+                    if($tradecenter['ress_2'] < 350000)
+                    {
+                        if($resources['resource_2'] > 150000)
+                            $pick_r[1] = $resources['resource_2']  /  100;
+                    }
+                    if($tradecenter['ress_3'] < 350000)
+                    {
+                        if($resources['resource_3'] > 150000)
+                            $pick_r[2] = $resources['resource_3']  /  125;
+                    }
+
+                    $this->sdl->log('Add resources: '.$pick_r[0].' -- '.$pick_r[1].' -- '.$pick_r[2], TICK_LOG_FILE_NPC);
+
+                    $update_res='UPDATE FHB_Handels_Lager SET
+                        unit_1=unit_1+'.$pick_u[0].',unit_2=unit_2+'.$pick_u[1].',unit_3=unit_3+'.$pick_u[2].',
+                        unit_4=unit_4+'.$pick_u[3].',unit_5=unit_5+'.$pick_u[4].',unit_6=unit_6+'.$pick_u[5].',
+                        ress_1=ress_1+'.$pick_r[0].',ress_2=ress_2+'.$pick_r[1].',ress_3=ress_3+'.$pick_r[2].' WHERE id=1';
+                    }
+                else {
+                    $this->sdl->log('Picking resources from CC: '.$pick_r[0].' -- '.$pick_r[1].' -- '.$pick_r[2], TICK_LOG_FILE_NPC);
+
+                    $update_res='UPDATE FHB_Handels_Lager SET
+                        unit_1=unit_1+'.$pick_u[0].',unit_2=unit_2+'.$pick_u[1].',unit_3=unit_3+'.$pick_u[2].',
+                        unit_4=unit_4+'.$pick_u[3].',unit_5=unit_5+'.$pick_u[4].',unit_6=unit_6+'.$pick_u[5].',
+                        ress_1=ress_1-'.$pick_r[0].',ress_2=ress_2-'.$pick_r[1].',ress_3=ress_3-'.$pick_r[2].' WHERE id=1';
+                }
+
+                // Update resources and units available in the commercial centre
+                if(!$this->db->query($update_res)) {
+                    $this->sdl->log('<b>Error:</b> Could not update Handelslager - '.$update_res, TICK_LOG_FILE_NPC);
+                }
+                else
+                {
+                    // Remove resources from Ramona's planet
+                    if(PICK_RESOURCES_FROM_PLANET) {
+                        $sql='UPDATE planets SET
+                                unit_1=unit_1-'.$pick_u[0].',unit_2=unit_2-'.$pick_u[1].',unit_3=unit_3-'.$pick_u[2].',
+                                unit_4=unit_4-'.$pick_u[3].',unit_5=unit_5-'.$pick_u[4].',unit_6=unit_6-'.$pick_u[5].',
+                                resource_1=resource_1-'.$pick_r[0].',resource_2=resource_2-'.$pick_r[1].',
+                                resource_3=resource_3-'.$pick_r[2].'
+                            WHERE planet_id = '.$this->bot['planet_id'];
+                    }
+                    else {
+                        $sql='UPDATE planets SET
+                                unit_1=unit_1-'.$pick_u[0].',unit_2=unit_2-'.$pick_u[1].',unit_3=unit_3-'.$pick_u[2].',
+                                unit_4=unit_4-'.$pick_u[3].',unit_5=unit_5-'.$pick_u[4].',unit_6=unit_6-'.$pick_u[5].'
+                            WHERE planet_id = '.$this->bot['planet_id'];
+                    }
+                    if(!$this->db->query($sql)) {
+                        $this->sdl->log('<b>Error:</b> Could not update Ramona\'s planet - '.$sql, TICK_LOG_FILE_NPC);
+                    }
+
+                    // If needed, we have to tell to Ramona to create some fresh units
+                    $sql='SELECT unit_1, unit_2, unit_3, unit_4, unit_5, unit_6 FROM planets
+                        WHERE planet_id = '.$this->bot['planet_id'];
+
+                    if($units = $this->db->queryrow($sql))
+                    {
+                        //
+                        // Actually we simply reinsert initial value in the table...
+                        //
+                        $train_u = array();
+
+                        $train_u[0] = $train_u[1] = $train_u[2] = $train_u[3] = $train_u[4] = $train_u[5] = 0;
+
+                        if($units['unit_1'] <= 500)
+                            $train_u[0] = 1000;
+                        if($units['unit_2'] <= 500)
+                            $train_u[1] = 1000;
+                        if($units['unit_3'] <= 500)
+                            $train_u[2] = 1000;
+                        if($units['unit_4'] <= 500)
+                            $train_u[3] = 1000;
+                        if($units['unit_5'] <= 500)
+                            $train_u[4] = 1000;
+                        if($units['unit_6'] <= 500)
+                            $train_u[5] = 1000;
+
+                        // Have we something to do?
+                        if($train_u[0] != 0 || $train_u[1] != 0 || $train_u[2] != 0 ||
+                           $train_u[3] != 0 || $train_u[4] != 0 || $train_u[5] != 0)
+                        {
+                            $this->sdl->log('Produce new units: '.$train_u[0].' -- '.$train_u[1].' -- '.$train_u[2].' -- '.$train_u[3].' -- '.$train_u[4].' -- '.$train_u[5], TICK_LOG_FILE_NPC);
+
+                            $sql='UPDATE planets SET
+                                unit_1=unit_1+'.$train_u[0].',unit_2=unit_2+'.$train_u[1].',unit_3=unit_3+'.$train_u[2].',
+                                unit_4=unit_4+'.$train_u[3].',unit_5=unit_5+'.$train_u[4].',unit_6=unit_6+'.$train_u[5].'
+                                WHERE planet_id = '.$this->bot['planet_id'];
+
+                            if(!$this->db->query($sql)) {
+                                $this->sdl->log('<b>Error:</b> Could not instruct Ramona to produce new units - '.$sql, TICK_LOG_FILE_NPC);
+                            }
+                        }
+                    }
+                    else
+                        $this->sdl->log('<b>Error:</b> Cannot read from Ramona\'s planet!', TICK_LOG_FILE_NPC);
+                }
+                $this->db->unlock('FHB_Handels_Lager');
+            }
+
+            $this->sdl->finish_job('Update Ramona resources svailability', TICK_LOG_FILE_NPC);
+        }
 
         // ########################################################################################
         // ########################################################################################
