@@ -102,11 +102,11 @@ class Ferengi extends NPC
 
         // Check whether the bot already lives
         if($this->bot['user_id'] == 0) {
-            $sql = 'INSERT INTO user (user_active, user_name, user_loginname, user_password, user_email, user_auth_level,
+            $sql = 'INSERT INTO user (user_id, user_active, user_name, user_loginname, user_password, user_email, user_auth_level,
                                       user_race, user_gfxpath, user_skinpath, user_registration_time, user_registration_ip,
                                       user_birthday, user_gender, plz, country,user_enable_sig,user_message_sig,
                                       user_signature, user_notepad, user_options, message_basement)
-                    VALUES (1, "Quark(NPG)", "Bot", "'.md5("bundu").'", "xxx@xxx.de", '.STGC_BOT.',
+                    VALUES ('.FERENGI_USERID.',1, "Quark(NPG)", "Bot", "'.md5("bundu").'", "xxx@xxx.de", '.STGC_BOT.',
                             5, "", "skin1/", '.time().', "100.0.0.1",
                             "20.04.2007", "w", 76149 , "DE",1,"<br><br><p><b>I.A. of the Ferengi Trade Guild</b></p>",
                             "I live in the computing centre Karlsruhe - so now however conclusion with merry","","","")';
@@ -119,10 +119,8 @@ class Ferengi extends NPC
             $this->sdl->log('Ramona is created', $log);
 
             // Update BOT card
-            $bot_UID = $this->db->insert_id();
-
             $sql = 'UPDATE FHB_Bot
-                    SET user_id="'.$bot_UID.'",
+                    SET user_id="'.FERENGI_USERID.'",
                         user_name="Quark(NPG)",
                         user_tick="'.$ACTUAL_TICK.'",
                         user_loginname="Bot",
@@ -135,7 +133,7 @@ class Ferengi extends NPC
             }
 
             // Avoid a DB query
-            $this->bot['user_id'] = $bot_UID;
+            $this->bot['user_id'] = FERENGI_USERID;
         }
 
         // Check whether the bot has a planet
