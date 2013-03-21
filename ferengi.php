@@ -1494,26 +1494,43 @@ class Ferengi extends NPC
         // ########################################################################################
         // ########################################################################################
         // Learning is boring here fixed the cheating of resources by troops sale
-        $this->sdl->start_job('Soldier Transaction', TICK_LOG_FILE_NPC);
-        $transaktionen=0;
-        $sql='SELECT * FROM FHB_cache_trupp_trade WHERE tick<='.$ACTUAL_TICK.'';
-        $sql=$this->db->query($sql);
-        while($cache_trade = $this->db->fetchrow($sql))
-        {
-            $transaktionen++;
-            $this->db->lock('FHB_Handels_Lager');
-            $update_action='UPDATE FHB_Handels_Lager SET unit_1=unit_1+'.$cache_trade['unit_1'].',unit_2=unit_2+'.$cache_trade['unit_2'].',unit_3=unit_3+'.$cache_trade['unit_3'].',unit_4=unit_4+'.$cache_trade['unit_4'].',unit_5=unit_5+'.$cache_trade['unit_5'].',unit_6=unit_6+'.$cache_trade['unit_6'].' WHERE id=1';
-            if(!$this->db->query($update_action))$this->sdl->log('<b>Error:</b> Could not update Handelslager - '.$update_action, TICK_LOG_FILE_NPC);
-            $this->db->unlock('FHB_Handels_Lager');
-            $delete_action='DELETE FROM FHB_cache_trupp_trade WHERE id='.$cache_trade['id'].'';
-            if(!$this->db->query($delete_action))$this->sdl->log('<b>Error:</b> Could not update Handelslager - '.$delete_action, TICK_LOG_FILE_NPC);
-            
+        $this->sdl->start_job('Soldiers Transactions', TICK_LOG_FILE_NPC);
+        $transactions=0;
+        $sql = 'SELECT * FROM FHB_cache_trupp_trade WHERE tick<='.$ACTUAL_TICK;
+        if(!$troops_traded = $this->db->query($sql))
+            $this->sdl->log('<b>Error:</b> cannot read troops transactions - SKIP',
+                TICK_LOG_FILE_NPC);
+        else {
+            while($cache_trade = $this->db->fetchrow($troops_traded))
+            {
+                $transactions++;
+                $this->db->lock('FHB_Handels_Lager');
+
+                $sql = 'UPDATE FHB_Handels_Lager SET unit_1=unit_1+'.$cache_trade['unit_1'].',
+                                                     unit_2=unit_2+'.$cache_trade['unit_2'].',
+                                                     unit_3=unit_3+'.$cache_trade['unit_3'].',
+                                                     unit_4=unit_4+'.$cache_trade['unit_4'].',
+                                                     unit_5=unit_5+'.$cache_trade['unit_5'].',
+                                                     unit_6=unit_6+'.$cache_trade['unit_6'].'
+                         WHERE id=1';
+                if(!$this->db->query($sql))
+                    $this->sdl->log('<b>Error:</b> cannot update trading stock - CONTINUED',
+                        TICK_LOG_FILE_NPC);
+
+                $this->db->unlock('FHB_Handels_Lager');
+
+                $sql = 'DELETE FROM FHB_cache_trupp_trade WHERE id='.$cache_trade['id'];
+                if(!$this->db->query($sql))
+                    $this->sdl->log('<b>Error:</b> cannot remove troops transaction - CONTINUED',
+                        TICK_LOG_FILE_NPC);
+            }
+            $this->sdl->log('Transactions: '.$transactions, TICK_LOG_FILE_NPC);
         }
-        $this->sdl->log('Transactions: '.$transaktionen, TICK_LOG_FILE_NPC);
-        $this->sdl->finish_job('Soldier Transaction', TICK_LOG_FILE_NPC);
+        $this->sdl->finish_job('Soldiers Transactions', TICK_LOG_FILE_NPC);
         /*
         FHB_stats graph characters
         */
+        // ########################################################################################
         // ########################################################################################
         // Sensors monitoring and user warning
 
