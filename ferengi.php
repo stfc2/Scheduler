@@ -1468,23 +1468,30 @@ class Ferengi extends NPC
 
         // ########################################################################################
         // ########################################################################################
-        // ########################################################################################
         // Ferengi Trade Center blacklist Cleanup
-        $this->sdl->start_job('Remove card index corpse in the check list', TICK_LOG_FILE_NPC);
-        $sql = "SELECT count(*) as anzahl,user_id FROM FHB_sperr_list GROUP By user_id";
-        if(!$temps=$this->db->query($sql)) $this->sdl->log('<b>Error:</b> User query went wrong -- delete '.$sql, TICK_LOG_FILE_NPC);
-        $anzahl_sperren=0; 
-        while($result = $this->db->fetchrow($temps))
-        {
-            $sql_select=$this->db->query('SELECT user_id FROM user WHERE user_id='.$result['user_id']);
-            if($this->db->num_rows($sql_select)<=0)
+        $this->sdl->start_job('Blacklist cleanup', TICK_LOG_FILE_NPC);
+        $sql = "SELECT user_id FROM FHB_sperr_list GROUP BY user_id";
+        if(!$blacklist=$this->db->query($sql))
+            $this->sdl->log('<b>Error:</b> cannot read blacklist data - SKIP',TICK_LOG_FILE_NPC);
+        else {
+            while($result = $this->db->fetchrow($blacklist))
             {
-                if(!$this->db->query('DELETE FROM FHB_sperr_list WHERE user_id='.$result['user_id'].''))
-                    $this->sdl->log('<b>Error:</b> Could not delete debts of dead user '.$sql, TICK_LOG_FILE_NPC);
-                $this->sdl->log('Punishments of user: '.$result['user_id'].' deleted', TICK_LOG_FILE_NPC);
+                // Check if user still exists
+                $sql = 'SELECT user_id FROM user WHERE user_id='.$result['user_id'];
+                $user = $this->db->query($sql);
+                if($this->db->num_rows($user) <= 0)
+                {
+                    $sql = 'DELETE FROM FHB_sperr_list WHERE user_id='.$result['user_id'];
+                    if(!$this->db->query($sql))
+                        $log_msg = '<b>Error:</b> cannot remove dead user from blacklist - CONTINUED';
+                    else
+                        $log_msg = 'Deleted user #'.$result['user_id'].' removed from blacklist';
+                    $this->sdl->log($log_msg,TICK_LOG_FILE_NPC);
+                }
             }
         }
-        $this->sdl->finish_job('Remove card index corpse in the check list', TICK_LOG_FILE_NPC);
+        $this->sdl->finish_job('Blacklist cleanup', TICK_LOG_FILE_NPC);
+        // ########################################################################################
         // ########################################################################################
         // Learning is boring here fixed the cheating of resources by troops sale
         $this->sdl->start_job('Soldier Transaction', TICK_LOG_FILE_NPC);
