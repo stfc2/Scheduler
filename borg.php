@@ -1,11 +1,15 @@
 <?php
-/*    
-	This file is part of STFC.
-	Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
-		
-	STFC is based on STGC,
-	Copyright 2003-2007 by Florian Brede (florian_brede@hotmail.com) and Philipp Schmidt
-	
+/*
+    This file is part of STFC.it
+    Copyright 2008-2013 by Andrea Carolfi (carolfi@stfc.it) and
+    Cristiano Delogu (delogu@stfc.it).
+
+    STFC.it is based on STFC,
+    Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
+
+    STFC is based on STGC,
+    Copyright 2003-2007 by Florian Brede (florian_brede@hotmail.com) and Philipp Schmidt
+
     STFC is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
@@ -63,7 +67,7 @@ class Borg extends NPC
         // by the installation script.
         $environment = $this->db->queryrow('SELECT * FROM config LIMIT 0 , 1');
         $ACTUAL_TICK = $environment['tick_id'];
-        $FUTURE_SHIP = $Environment['future_ship'];
+        $FUTURE_SHIP = $environment['future_ship'];
 
         $this->sdl->start_job('SevenOfNine basic system', $log);
 
@@ -509,8 +513,6 @@ class Borg extends NPC
 			if($debug_data['debug']==0 || $debug_data['debug']==1)
 				$debug=$debug_data['debug'];
 		}
-
-		$game = new game();
 
 		$this->sdl->log('<br><b>-------------------------------------------------------------</b><br>'.
 			'<b>Starting Borg Bot Scheduler at '.date('d.m.y H:i:s', time()).'</b>', TICK_LOG_FILE_NPC);
