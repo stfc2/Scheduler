@@ -25,20 +25,7 @@
 //#######################################################################################
 //Changelog:
 
-/* 14. Juni 2007
-  @Thema: Truppenverkaufszahlen Graphenbrechnung
-  @Action: geändert  bzw verbessert
-*/
-
-define('BUILD_SUCCESS',0);
-define('BUILD_ERR_QUEUE', -1);
-define('BUILD_ERR_RESOURCES', -2);
-define('BUILD_ERR_REQUIRED', -3);
-define('BUILD_ERR_ENERGY', -4);
-define('BUILD_ERR_DB', -5);
-define('BUILD_ERR_MAXLEVEL',-6);
-define('INSTALL_LOG_FILE_NPC', $game_path.'logs/NPC_installation.log');
-
+include('NPC_BOT_defines.php');
 
 //#######################################################################################
 //#######################################################################################

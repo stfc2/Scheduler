@@ -20,12 +20,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-define('PICK_RESOURCES_FROM_PLANET',1); // 1 = remove resources from BOT's planet
-                                        // 0 = left BOT's planet untouched
-
-define('MALL_RESOURCES_AVAILABLE',0);   // 1 = resourses available at the Feregi's Mall
-                                        // 0 = no resources available
-
 //#######################################################################################
 //#######################################################################################
 // Changelog sonst kapier ich bei Ramona bald nix mehr - Frauen eben
