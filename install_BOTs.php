@@ -53,7 +53,13 @@ if(!empty($_SERVER['SERVER_SOFTWARE'])) {
 // ########################################################################################
 // Init
 
+$starttime = ( microtime() + time() );
+
 $sdl = new scheduler();
+
+$sdl->log('<br><b>-------------------------------------------------------------</b><br>'.
+          '<b>Starting Install BOTs at '.date('d.m.y H:i:s', time()).'</b>',
+    INSTALL_LOG_FILE_NPC);
 
 // create sql-object for db-connection
 $db = new sql($config['server'].":".$config['port'], $config['game_database'],
@@ -79,6 +85,9 @@ $settlers->Install();
 // Quit and close log
 
 $db->close();
+
+$sdl->log('<b>Finished Install BOTs in <font color=#009900>'.round((microtime()+time())-$starttime, 4).' secs</font><br>Executed Queries: <font color=#ff0000>'.$db->i_query.'</font></b>',
+    INSTALL_LOG_FILE_NPC);
 
 ?>
 
