@@ -49,8 +49,8 @@ class Settlers extends NPC
         if(empty($this->bot['user_id'])) {
             $this->sdl->log('We need to create TheSettlers!', $log);
 
-            $sql = 'INSERT INTO user (user_id, user_active, user_name, user_loginname, user_password,
-                                      user_email, user_auth_level, user_race, user_gfxpath, user_skinpath,
+            $sql = 'INSERT INTO user (user_id, user_auth_level, user_name, user_loginname, user_password,
+                                      user_email, user_active, user_race, user_gfxpath, user_skinpath,
                                     user_registration_time, user_registration_ip,
                                           user_birthday, user_gender, plz, country, user_enable_sig,
                                           user_message_sig, user_signature, user_notepad, user_options, message_basement)
