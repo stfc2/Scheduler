@@ -265,8 +265,6 @@ class Ferengi extends NPC
             if($debug_zu['sql']==0 || $debug_zu['sql']==1)$debug_sql_logen=$debug_zu['sql'];
         }
 
-        $game = new game();
-
         $this->sdl->log('<br><b>-------------------------------------------------------------</b><br>'.
             '<b>Starting Bot Scheduler at '.date('d.m.y H:i:s', time()).'</b>', TICK_LOG_FILE_NPC);
 
@@ -1573,9 +1571,9 @@ class Ferengi extends NPC
                 $units_str_1 = $stpl_a['min_unit_1'].', '.$stpl_a['min_unit_2'].', '.$stpl_a['min_unit_3'].', '.$stpl_a['min_unit_4'];
                 $units_str_2 = $stpl_b['min_unit_1'].', '.$stpl_b['min_unit_2'].', '.$stpl_b['min_unit_3'].', '.$stpl_b['min_unit_4'];
                 $sql_c= 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
-                    VALUES ('.$fleet_id.', '.$this->bot['user_id'].', '.$this->bot['ship_t_1'].', '.$stpl_a['value_9'].', '.$stpl_a['value_5'].', '.$game->TIME.', '.$units_str_1.')';
+                    VALUES ('.$fleet_id.', '.$this->bot['user_id'].', '.$this->bot['ship_t_1'].', '.$stpl_a['value_9'].', '.$stpl_a['value_5'].', '.time().', '.$units_str_1.')';
                 $sql_d= 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
-                    VALUES ('.$fleet_id.', '.$this->bot['user_id'].', '.$this->bot['ship_t_2'].', '.$stpl_b['value_9'].', '.$stpl_b['value_5'].', '.$game->TIME.', '.$units_str_2.')';
+                    VALUES ('.$fleet_id.', '.$this->bot['user_id'].', '.$this->bot['ship_t_2'].', '.$stpl_b['value_9'].', '.$stpl_b['value_5'].', '.time().', '.$units_str_2.')';
                 for($i = 0; $i < 4000; ++$i)
                 {
                     if($i<400){
@@ -1621,7 +1619,7 @@ class Ferengi extends NPC
                 if (!empty($stpl_b)) {
                     $units_str_2 = $stpl_b['min_unit_1'].', '.$stpl_b['min_unit_2'].', '.$stpl_b['min_unit_3'].', '.$stpl_b['min_unit_4'];
                     $sql= 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4)
-                        VALUES ('.$fleet_id.', '.$this->bot['user_id'].', '.$this->bot['ship_t_2'].', '.$stpl_b['value_9'].', '.$stpl_b['value_5'].', '.$game->TIME.', '.$units_str_2.')';
+                        VALUES ('.$fleet_id.', '.$this->bot['user_id'].', '.$this->bot['ship_t_2'].', '.$stpl_b['value_9'].', '.$stpl_b['value_5'].', '.time().', '.$units_str_2.')';
 
                     for($i = 0; $i < 1000; ++$i)
                     {
