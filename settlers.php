@@ -1,6 +1,10 @@
 <?php
 /*    
-    This file is part of STFC.
+    This file is part of STFC.it
+    Copyright 2008-2013 by Andrea Carolfi (carolfi@stfc.it) and
+    Cristiano Delogu (delogu@stfc.it).
+
+    STFC.it is based on STFC,
     Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
 
     STFC is based on STGC,
@@ -42,7 +46,7 @@ class Settlers extends NPC
         $this->bot = $this->db->queryrow('SELECT * FROM user WHERE user_id = '.INDEPENDENT_USERID);
 
         //Check whether the bot already lives
-        if($this->bot['user_id'] == 0) {
+        if(empty($this->bot['user_id'])) {
             $this->sdl->log('We need to create TheSettlers!', $log);
 
             $sql = 'INSERT INTO user (user_id, user_active, user_name, user_loginname, user_password,
