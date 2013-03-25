@@ -394,7 +394,7 @@ class Ferengi extends NPC
                     $sql = 'SELECT b.*,u.user_id,u.user_name,u.language
                             FROM (bidding b) LEFT JOIN (user u) ON u.user_id=b.user
                             WHERE b.trade_id ="'.$tradedata['id'].'"
-                            ORDER BY b.max_bid DESC LIMIT 1';
+                            ORDER BY b.max_bid DESC, b.id ASC LIMIT 1';
                     $purchaser = $this->db->queryrow($sql);
 
                     // Check if there was only one bid
@@ -425,7 +425,7 @@ class Ferengi extends NPC
 
                         $this->sdl->log('Last Bid: '.$last_bid['max_bid'].' and Prelast Bid: '.$prelast_bid['max_bid'], TICK_LOG_FILE_NPC);
 
-                        // To test if there is a tie then max_bid +1
+                        // If last two bids are differents there isn't a tie then max_bid +1
                         if ($last_bid['max_bid']!=$prelast_bid['max_bid']) {
                             $prelast_bid['max_bid']++;
                         }
