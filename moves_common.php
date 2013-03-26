@@ -279,7 +279,7 @@ class moves_common {
                 $active_slot = $planet_info['unittrain_actual'];
                 $tries = 0;
 
-                while (($planet_info['unittrainid_'.$active_slot] == 0) && $academy_is_working)
+                while ($academy_is_working && ($planet_info['unittrainid_'.$active_slot] == 0))
                 {
                     $tries++; 
 
