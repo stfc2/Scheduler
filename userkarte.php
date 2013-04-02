@@ -91,7 +91,7 @@ foreach($daten as $xpos => $datensatz) {
 		imagefilledellipse($image, $xpos*5, $ypos*5, 5,5, $color);
 		$map_data.='<area shape="circle" coords="'.($xpos*5).','.($ypos*5).',5" onmouseover="return overlib(\'';
 		foreach($datensatz2 as $name) $map_data.=$name.'<br>';
-		$map_data.='\', CAPTION, \'Spieler:\', WIDTH, 300, FGCOLOR, \'#ffffff\', TEXTCOLOR, \'#ffffff\', FGBACKGROUND,\'http://stfc.nonsolotaku.it:82/stgc5_gfx/skin1/bg_stars1.gif\', BGCOLOR, \'#687b88\', BORDER, 2, CAPTIONFONT, \'Arial\', CAPTIONSIZE, 2, TEXTFONT, \'Arial\', TEXTSIZE, 2);" onmouseout="return nd();">
+		$map_data.='\', CAPTION, \'Spieler:\', WIDTH, 300, FGCOLOR, \'#ffffff\', TEXTCOLOR, \'#ffffff\', FGBACKGROUND,\'http://www.stfc.it/stfc_gfx/skin1/bg_stars1.gif\', BGCOLOR, \'#687b88\', BORDER, 2, CAPTIONFONT, \'Arial\', CAPTIONSIZE, 2, TEXTFONT, \'Arial\', TEXTSIZE, 2);" onmouseout="return nd();">
 		';
 	}
 }

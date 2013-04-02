@@ -461,6 +461,23 @@ class moves_common {
             }
         }
 
+        $this->log(MV_M_NOTICE, 'Invoking Combat Binary, fight taking on '.$this->move['dest'].', attacker is '.$atk_fleet_ids_str.', defender is '.$dfd_fleet_ids_str);
+        
+        //Solo per test, lasciare commentata se non necessario
+        $this->log(MV_M_NOTICE, ' Attackers:');
+        $sqltemp = 'SELECT s.fleet_id, s.user_id, st.id, st.race, st.ship_torso, st.ship_class, st.rof, st.removed FROM ship_templates st, ships s WHERE st.id = s.template_id AND s.fleet_id IN ('.$atk_fleet_ids_str.') GROUP BY st.id';
+        $atktemplate = $this->db->query($sqltemp);
+        while($item1 = $this->db->fetchrow($atktemplate)) {
+	       	$this->log(MV_M_NOTICE, 'Flotta:'.$item1['fleet_id'].' Utente:'.$item1['user_id'].' Template: '.$item1['id'].' Razza: '.$item1['race'].' Torso: '.$item1['ship_torso'].' Classe: '.$item1['ship_class'].' ROF: '.$item1['rof'].' Rimosso: '.$item1['removed']);
+	    }
+        $this->log(MV_M_NOTICE, ' Defenders:');
+        $sqltemp = 'SELECT s.fleet_id, s.user_id, st.id, st.race, st.ship_torso, st.ship_class, st.rof, st.removed FROM ship_templates st, ships s WHERE st.id = s.template_id AND s.fleet_id IN ('.$dfd_fleet_ids_str.') GROUP BY st.id';
+        $dfdtemplate = $this->db->query($sqltemp);
+        while($item2 = $this->db->fetchrow($dfdtemplate)) {
+	       	$this->log(MV_M_NOTICE, 'Flotta:'.$item2['fleet_id'].' Utente:'.$item2['user_id'].' Template: '.$item2['id'].' Razza: '.$item2['race'].' Torso: '.$item2['ship_torso'].' Classe: '.$item2['ship_class'].' ROF: '.$item2['rof'].' Rimosso: '.$item2['removed']);
+	    }
+        
+        
         $bin_output = array();
 
         $cmd_line = MV_COMBAT_BIN_PATH.' '.$atk_fleet_ids_str.' '.$dfd_fleet_ids_str.' '.$this->move['dest'].' '.$n_large_orbital_defense.' '.$n_small_orbital_defense;
@@ -782,8 +799,11 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
                                     '.$this->move['user_alliance'].',
                                     '.$this->move['user_id'].',
                                     '.$this->move['user_alliance'].', '.$timestamp.', '.($this->CURRENT_TICK+960).', 1, 500)';
-                    if(!$this->db->query($sql))
-                        return $this->log(MV_M_DATABASE, 'Could not update planet details db! SKIP!');
+                    if(!$this->db->query($sql)) return $this->log(MV_M_DATABASE, 'Could not update planet details db! SKIP!');
+                    // DC ---- We clear all 102 records for this system
+                    
+                    $sql = 'DELETE from planet_details WHERE system_id = '.$this->dest['system_id'].' AND user_id = '.$this->move['user_id'].' AND log_code = 102';
+                    if(!$this->db->query($sql)) return $this->log(MV_M_DATABASE, 'Could not update planet details db! SKIP!');
                 }
 
                 $sql = 'SELECT COUNT(*) AS been_there FROM planet_details WHERE system_id = '.$this->dest['system_id'].' AND log_code = 101 AND user_id = '.$this->move['user_id'];
@@ -848,6 +868,57 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
                 // DC ----
 
                 }
+                // DC ---- This is the new FOW system. For now, we just put in informations in DB
+                // DC ---- Player section
+                $sql = 'SELECT COUNT(*) AS i_see_there FROM starsystems_details WHERE system_id = '.$this->dest['system_id'].' AND log_code = 500 AND user_id = '.$this->move['user_id'];
+                if(($_flag = $this->db->queryrow($sql)) === false) {
+                    $this->log(MV_M_DATABASE, 'Could not query planet details db! CONTINUE');
+                    $_flag['i_see_there'] = 1;
+                }
+                if($_flag['i_see_there'] < 1) {
+                    // DC ---- We have no visibility set here, so we do now. fixed = 1 because we have a fleet here.
+                    // planet_id will no more used in future
+                    $sql = 'INSERT INTO starsystems_details
+                                   (system_id, user_id, timestamp, validity, fixed, log_code)
+                            VALUES ('.$this->dest['system_id'].', '.$this->move['user_id'].', '.$timestamp.', '.($this->CURRENT_TICK+960).', 1, 500)';
+                    if(!$this->db->query($sql)) $this->log(MV_M_NOTICE, 'log_code 500, updating starsystems_details: '.$sql);
+                    // DC ---- We clear all 102 records for this system for $this->move['user_id']
+                    $sql = 'DELETE from planet_details WHERE system_id = '.$this->dest['system_id'].' AND user_id = '.$this->move['user_id'].' AND log_code = 102';
+                    if(!$this->db->query($sql)) return $this->log(MV_M_DATABASE, 'Could not update planet details db! SKIP!');
+                    
+                }
+                // DC ---- Alliance section
+                // DC ---- This only works in G2 with fixed alliances
+                $sql = 'SELECT *, COUNT(*) AS i_see_there FROM starsystems_details WHERE system_id = '.$this->dest['system_id'].' AND log_code = 500 AND alliance_id = '.$this->move['user_alliance'];
+                if(($_flag = $this->db->queryrow($sql)) === false) {
+                    $this->log(MV_M_NOTICE, 'Could not query system details db! CONTINUE'.$sql);
+                }
+                if($_flag['i_see_there'] < 1) {
+                    // DC ---- We have no visibility set here, so we do now. fixed = 1 because we have a fleet here.
+                    // planet_id will no more used in future
+                    $sql = 'INSERT INTO starsystems_details
+                                   (system_id, alliance_id, timestamp, validity, fixed, log_code)
+                            VALUES ('.$this->dest['system_id'].', '.$this->move['user_alliance'].', '.$timestamp.', '.($this->CURRENT_TICK+960).', 1, 500)';
+                    if(!$this->db->query($sql)) $this->log(MV_M_NOTICE, 'log_code 500, updating starsystems_details: '.$sql);                
+                }
+                
+                // DC ---- New FOW system, explored flag in starsystems_details
+                $sql = 'SELECT COUNT(*) AS been_there FROM starsystems_details WHERE system_id = '.$this->dest['system_id'].' AND log_code = 101 AND user_id = '.$this->move['user_id'];
+                if(($_flag = $this->db->queryrow($sql)) === false) {
+                    $this->log(MV_M_DATABASE, 'Could not query planet details db! CONTINUE');
+                    $_flag['been_there'] = 1;
+                }
+                if($_flag['been_there'] < 1) {
+                    // DC ---- Ok, we never have been here before, so we set up "explored" flags
+                    // DC We do not put log_code 102 in this section
+                    // DC Player record
+                    $sql = 'INSERT INTO starsystems_details (system_id, user_id, timestamp, log_code) VALUES ('.$this->dest['system_id'].', '.$this->move['user_id'].', '.$timestamp.', 101)';
+                    if(!$this->db->query($sql)) $this->log(MV_M_NOTICE, 'log_code 101, updating starsystems_details: '.$sql);
+                    // DC Alliance record
+					$sql = 'INSERT INTO starsystems_details (system_id, alliance_id, timestamp, log_code) VALUES ('.$this->dest['system_id'].', '.$this->move['user_alliance'].', '.$timestamp.', 101)';
+                    if(!$this->db->query($sql)) $this->log(MV_M_NOTICE, 'log_code 101, updating starsystems_details: '.$sql);
+                }
+                
             }
 
         }

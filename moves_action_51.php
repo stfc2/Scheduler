@@ -188,6 +188,8 @@ else
     }
 }
 
+$sql = 'UPDATE ship_fleets SET planet_id = '.$this->move['dest'].', move_id = 0 WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+$this->db->query($sql);
 
 if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
     // #############################################################################
@@ -208,15 +210,15 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
         break;
     }
 
-    $sql = 'UPDATE ship_fleets
-            SET planet_id = '.$this->move['dest'].',
-                move_id = 0
-            WHERE fleet_id IN ('.$this->fleet_ids_str.')';
-
-    if(!$this->db->query($sql)) {
+//    $sql = 'UPDATE ship_fleets
+//            SET planet_id = '.$this->move['dest'].',
+//                move_id = 0
+//            WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+//
+//    if(!$this->db->query($sql)) {
         // Here one could also report and then go on
-        return $this->log(MV_M_DATABASE, 'Could not update fleets location data! SKIP');
-    }
+//        return $this->log(MV_M_DATABASE, 'Could not update fleets location data! SKIP');
+//    }
      // If the attack was on a settlers planet, they will get a little mad!
     
     if($this->dest['user_id'] == INDEPENDENT_USERID) {
