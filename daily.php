@@ -275,6 +275,10 @@ foreach ($files as $key => $file) {
 
         // Close the gz file and we are done
         gzclose($fp);
+
+        // Delete uncompressed file
+        if(!unlink($file))
+            $sdl->log('<b>Error:</b> cannot remove uncompressed file '.$file);
     }
 }
 $sdl->finish_job('Compress log files');
