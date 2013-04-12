@@ -24,6 +24,7 @@ class simpleGraph
     var $image;
     var $im;
     var $target;
+    var $text_color;
 
     function create($imgWidth, $imgHeight){
         //header ("Content-type: image/png");
@@ -33,14 +34,14 @@ class simpleGraph
         $background_color = ImageColorAllocate ($this->im, 240, 240, 240);
         imagefilledrectangle ($this->im, 0, 0, $imgWidth, $imgHeight, $background_color); 
     
-        $text_color = ImageColorAllocate ($this->im, 0, 0, 0);
+        $this->text_color = ImageColorAllocate ($this->im, 0, 0, 0);
     }
 
 
   function headline($text)
   {
-    $text_color = ImageColorAllocate ($this->im, 0, 0, 0);
-    ImageString ($this->im, 3, 5, 5, $text, $text_color); 
+    $this->text_color = ImageColorAllocate ($this->im, 0, 0, 0);
+    ImageString ($this->im, 3, 5, 5, $text, $this->text_color); 
   }
   
   function circle($arr)
@@ -84,7 +85,7 @@ class simpleGraph
         imagefilledrectangle ($this->im, 300-15, $textline+2, 300-5, $textline+13, $fillcolor); 
         imagerectangle ($this->im, 300-5, $textline+2, 300-15, $textline+13, $black);
         
-        ImageString ($this->im, 2, 300, $textline, $arr[$x]['name'], $text_color);
+        ImageString ($this->im, 2, 300, $textline, $arr[$x]['name'], $this->text_color);
         
         $gesamt = $gesamt+$add; 
         
@@ -116,11 +117,11 @@ class simpleGraph
 
     imageline($this->im, $gesamtLaenge, 50, 20, 50, $red_line);
     imageline($this->im, 32, 50, 20, 50, $line_color);
-    ImageString ($this->im, 1, 5, 40, $biggestValue, $text_color); 
+    ImageString ($this->im, 1, 5, 40, $biggestValue, $this->text_color); 
 
     imageline($this->im, $gesamtLaenge, 110, 20, 110, $red_line);
     imageline($this->im, 32, 110, 20, 110, $line_color);
-    ImageString ($this->im, 1, 5, 100, round($biggestValue/2), $text_color); 
+    ImageString ($this->im, 1, 5, 100, round($biggestValue/2), $this->text_color); 
     
     $start_x = 35;
     $maxhoehe = 120;
@@ -133,8 +134,8 @@ class simpleGraph
         $hoehe = ($maxhoehe + 50) - $hoehe;
         if($hoehe < ($maxhoehe + 50)-5)imagefilledrectangle ($this->im, $start_x+5, $hoehe+5, $start_x+20+5, 170, $rect_color_shaddow); // Shaddow
         imagefilledrectangle ($this->im, $start_x, $hoehe, $start_x+20, 170, $rect_color); 
-        ImageString ($this->im, 1, $start_x, 180, $arr[$i]['name'], $text_color);
-        ImageString ($this->im, 1, $start_x, $hoehe-10, $arr[$i]['size'], $text_color);
+        ImageString ($this->im, 1, $start_x, 180, $arr[$i]['name'], $this->text_color);
+        ImageString ($this->im, 1, $start_x, $hoehe-10, $arr[$i]['size'], $this->text_color);
         $start_x = $start_x + 30;
     }
   }
@@ -163,11 +164,11 @@ class simpleGraph
   
     imageline($this->im, $gesamtLaenge, 50, 20, 50, $red_line);
     imageline($this->im, 32, 50, 20, 50, $line_color);
-    ImageString ($this->im, 1, 5, 40, $biggestValue, $text_color); 
+    ImageString ($this->im, 1, 5, 40, $biggestValue, $this->text_color); 
 
     imageline($this->im, $gesamtLaenge, 110, 20, 110, $red_line);
     imageline($this->im, 32, 110, 20, 110, $line_color);
-    ImageString ($this->im, 1, 5, 100, round($biggestValue/2), $text_color); 
+    ImageString ($this->im, 1, 5, 100, round($biggestValue/2), $this->text_color); 
     
     $start_x = 35;
     $maxhoehe = 120;
@@ -183,8 +184,8 @@ class simpleGraph
         $point[$i]["x"] = $start_x+30; //x
         $point[$i]["y"] = $hoehe; //y
         
-        ImageString ($this->im, 1, $start_x, 180, $arr[$i]['name'], $text_color);
-        ImageString ($this->im, 1, $start_x, $hoehe-10, $arr[$i]['size'], $text_color);
+        ImageString ($this->im, 1, $start_x, 180, $arr[$i]['name'], $this->text_color);
+        ImageString ($this->im, 1, $start_x, $hoehe-10, $arr[$i]['size'], $this->text_color);
         $start_x = $start_x + 50;
     }
     
