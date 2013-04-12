@@ -1,11 +1,11 @@
 <?php
-/*    
-	This file is part of STFC.
-	Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
-		
-	STFC is based on STGC,
-	Copyright 2003-2007 by Florian Brede (florian_brede@hotmail.com) and Philipp Schmidt
-	
+/*
+    This file is part of STFC.
+    Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
+
+    STFC is based on STGC,
+    Copyright 2003-2007 by Florian Brede (florian_brede@hotmail.com) and Philipp Schmidt
+
     STFC is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
@@ -21,12 +21,11 @@
 */
 
 
-
 class moves_action_42 extends moves_common {
     function _action_main() {
 
 // #############################################################################
-// Daten der Angreifer
+// Data of the attacker
 
 $sql = 'SELECT fleet_id
         FROM ship_fleets
@@ -45,16 +44,16 @@ while($_fleet = $this->db->fetchrow($q_atk_st_fleets)) {
 }
 
 $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
-		FROM (ship_fleets f)
-		INNER JOIN user u ON u.user_id = f.user_id
-		WHERE f.fleet_id IN ('.$atk_fleet_ids_str.')';
+        FROM (ship_fleets f)
+        INNER JOIN user u ON u.user_id = f.user_id
+        WHERE f.fleet_id IN ('.$atk_fleet_ids_str.')';
 
 if(($atk_fleets = $this->db->queryrowset($sql)) === false) {
-	return $this->log(MV_M_DATABASE, 'Could not query attackers fleets data! SKIP');}
+    return $this->log(MV_M_DATABASE, 'Could not query attackers fleets data! SKIP');}
 
 
 // #############################################################################
-// Daten der Verteidiger
+// Data of the defender
 
 $sql = 'SELECT DISTINCT f.user_id,
                u.user_alliance,
@@ -98,7 +97,7 @@ if($n_st_user > 0) {
              FROM (ship_fleets f)
              INNER JOIN user u ON u.user_id = f.user_id
              WHERE f.planet_id = '.$this->move['dest'].' AND
-		 	      (
+                  (
                      (
                        f.user_id = '.$this->dest['user_id'].'
                      )
@@ -118,23 +117,23 @@ else {
 }
 
 if(($dfd_fleets = $this->db->queryrowset($sql)) === false) {
-	return $this->log(MV_M_DATABASE, 'Could not query defenders fleets data! SKIP');
+    return $this->log(MV_M_DATABASE, 'Could not query defenders fleets data! SKIP');
 }
 
 $dfd_fleet_ids = array();
 
 foreach($dfd_fleets as $i => $cur_fleet) {
-	$dfd_fleet_ids[] = $cur_fleet['fleet_id'];
+    $dfd_fleet_ids[] = $cur_fleet['fleet_id'];
 }
 
 if($this->do_ship_combat($atk_fleet_ids_str, implode(',', $dfd_fleet_ids), MV_COMBAT_LEVEL_ORBITAL) == MV_EXEC_ERROR) {
-	$this->log(MV_M_DATABASE, 'Move Action 42: Something went wrong with this fight!');
-	return MV_EXEC_ERROR;
+    $this->log(MV_M_DATABASE, 'Move Action 42: Something went wrong with this fight!');
+    return MV_EXEC_ERROR;
 }
 
 
 // #############################################################################
-// Evtl. die übriggeblienen Schiffe des Angreifers wieder zurückschicken
+// Possibly return the remaining ships again to the attacker
 
 if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
     $sql = 'SELECT COUNT(ship_id) AS n_ships
@@ -146,7 +145,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
     }
 
     $sql = 'INSERT INTO scheduler_shipmovement (user_id, move_status, move_exec_started, start, dest, total_distance, remaining_distance, tick_speed, move_begin, move_finish, n_ships, action_code, action_data)
-            VALUES ('.$this->move['user_id'].', 0, 0, '.$this->move['dest'].', '.$this->move['start'].', '.$this->move['total_distance'].', '.$this->move['total_distance'].', '.$this->move['tick_speed'].', '.$this->CURRENT_TICK.', '.($this->CURRENT_TICK + ($this->move['move_finish'] - $this->move['move_begin'])).', '.$ships_alive['n_ships'].', 12, "42")';
+            VALUES ('.$this->move['user_id'].', 0, 0, '.$this->move['dest'].', '.$this->move['start'].', '.$this->move['total_distance'].', '.$this->move['total_distance'].', '.$this->move['tick_speed'].', '.$this->CURRENT_TICK.', '.($this->CURRENT_TICK + ($this->move['move_finish'] - $this->move['move_begin'])).', '.$ships_alive['n_ships'].', 12, "'.serialize(42).'")';
 
     if(!$this->db->query($sql)) {
         return $this->log(MV_M_DATABASE, 'Could not create new movement for return! SKIP');
@@ -226,7 +225,7 @@ else {
 
 
 // #############################################################################
-// Logbuch schreiben
+// Write logbook
 
 $log1_data = array(41, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], MV_CMB_ATTACKER, ( ($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) ? 1 : 0 ), 0,0, $atk_fleets, $dfd_fleets);
 $log2_data = array(41, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], MV_CMB_DEFENDER, ( ($this->cmb[MV_CMB_WINNER] == MV_CMB_DEFENDER) ? 1 : 0 ), 0,0, $atk_fleets, $dfd_fleets, $this->cmb[MV_CMB_KILLS_PLANETARY]);

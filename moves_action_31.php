@@ -27,7 +27,7 @@ class moves_action_31 extends moves_common {
         account_log($this->move['user_id'], $this->dest['user_id'], 0);
 
         // #############################################################################
-        // Summe der Rohstoffe ermitteln
+        // Determine the total raw
 
         $sql = 'SELECT fleet_id,
                        resource_1, resource_2, resource_3, resource_4,
@@ -40,18 +40,18 @@ class moves_action_31 extends moves_common {
         }
 
         // #############################################################################
-        // Rohstoffe übertragen
+        // Transferred resources
 
         $wares_names = array('resource_1', 'resource_2', 'resource_3', 'resource_4', 'unit_1', 'unit_2', 'unit_3', 'unit_4', 'unit_5', 'unit_6');
 
-        // $pwares -> Waren auf dem Planeten
-        // $fwares -> Waren auf der Flotte
-        // $twares -> transferierte Waren (wird gebraucht für Schulden-Berechnung)
+        // $pwares -> Wares on the planet
+        // $fwares -> Wares on the fleet
+        // $twares -> transferred goods (needed for debt calculation)
 
         $pwares = $fwares = $twares = array();
 
-        // Push Check Var initialisiert
-        $push = false;     
+        // Push check Var initialized
+        $push = false;
 
         for($i = 0; $i < count($wares_names); ++$i) {
             $pwares[$i] = (int)$this->dest[$wares_names[$i]];
@@ -67,7 +67,7 @@ class moves_action_31 extends moves_common {
 
             if($n_fwares == 0) continue;
 
-            // Check auf Pushversuch
+            // Check try to push
             if($this->move['user_id']!=$this->dest['user_id']) { 
               $push = true; 
               continue; 
@@ -137,14 +137,14 @@ class moves_action_31 extends moves_common {
             return $this->log(MV_M_DATABASE, 'Could not update planets resource data! SKIP');
         }
 
-        // Umarbeiten von $twares auf das von der Schuldenberechnung erwartete Format
-        // (könnte man noch umschreiben, aber wozu, wenn es funktioniert...)
+        // Reworking of $ twares to the expected size of the debt calculation
+        // (one might even rewrite, but why bother when it works...)
 
         $rfleets = array('n1' => $twares[0], 'n2' => $twares[1], 'n3' => $twares[2]);
 
 
         // #############################################################################
-        // Schulden überprüfen
+        // Check debts
 
         $sql = 'SELECT id, resource_1, resource_2, resource_3, ship_id
                 FROM bidding_owed
@@ -215,11 +215,11 @@ class moves_action_31 extends moves_common {
         }
 
         // #############################################################################
-        // Schiffe zurückgeschicken
+        // Ships return
 
         $sql = 'INSERT INTO scheduler_shipmovement (user_id, move_status, move_exec_started, start, dest, total_distance, remaining_distance, tick_speed, move_begin, move_finish, n_ships, action_code, action_data)
-                VALUES ('.$this->move['user_id'].', 0, 0, '.$this->move['dest'].', '.$this->move['start'].', '.$this->move['total_distance'].', '.$this->move['total_distance'].', '.$this->move['tick_speed'].', '.$this->CURRENT_TICK.', '.($this->CURRENT_TICK + ($this->move['move_finish'] - $this->move['move_begin'])).', '.$this->move['n_ships'].', 12, "31")';
-                
+                VALUES ('.$this->move['user_id'].', 0, 0, '.$this->move['dest'].', '.$this->move['start'].', '.$this->move['total_distance'].', '.$this->move['total_distance'].', '.$this->move['tick_speed'].', '.$this->CURRENT_TICK.', '.($this->CURRENT_TICK + ($this->move['move_finish'] - $this->move['move_begin'])).', '.$this->move['n_ships'].', 12, "'.serialize(31).'")';
+
         if(!$this->db->query($sql)) {
             return $this->log(MV_M_DATABASE, 'Could not create new movement for return! SKIP');
         }
@@ -239,7 +239,7 @@ class moves_action_31 extends moves_common {
         }
 
         // #############################################################################
-        // Logbuch-Eintrag erstellen
+        // Create a logbook entry
 
         $sql = 'SELECT st.name, st.ship_torso, st.race,
                        COUNT(s.ship_id) AS n_ships
