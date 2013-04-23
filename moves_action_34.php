@@ -1,11 +1,11 @@
 <?php
-/*    
-	This file is part of STFC.
-	Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
-		
-	STFC is based on STGC,
-	Copyright 2003-2007 by Florian Brede (florian_brede@hotmail.com) and Philipp Schmidt
-	
+/*
+    This file is part of STFC.
+    Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
+
+    STFC is based on STGC,
+    Copyright 2003-2007 by Florian Brede (florian_brede@hotmail.com) and Philipp Schmidt
+
     STFC is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
@@ -228,8 +228,8 @@ class moves_action_34 extends moves_common {
            ($move_sitters['user_sitting_id3'] == $this->dest['user_id']) ||
            ($move_sitters['user_sitting_id4'] == $this->dest['user_id']) ||
            ($move_sitters['user_sitting_id5'] == $this->dest['user_id'])) {
-           $route_blocked = true;
-            return $this->log(MV_M_NOTICE, 'Trade route between sitter <b>'.$this->dest['user_id'].'</b> and sitted <b>'.$this->move['user_id'].'</b> are forbidden!!!');
+            $route_blocked = true;
+            $log_message = 'Trade route between sitter <b>'.$this->dest['user_id'].'</b> and sitted <b>'.$this->move['user_id'].'</b> are forbidden!!!';
         }
 
         if(($dest_sitters['user_sitting_id1'] == $this->move['user_id']) ||
@@ -237,8 +237,8 @@ class moves_action_34 extends moves_common {
            ($dest_sitters['user_sitting_id3'] == $this->move['user_id']) ||
            ($dest_sitters['user_sitting_id4'] == $this->move['user_id']) ||
            ($dest_sitters['user_sitting_id5'] == $this->move['user_id'])) {
-           $route_blocked = true;
-            return $this->log(MV_M_NOTICE, 'Trade route between sitter <b>'.$this->move['user_id'].'</b> and sitted <b>'.$this->dest['user_id'].'</b> are forbidden!!!');
+            $route_blocked = true;
+            $log_message = 'Trade route between sitter <b>'.$this->move['user_id'].'</b> and sitted <b>'.$this->dest['user_id'].'</b> are forbidden!!!';
         }
 
         if($route_blocked) {
@@ -258,6 +258,7 @@ class moves_action_34 extends moves_common {
                 break;
             }
             SystemMessage($this->move['user_id'],$title,$message);
+            return $this->log(MV_M_NOTICE, $log_message);
         }
 
         /* END OF RULE TO AVOID ROUTES BETWEEN SITTER AND SITTED */
@@ -333,87 +334,89 @@ class moves_action_34 extends moves_common {
             return $this->log(MV_M_DATABASE, 'Could not update planets resource data');
         }
 
+        // #############################################################################
+        // Returns ships if requested
 
-	if($this->tr_data[5] < 0 || $this->tr_data[5] == 4) {
-		$new_move_begin = $this->CURRENT_TICK;
-		$new_move_finish = ($this->move['move_finish'] - $this->move['move_begin']) + $this->CURRENT_TICK;
+        if($this->tr_data[5] < 0 || $this->tr_data[5] == 4) {
+            $new_move_begin = $this->CURRENT_TICK;
+            $new_move_finish = ($this->move['move_finish'] - $this->move['move_begin']) + $this->CURRENT_TICK;
 
 
-		$sql = 'UPDATE scheduler_shipmovement
-		            SET start = '.$this->move['dest'].',
-		                dest = '.$this->move['start'].',
-		                move_begin = '.$new_move_begin.',
-		                move_finish = '.$new_move_finish.',
-		                remaining_distance = total_distance,
-		                action_data = "'.serialize($this->tr_data).'"
-		            WHERE move_id = '.$this->mid;
+            $sql = 'UPDATE scheduler_shipmovement
+                    SET start = '.$this->move['dest'].',
+                        dest = '.$this->move['start'].',
+                        move_begin = '.$new_move_begin.',
+                        move_finish = '.$new_move_finish.',
+                        remaining_distance = total_distance,
+                        action_data = "'.serialize($this->tr_data).'"
+                    WHERE move_id = '.$this->mid;
 
-		if(!$this->db->query($sql)) {
-			return $this->log(MV_M_DATABASE, 'Could not update move data! SKIP');
-		}
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update move data! SKIP');
+            }
 
-		$this->flags['keep_move_alive'] = true;
-	}
-	else {
-		$sql = 'UPDATE ship_fleets
-			SET planet_id = '.$this->move['dest'].',
-			move_id = 0
-			WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+            $this->flags['keep_move_alive'] = true;
+        }
+        else {
+            $sql = 'UPDATE ship_fleets
+                SET planet_id = '.$this->move['dest'].',
+                move_id = 0
+                WHERE fleet_id IN ('.$this->fleet_ids_str.')';
 
-		if(!$this->db->query($sql)) {
-			return $this->log(MV_M_DATABASE, 'Could not update fleets data! SKIP');
-		}
-	}
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update fleets data! SKIP');
+            }
+        }
 
-	// #############################################################################
-	// Logbook entry
+        // #############################################################################
+        // Logbook entry
 
-	$sql = 'SELECT st.name, st.ship_torso, st.race,
-	               COUNT(s.ship_id) AS n_ships
-	        FROM ship_templates st, ship_fleets f, ships s
-	        WHERE f.fleet_id IN ('.$this->fleet_ids_str.') AND
-	              s.template_id = st.id AND
-	              s.fleet_id = f.fleet_id
-	        GROUP BY st.id
-	        ORDER BY st.ship_torso ASC, st.race ASC';
+        $sql = 'SELECT st.name, st.ship_torso, st.race,
+                       COUNT(s.ship_id) AS n_ships
+                FROM ship_templates st, ship_fleets f, ships s
+                WHERE f.fleet_id IN ('.$this->fleet_ids_str.') AND
+                      s.template_id = st.id AND
+                      s.fleet_id = f.fleet_id
+                GROUP BY st.id
+                ORDER BY st.ship_torso ASC, st.race ASC';
 
-	if(!$q_stpls = $this->db->query($sql)) {
-		return $this->log(MV_M_DATABASE, 'Could not query ships templates data! SKIP');
-	}
+        if(!$q_stpls = $this->db->query($sql)) {
+            return $this->log(MV_M_DATABASE, 'Could not query ships templates data! SKIP');
+        }
 
-	$log_data = array(34, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], array(), $this->unlwares, $this->lwares, $this->planet_overloaded);
+        $log_data = array(34, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], array(), $this->unlwares, $this->lwares, $this->planet_overloaded);
 
-	while($stpl = $this->db->fetchrow($q_stpls)) {
-		$log_data[8][] = array($stpl['name'], $stpl['ship_torso'], $stpl['race'], $stpl['n_ships']);
-	}
+        while($stpl = $this->db->fetchrow($q_stpls)) {
+            $log_data[8][] = array($stpl['name'], $stpl['ship_torso'], $stpl['race'], $stpl['n_ships']);
+        }
 
-	// #############################################################################
-	// Retrieve player language
-	switch($this->move['language'])
-	{
-		case 'GER':
-			$log_title1 = 'Transport bei '.$this->dest['planet_name'].' durchgef&uuml;hrt';
-			$log_title2 = 'Transport bei '.$this->dest['planet_name'].' erhalten';
-		break;
-		case 'ITA':
-			$log_title1 = 'Trasporto per '.$this->dest['planet_name'].' compiuto';
-			$log_title2 = 'Trasporto per '.$this->dest['planet_name'].' ricevuto';
-		break;
-		default:
-			$log_title1 = 'Transport for '.$this->dest['planet_name'].' accomplished';
-			$log_title2 = 'Transport for '.$this->dest['planet_name'].' received';
-		break;
-	}
+        // #############################################################################
+        // Retrieve player language
+        switch($this->move['language'])
+        {
+            case 'GER':
+                $log_title1 = 'Transport bei '.$this->dest['planet_name'].' durchgef&uuml;hrt';
+                $log_title2 = 'Transport bei '.$this->dest['planet_name'].' erhalten';
+            break;
+            case 'ITA':
+                $log_title1 = 'Trasporto per '.$this->dest['planet_name'].' compiuto';
+                $log_title2 = 'Trasporto per '.$this->dest['planet_name'].' ricevuto';
+            break;
+            default:
+                $log_title1 = 'Transport for '.$this->dest['planet_name'].' accomplished';
+                $log_title2 = 'Transport for '.$this->dest['planet_name'].' received';
+            break;
+        }
 
-	// Add logbook entries only if players had activated them
-	if($this->action_data[6])
-		add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $log_title1, $log_data);
+        // Add logbook entries only if players had activated them
+        if($this->action_data[6])
+            add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $log_title1, $log_data);
 
-	// Only one logbook if the owner of the planet is also the owner of the fleets
-	if($this->move['user_id'] != $this->dest['user_id'])
-		add_logbook_entry($this->dest['user_id'], LOGBOOK_TACTICAL, $log_title2, $log_data);
+        // Only one logbook if the owner of the planet is also the owner of the fleets
+        if($this->move['user_id'] != $this->dest['user_id'])
+            add_logbook_entry($this->dest['user_id'], LOGBOOK_TACTICAL, $log_title2, $log_data);
 
-	return MV_EXEC_OK;
+        return MV_EXEC_OK;
     }
 
 }
