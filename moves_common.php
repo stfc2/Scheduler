@@ -662,7 +662,7 @@ class moves_common {
 
                 $ar_user[] = $ar_uid['user_id'];
 
-                echo 'AR-User ID war '.$ar_uid['user_id'];
+                $this->log(MV_M_NOTICE,'AR-User ID is '.$ar_uid['user_id']);
             }
 
             $this->db->free_result($q_ar_uid);
