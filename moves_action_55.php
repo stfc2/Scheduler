@@ -286,6 +286,8 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             }
 
             // 090408 DC:  ------ Finally the fucking soldiers have done their job!!!! 
+            $this->log(MV_M_NOTICE, 'Update ships with the minimum troops value');
+
             $sql = 'UPDATE ships ss, ship_templates st
                     SET ss.unit_1 = st.min_unit_1,
                         ss.unit_2 = st.min_unit_2,
@@ -293,7 +295,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                         ss.unit_4 = st.min_unit_4
                     WHERE ss.template_id = st.id
                 AND ss.fleet_id IN ('.$this->fleet_ids_str.')';
-            $this->log(MV_M_NOTICE, 'Update ships with the minimum troops value: '.$sql);
+
             if(!$this->db->query($sql))
                 return $this->log(MV_M_DATABASE, 'Could not update attacking ships! SKIP');
             // 090408 DC:  ------ 
