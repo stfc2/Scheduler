@@ -202,7 +202,6 @@ class moves_action_34 extends moves_common {
 
 
         /* START OF RULE TO AVOID ROUTES BETWEEN SITTER AND SITTED */
-        /* !! THIS SHOULD BE REMOVED AS SOON AS EVERY PROHIBITED ROUTE WILL BE REMOVED !! */
         $route_blocked = false;
 
         $sql = 'SELECT user_sitting_id1, user_sitting_id2, user_sitting_id3,
@@ -384,7 +383,17 @@ class moves_action_34 extends moves_common {
             return $this->log(MV_M_DATABASE, 'Could not query ships templates data! SKIP');
         }
 
-        $log_data = array(34, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], array(), $this->unlwares, $this->lwares, $this->planet_overloaded);
+        $log_data = array(34, $this->move['user_id'],
+                              $this->move['start'],
+                              $this->start['planet_name'],
+                              $this->start['user_id'],
+                              $this->move['dest'],
+                              $this->dest['planet_name'],
+                              $this->dest['user_id'],
+                              array(),
+                              $this->unlwares,
+                              $this->lwares,
+                              $this->planet_overloaded);
 
         while($stpl = $this->db->fetchrow($q_stpls)) {
             $log_data[8][] = array($stpl['name'], $stpl['ship_torso'], $stpl['race'], $stpl['n_ships']);
