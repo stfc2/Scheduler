@@ -1,8 +1,8 @@
 <?php
-/*    
+/*
 	This file is part of STFC.
 	Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
-		
+
 	STFC is based on STGC,
 	Copyright 2003-2007 by Florian Brede (florian_brede@hotmail.com) and Philipp Schmidt
 	
@@ -85,11 +85,11 @@ while (($player_data=$db->fetchrow($userqry))==true)
 			case 'GER':
 				$user_race='Föderation';
 			break;
-			case 'ENG':
-				$user_race='Federation';
-			break;
 			case 'ITA':
 				$user_race='Federazione';
+			break;
+			default:
+				$user_race='Federation';
 			break;
 		}
 		$image = ImageCreateFromJPEG($game_path . "sig_gfx/foederation.jpg");
@@ -101,11 +101,11 @@ while (($player_data=$db->fetchrow($userqry))==true)
 			case 'GER':
 				$user_race='Romulaner';
 			break;
-			case 'ENG':
-				$user_race='Romulan';
-			break;
 			case 'ITA':
 				$user_race='Romulani';
+			break;
+			default:
+				$user_race='Romulan';
 			break;
 		}
 		$image = ImageCreateFromJPEG($game_path . "sig_gfx/romulaner.jpg");
@@ -117,10 +117,10 @@ while (($player_data=$db->fetchrow($userqry))==true)
 			case 'GER':
 				$user_race='Klingone';
 			break;
-			case 'ENG':
+			case 'ITA':
 				$user_race='Klingon';
 			break;
-			case 'ITA':
+			default:
 				$user_race='Klingon';
 			break;
 		}
@@ -133,11 +133,11 @@ while (($player_data=$db->fetchrow($userqry))==true)
 			case 'GER':
 				$user_race='Cardassianer';
 			break;
-			case 'ENG':
-				$user_race='Cardassian';
-			break;
 			case 'ITA':
 				$user_race='Cardassiani';
+			break;
+			default:
+				$user_race='Cardassian';
 			break;
 		}
 		$image = ImageCreateFromJPEG($game_path . "sig_gfx/cardassia.jpg");
@@ -149,11 +149,11 @@ while (($player_data=$db->fetchrow($userqry))==true)
 			case 'GER':
 				$user_race='Dominion';
 			break;
-			case 'ENG':
-				$user_race='Dominium';
-			break;
 			case 'ITA':
 				$user_race='Dominio';
+			break;
+			default:
+				$user_race='Dominium';
 			break;
 		}
 		$image = ImageCreateFromJPEG($game_path . "sig_gfx/dominion.jpg");
@@ -175,11 +175,11 @@ while (($player_data=$db->fetchrow($userqry))==true)
 			case 'GER':
 				$user_race='Hirogen';
 			break;
-			case 'ENG':
-				$user_race='Hirogen';
-			break;
 			case 'ITA':
 				$user_race='Hirogeni';
+			break;
+			default:
+				$user_race='Hirogen';
 			break;
 		}
 		$image = ImageCreateFromJPEG($game_path . "sig_gfx/hirogen.jpg");
@@ -205,19 +205,19 @@ while (($player_data=$db->fetchrow($userqry))==true)
 			$str_honor = 'Verdienst: ';
 			$str_race = 'Rasse: ';
 		break;
-		case 'ENG':
-			$str_ally = 'Alliance: ';
-			$str_points = 'Points: ';
-			$str_planets = 'Planets: ';
-			$str_honor = 'Honor: ';
-			$str_race = 'Race: ';
-		break;
 		case 'ITA':
 			$str_ally = 'Alleanza: ';
 			$str_points = 'Punti: ';
 			$str_planets = 'Pianeti: ';
 			$str_honor = 'Onore: ';
 			$str_race = 'Specie: ';
+		break;
+		default:
+			$str_ally = 'Alliance: ';
+			$str_points = 'Points: ';
+			$str_planets = 'Planets: ';
+			$str_honor = 'Honor: ';
+			$str_race = 'Race: ';
 		break;
 	}
 
