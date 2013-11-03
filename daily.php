@@ -208,7 +208,7 @@ else {
         }
     }
     else
-        $sql->log('Tick has been stopped (Unlock in table "config")');
+        $sdl->log('Tick has been stopped (Unlock in table "config")');
 }
 $sdl->finish_job('Slimming ship movements');
 
@@ -289,7 +289,7 @@ $sdl->finish_job('Compress log files');
 // #######################################################################################
 // Clean temporary security images
 $sdl->start_job('Clean temporary security images');
-array_map('unlink', glob($game_path."tmpsec/*.jpg"));
+array_walk(glob($game_path."tmpsec/*.jpg"),'unlink');
 $sdl->finish_job('Clean temporary security images');
 
 
