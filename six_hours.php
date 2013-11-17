@@ -132,36 +132,6 @@ if(!$db->query($sql))
 
 $sdl->finish_job('Recalculate colony ship limits');
 
-
-
-// #######################################################################################
-// #######################################################################################
-// Check of Settler Planets OMG!!! LOT OF TIME USED!!!
-$sdl->start_job('Colony DB checkup');
-$sql = 'SELECT planet_id FROM planets WHERE planet_owner = '.INDEPENDENT_USERID;
-$planets_restored = 0;
-$settlers_planets = $db->query($sql);
-while($fetch_planet=$db->fetchrow($settlers_planets)) {
-    $sql='SELECT * FROM planet_details WHERE planet_id = '.$fetch_planet['planet_id'].' AND log_code = 300';
-    if(!$db->queryrow($sql)) {
-        $sdl->log('Colony Exception: planet '.$fetch_planet['planet_id'].' with missing moods information! Restoring with default data...');
-        $sql='INSERT INTO planet_details SET planet_id  = '.$fetch_planet['planet_id'].', 
-                          user_id = '.INDEPENDENT_USERID.',
-                          log_code   = 300, 
-                          timestamp  = '.time();
-        //$sdl->log('Colony SQL: '.$sql);
-        if(!$db->query($sql))
-        {
-            $sdl->log('<b>Error:</b> Bot: Could not insert default colony moods data!');
-        }
-        $planets_restored++;
-    }
-}
-if($planets_restored != 0) $sdl->log('Colony Report: Restored '.$planets_restored.' default planets mood data');
-$sdl->finish_job('Colony DB checkup');
-
-
-
 // #######################################################################################
 // #######################################################################################
 // Check of miners available on Borg planets
