@@ -217,7 +217,7 @@ class Borg extends NPC
              * Physicians: 10
              *
              * Minimum crew:
-             * 
+             *
              * Drone simple: 100
              * Assault drone: 25
              * Elite drone: 25
@@ -229,7 +229,7 @@ class Borg extends NPC
              * Assault drone: 70
              * Elite drone: 50
              * Commander drone: 10
-             */ 
+             */
             $reload++;
             $sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
                                                 component_1, component_2, component_3, component_4, component_5,
@@ -240,7 +240,7 @@ class Borg extends NPC
                                                 resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
                                                 min_unit_1, min_unit_2, min_unit_3, min_unit_4,
                                                 max_unit_1, max_unit_2, max_unit_3, max_unit_4,
-                                                buildtime)
+                                                buildtime, rof, max_torp)
                      VALUES ("'.$this->bot['user_id'].'","'.time().'","'.BORG_SPHERE.'","Exploration ship","'.BORG_RACE.'",6,2,
                              -1,-1,-1,-1,-1,
                              -1,-1,-1,-1,-1,
@@ -250,7 +250,7 @@ class Borg extends NPC
                              "50000","50000","50000","500","100","10",
                              "100","25","25","5",
                              "300","70","50",10,
-                             0)';
+                             0, 1, 500)';
 
             if(!$this->db->query($sql)) {
                 $this->sdl->log('<b>Error:</b> could not save BOT template 1 - ABORTED', $log);
@@ -292,7 +292,7 @@ class Borg extends NPC
              * Physicians: 1000
              *
              * Minimum crew:
-             * 
+             *
              * Drone simple: 10000
              * Assault drone: 2500
              * Elite drone: 2500
@@ -315,8 +315,8 @@ class Borg extends NPC
                                                 resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
                                                 min_unit_1, min_unit_2, min_unit_3, min_unit_4,
                                                 max_unit_1, max_unit_2, max_unit_3, max_unit_4,
-                                                buildtime)
-                    VALUES ("'.$this->bot['user_id'].'","'.time().'","'.BORG_CUBE.'","Assimilation ship","'.BORG_RACE.'",11,3,
+                                                buildtime, rof, max_torp)
+                    VALUES ("'.$this->bot['user_id'].'","'.time().'","'.BORG_CUBE.'","Assimilation ship","'.BORG_RACE.'",10,3,
                             -1,-1,-1,-1,-1,
                             -1,-1,-1,-1,-1,
                             "6000","6000","400","20000","7000",
@@ -325,7 +325,7 @@ class Borg extends NPC
                             "500000","500000","500000","50000","10000","1000",
                             "10000","2500","2500","500",
                             "30000","7000","5000","1000",
-                            0)';
+                            0, 5, 1000)';
 
             if(!$this->db->query($sql)) {
                 $this->sdl->log('<b>Error:</b> Could not save BOT template 2 - ABORTED', $log);
@@ -370,7 +370,7 @@ class Borg extends NPC
              * Physicians: 250
              *
              * Minimum crew:
-             * 
+             *
              * Drone simple: 10000
              * Assault drone: 2500
              * Elite drone: 2500
@@ -393,7 +393,7 @@ class Borg extends NPC
                                                 resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
                                                 min_unit_1, min_unit_2, min_unit_3, min_unit_4,
                                                 max_unit_1, max_unit_2, max_unit_3, max_unit_4,
-                                                buildtime)
+                                                buildtime, rof, max_torp)
                     VALUES ("'.$this->bot['user_id'].'","'.time().'","'.BORG_TACT.'","Combat Ship","'.BORG_RACE.'",11,3,
                             -1,-1,-1,-1,-1,
                             -1,-1,-1,-1,-1,
@@ -403,7 +403,7 @@ class Borg extends NPC
                             "500000","500000","500000","50000","250","250",
                             "10000","2500","2500","500",
                             "65000","21000","15000","5000",
-                            0)';
+                            0, 10, 5000)';
 
             if(!$this->db->query($sql)) {
                 $this->sdl->log('<b>Error:</b> Could not save BOT template 3 - ABORTED '.$sql, $log);
@@ -545,7 +545,7 @@ class Borg extends NPC
 		$this->sdl->start_job('Sensors monitor', TICK_LOG_FILE_NPC);
 		$msgs_number=0;
 		$sql='SELECT * FROM `scheduler_shipmovement`
-		      WHERE user_id>9 AND 
+		      WHERE user_id>9 AND
 		            move_status=0 AND
 		            move_exec_started!=1 AND
 		            move_finish>'.$ACTUAL_TICK.' AND
@@ -642,13 +642,13 @@ class Borg extends NPC
 			$sql= 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time,
 			                          rof, torp, unit_1, unit_2, unit_3, unit_4)
 			       VALUES ('.$fleet_id.', '.$this->bot['user_id'].', '.$this->bot['ship_template3'].', '.$stpl['value_9'].',
-			               '.$stpl['value_5'].', '.time().', '.$stpl['rof'].', '.$stpl['max_torp'].', 
+			               '.$stpl['value_5'].', '.time().', '.$stpl['rof'].', '.$stpl['max_torp'].',
 			               '.$stpl['max_unit_1'].', '.$stpl['max_unit_2'].',
 			               '.$stpl['max_unit_3'].', '.$stpl['max_unit_4'].')';
 			if(!$this->db->query($sql)) {
 					$this->sdl->log('<b>Error:</b> Could not insert new ship data', TICK_LOG_FILE_NPC);
 				}
-			$this->sdl->log('Unimatrix Zero Fleet has been created!!!', TICK_LOG_FILE_NPC);	
+			$this->sdl->log('Unimatrix Zero Fleet has been created!!!', TICK_LOG_FILE_NPC);
 		}
 		else
 		{
@@ -662,7 +662,7 @@ class Borg extends NPC
 		//Fleets's crew creation
 
 		// Actually put simply the troops aboard
-		$sql = 'UPDATE ship_fleets SET unit_1 = (3000*n_ships), unit_2 = (2000*n_ships), unit_3= (1250*n_ships), unit_4 = (500*n_ships) 
+		$sql = 'UPDATE ship_fleets SET unit_1 = (1000*n_ships), unit_2 = (1000*n_ships), unit_3= (4000*n_ships), unit_4 = (100*n_ships)
 		        WHERE fleet_name LIKE "%Fleet Node%" AND user_id = '.$this->bot['user_id'];
 		if(!$this->db->query($sql))
 			$this->sdl->log('<b>Warning:</b> cannot update Borg Nodes Fleet crew!', TICK_LOG_FILE_NPC);
@@ -678,7 +678,7 @@ class Borg extends NPC
 		$planets = $this->db->query($sql);
 
 		// Select each planet
-		while($planet = $this->db->fetchrow($planets)) 
+		while($planet = $this->db->fetchrow($planets))
 		{
 			if($planet['building_6'] < 9) {
 				$res = $this->StartBuild($ACTUAL_TICK,5,$planet);
@@ -750,15 +750,15 @@ class Borg extends NPC
 				$fleet_id = $this->CreateFleet('Fleet Node#'.$planet['planet_id'],$this->bot['ship_template2'],$n_ships,$planet['planet_id']);
 
 				// Update alarm status & Home Planet & Embark Troops
-				$sql = 'UPDATE ship_fleets SET alert_phase = '.ALERT_PHASE_RED.', homebase = '.$planet['planet_id'].', 
-						unit_1 = (5000*n_ships), unit_2 = (3000*n_ships), unit_3 = (1500*n_ships), unit_4 = (500*n_ships) 
+				$sql = 'UPDATE ship_fleets SET alert_phase = '.ALERT_PHASE_RED.', homebase = '.$planet['planet_id'].',
+						unit_1 = (1000*n_ships), unit_2 = (1000*n_ships), unit_3 = (4000*n_ships), unit_4 = (100*n_ships)
 						WHERE fleet_id = '.$fleet_id;
 				if(!$this->db->query($sql))
 					$this->sdl->log('<b>Warning:</b> cannot update fleet alarm status to RED!', TICK_LOG_FILE_NPC);
 
 			}
 			// If the fleet exists
-			else 
+			else
 			{
 				if($fleet['move_id'] == 0)
 				{
