@@ -62,6 +62,13 @@ class moves_action_24 extends moves_common {
 
 
         // #############################################################################
+        // Args check
+
+        if(!isset($this->action_data[1])) $this->action_data[1] = false;
+
+        if(!isset($this->action_data[2])) $this->action_data[2] = false;
+
+        // #############################################################################
         // Planets check
 
         if(!empty($this->dest['user_id'])) {
@@ -144,7 +151,7 @@ class moves_action_24 extends moves_common {
             // Pre-Terraforming Check
             $sql='SELECT resource_3 FROM ship_fleets WHERE fleet_id IN ('.$this->fleet_ids_str.')';
             if(($dilicheck = $this->db->queryrow($sql)) === false) {
-                $this->log(MV_M_DATABASE, 'Could not query fleets cargo data! Assumed zero.');	
+                $this->log(MV_M_DATABASE, 'Could not query fleets cargo data! Assumed zero.');
                 $dilithium = 0;
             }
             else {
@@ -181,28 +188,28 @@ class moves_action_24 extends moves_common {
                 case 0:
                 case 1:
                     $type_probabilities = array(
-                        'e' => 59,
-                        'g' => 9,
-                        'f' => 25,
-                        'h' => 3,
-                        'm' => 1,
-                        'o' => 1,
-                        'x' => 1,
-                        'y' => 1
+                        'k' => 35,
+                        'e' => 13,
+                        'f' => 13,
+                        'g' => 13,
+                        'n' => 10,
+                        'l' => 8,
+                        'x' => 5,
+                        'y' => 3
                     );
                 break;
                 case 2:
                 case 3:
                     $type_probabilities = array(
-                        'h' => 5,
-                        'n' => 29,
-                        'k' => 37,
-                        'g' => 2,
-                        'l' => 20,
-                        'm' => 3,
-                        'o' => 2,
-                        'x' => 1,
-                        'y' => 1
+                        'l' => 8,
+                        'e' => 20,
+                        'f' => 20,
+                        'g' => 20,
+                        'n' >= 15,
+                        'm' => 6,
+                        'o' => 5,
+                        'x' => 4,
+                        'y' => 2
                     );
                 break;
                 case 4:
@@ -210,12 +217,12 @@ class moves_action_24 extends moves_common {
                 case 6:
                 case 7:
                     $type_probabilities = array(
-                        'h' => 44,
-                        'j' => 20,
-                        'k' => 9,
+                        'h' => 25,
+                        'j' => 31,
+                        'k' => 15,
                         'n' => 15,
                         'p' => 10,
-                        'x' => 1,
+                        'x' => 3,
                         'y' => 1
                     );
                 break;
@@ -255,10 +262,16 @@ class moves_action_24 extends moves_common {
                 return $this->log(MV_M_DATABASE, 'Could not update planets data! SKIP');
             }
 
+            $sql = 'DELETE FROM planet_details WHERE planet_id = '.$this->move['dest'].' AND log_code = 100';
+
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update planet details data! SKIP');
+            }
+
             $sql = 'UPDATE ship_fleets
                     SET planet_id = '.$this->move['dest'].',
                         move_id = 0,
-                        resource_3 = resource_3 - 250000
+                        resource_3 = resource_3 - 150000
                     WHERE fleet_id IN ('.$this->fleet_ids_str.')';
 
             if(!$this->db->query($sql)) {
@@ -283,27 +296,65 @@ class moves_action_24 extends moves_common {
             return MV_EXEC_OK;
 
         }
-	
-	// #############################################################################
-	// Planet goes to Settlers Community!
-	/*
-	if((bool)$this->action_data[2]) {
-	
-	        $sql = 'UPDATE planets
-                SET planet_owner = '.INDEPENDENT_USERID].',
-		    planet_name = 
+
+        // #############################################################################
+        // Planet goes to Settlers Community!
+
+        if((bool)$this->action_data[2]) {
+            // Target planet MUST BE unsettled!
+            if(!empty($this->dest['planet_owner'])) {
+                $log_data[8] = -4;
+                add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $ter_title.$this->dest['planet_name'].$ter_fail, $log_data);
+
+                return MV_EXEC_OK;
+            }
+
+            // How many planets Settlers already controls?
+            $sql = 'SELECT COUNT(planet_id) AS n_planets FROM planets WHERE planet_owner = '.INDEPENDENT_USERID;
+
+            if(($pcount = $this->db->queryrow($sql)) === false) {
+                $this->log(MV_M_DATABASE, 'Could not query planets count data! CONTINUE USING INSTABLE VALUE');
+
+                $n_planets = $cur_move['user_planets'];
+            }
+            else {
+                $n_planets = $pcount['n_planets'];
+            }
+
+            // All seems ok, let's clear all the queue on the planet
+            $sql = 'DELETE FROM scheduler_instbuild WHERE planet_id = '.$this->move['dest'];
+
+            if(!$this->db->query($sql)) {
+                $this->log(MV_M_DATABASE, 'Could not delete scheduler instbuild data! CONTINUE');
+            }
+
+            $sql = 'DELETE FROM scheduler_shipbuild WHERE planet_id = '.$this->move['dest'];
+
+            if(!$this->db->query($sql)) {
+                $this->log('MySQL', 'Could not delete shipbuild data! CONTINUE');
+            }
+
+            $sql = 'DELETE FROM scheduler_research WHERE planet_id = '.$this->move['dest'];
+
+            if(!$this->db->query($sql)) {
+                $this->log(MV_M_DATABASE, 'Could not delete scheduler research data! CONTINUE');
+            }
+
+            $sql = 'UPDATE planets
+                    SET planet_owner = '.INDEPENDENT_USERID.',
                     planet_owned_date = '.time().',
                     planet_owner_enum = '.($n_planets - 1).',
-                    planet_available_points = '.$structure_pts.',
+                    planet_name = "Colony'.$this->move['dest'].'",
+                    npc_last_action = 0,
                     research_1 = 0,
                     research_2 = 0,
                     research_3 = 0,
                     research_4 = 0,
                     research_5 = 0,
-                    resource_1 = 50,
-                    resource_2 = 50,
-                    resource_3 = 0,
-                    resource_4 = 10,
+                    resource_1 = 100,
+                    resource_2 = 100,
+                    resource_3 = 100,
+                    resource_4 = 100,
                     recompute_static = 1,
                     building_1 = 1,
                     building_2 = 0,
@@ -318,10 +369,10 @@ class moves_action_24 extends moves_common {
                     building_11 = 0,
                     building_12 = 0,
                     building_13 = 0,
-                    unit_1 = '.($cship['unit_1'] - $cship['min_unit_1']).',
-                    unit_2 = '.($cship['unit_2'] - $cship['min_unit_2']).',
+                    unit_1 = '.(($cship['unit_1'] - $cship['min_unit_1']) + 50).',
+                    unit_2 = '.(($cship['unit_2'] - $cship['min_unit_2']) + 25).',
                     unit_3 = '.($cship['unit_3'] - $cship['min_unit_3']).',
-                    unit_4 = '.($cship['unit_4'] - $cship['min_unit_4']).',
+                    unit_4 = '.(($cship['unit_4'] - $cship['min_unit_4']) + 1).',
                     unit_5 = 0,
                     unit_6 = 0,
                     workermine_1 = 100,
@@ -372,15 +423,89 @@ class moves_action_24 extends moves_common {
                     planet_surrender=0
                 WHERE planet_id = '.$this->move['dest'];
 
-		//$this->log('SQL Debug', ''.$sql.'');
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update planets data! SKIP');
+            }
 
-		if(!$this->db->query($sql)) {
-		    return $this->log(MV_M_DATABASE, 'Could not update planets data! SKIP');
-		}
-	
-	}
+            $sql = 'DELETE FROM ships WHERE fleet_id = -'.$this->move['dest'].' OR ship_id = '.$ship_id;
 
-	*/
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not delete ships data! SKIP');
+            }
+
+            if($cship['n_ships'] == 1) {
+                $sql = 'DELETE FROM ship_fleets WHERE fleet_id = '.$cship['fleet_id'];
+            }
+            else {
+                $sql = 'UPDATE ship_fleets SET n_ships = n_ships - 1 WHERE fleet_id = '.$cship['fleet_id'];
+            }
+
+            if(!$this->db->query($sql)) {
+                $this->log(MV_M_DATABASE, 'Could not update/delete cships fleet data! CONTINUE');
+            }
+
+            $sql = 'UPDATE ship_fleets SET planet_id = '.$this->move['dest'].', move_id = 0 WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update fleets data! SKIP');
+            }
+
+            $log_data[8] = 1;
+            $log_data[9] = $cship['name'];
+            $log_data[10] = $cship['race'];
+
+            add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $col_title.$this->dest['planet_name'].$col_success, $log_data);
+
+            // #############################################################################
+            // Add History Record in planet details; log_code = 32
+
+            $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
+                    VALUES ('.$this->move['dest'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.time().', 32)';
+
+            if(!$this->db->query($sql)) {
+                $this->log(MV_M_DATABASE, 'Could not update planet details data!');
+            }
+
+            // #############################################################################
+            // Mood Records. We have to add log_code 1,30
+
+            if(isset($this->move['user_alliance']) && !empty($this->move['user_alliance']) && $this->move['user_alliance_status'] > 2)
+            {
+                // First Contact
+                $sql = 'INSERT INTO settlers_relations SET planet_id = '.$this->move['dest'].', race_id = '.$this->move['user_race'].', user_id = '.$this->move['user_id'].', alliance_id = '.$this->move['user_alliance'].', timestamp = '.time().', log_code = 1, mood_modifier = 20';
+
+                if(!$this->db->query($sql)) {
+                    return $this->log(MV_M_DATABASE, 'Could not create new settlers relations! SKIP!!!');
+                }
+
+                // Colo Founder, +1 to timestap to avoid duplicate key
+                $sql = 'INSERT INTO settlers_relations SET planet_id = '.$this->move['dest'].', user_id = '.$this->move['user_id'].', alliance_id = '.$this->move['user_alliance'].', race_id = '.$this->move['user_race'].', timestamp = '.(time() + 1).', log_code = 30, mood_modifier = 80';
+
+                if(!$this->db->query($sql)) {
+                    $this->log(MV_M_DATABASE, 'Could not update settlers moods! CONTINUE!');
+                }
+            }
+            else
+            {
+                // First Contact
+                $sql = 'INSERT INTO settlers_relations SET planet_id = '.$this->move['dest'].', race_id = '.$this->move['user_race'].', user_id = '.$this->move['user_id'].', timestamp = '.time().', log_code = 1, mood_modifier = 10';
+
+                if(!$this->db->query($sql)) {
+                    return $this->log(MV_M_DATABASE, 'Could not create new settlers relations! SKIP!!!');
+                }
+
+                // Colo Founder +1 to timestap to avoid duplicate key
+                $sql = 'INSERT INTO settlers_relations SET planet_id = '.$this->move['dest'].', user_id = '.$this->move['user_id'].', race_id = '.$this->move['user_race'].', timestamp = '.(time() + 1).', log_code = 30, mood_modifier = 80';
+
+                if(!$this->db->query($sql)) {
+                    $this->log(MV_M_DATABASE, 'Could not update settlers moods! CONTINUE!');
+                }
+            }
+
+            return MV_EXEC_OK;
+        }
+
+
         // #############################################################################
         // We need the number of planets, which owns the colonizer
         // (we want to determine planet_owner_enum surely)
