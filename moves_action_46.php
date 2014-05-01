@@ -439,7 +439,16 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             $this->log(MV_M_DATABASE, 'Could not delete ship trade data! CONTINUE');
         }
 
-        if($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "n" || $this->dest['planet_type'] == "y" || $this->dest['planet_type'] == "e" || $this->dest['planet_type'] == "f" || $this->dest['planet_type'] == "g") {
+        $sql = 'DELETE FROM scheduler_shipbuild WHERE planet_id = '.$this->move['dest'];
+
+        if(!$this->db->query($sql)) {
+            $this->log(MV_M_DATABASE, 'Could not delete ship building queue! CONTINUE');
+        }
+
+        if($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "o" ||
+           $this->dest['planet_type'] == "p" || $this->dest['planet_type'] == "x" ||
+           $this->dest['planet_type'] == "y" || $this->dest['planet_type'] == "f" ||
+           $this->dest['planet_type'] == "g") {
             $def_tech_lev = 9;
         }
         else {
@@ -450,6 +459,8 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
         $sql = 'UPDATE planets
                 SET planet_owner = '.$this->move['user_id'].',
                     planet_name = "Unimatrix #'.$this->move['dest'].'",
+                    best_mood = 0,
+                    best_mood_user = 0,
                     planet_owned_date = '.time().',
                     planet_owner_enum = '.($n_planets - 1).',
                     resource_4 = '.$ucmb[1][4].',
@@ -514,10 +525,54 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             $this->log(MV_M_DATABASE, 'Could not update planet details data! CONTINUE');
         }
 // DC <<<<
+
 // DC >>>> Update borg_target table; the $this->dest['user_id'] entry may not exists, so do not check error
-        $sql = 'UPDATE borg_target SET planets_back = planets_back + 1, under_attack = under_attack - 1 WHERE user_id = '.$this->dest['user_id'];
+        $sql = 'UPDATE borg_target SET battle_lost = battle_lost + 1,
+                                       planets_back = planets_back + 1,
+                                       under_attack = under_attack - 1
+                WHERE user_id = '.$this->dest['user_id'];
         $this->db->query($sql);
 // DC <<<<
+
+// DC >>>>
+        $sql = 'DELETE FROM borg_npc_target WHERE planet_id = '.$this->move['dest'];
+        $this->db->query($sql);
+        $sql = 'UPDATE scheduler_shipmovement SET action_code = 11
+                WHERE action_code = 46 AND move_id <> '.$this->mid.'
+                AND move_status = 0 AND user_id = '.BORG_USERID.' AND dest = '.$this->move['dest'];
+        $this->db->query($sql);
+// DC <<<<
+// DC >>>> Settlers management
+        if($this->dest['user_id'] == INDEPENDENT_USERID)
+        {
+            $sql = 'SELECT sr.user_id, u.language FROM settlers_relations sr
+                    LEFT JOIN user u ON u.user_id = sr.user_id
+                    WHERE planet_id = '.$this->move['dest'].' GROUP BY sr.user_id';
+            if($m_u_q = $this->db->queryrowset($sql))
+            {
+                foreach($m_u_q as $m_u)
+                {
+                    $log_data = array($this->move['dest'],$this->dest['planet_name'], 0, '', 103);
+                    switch($m_u['language'])
+                    {
+                    case 'GER':
+                        $log_title = 'Automatic distress message from ';
+                    break;
+                    case 'ITA':
+                        $log_title = 'Richiesta automatica di soccorso dalla colonia ';
+                    break;
+                    default:
+                        $log_title = 'Automatic distress message from ';
+                    break;
+                    }
+
+                    add_logbook_entry($m_u['user_id'], LOGBOOK_SETTLERS, $log_title.$this->dest['planet_name'], $log_data);
+                }
+                $sql = 'DELETE FROM settlers_relations WHERE planet_id = '.$this->move['dest'];
+                $this->db->query($sql);
+            }
+        }
+// DC <<<< Settlers management        
 
         if(!$this->db->query('SET @i=0')) {
             return $this->log(MV_M_DATABASE, 'Could not set sql iterator variable for planet owner enum (the invading player)! SKIP');
@@ -558,6 +613,36 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
         }
     }
 
+// DC >>>>
+    if($this->dest['user_id'] == INDEPENDENT_USERID)
+    {
+        $sql = 'SELECT sr.user_id, u.language FROM settlers_relations sr
+                LEFT JOIN user u ON u.user_id = sr.user_id
+                WHERE planet_id = '.$this->move['dest'].' GROUP BY sr.user_id';
+        if($m_u_q = $this->db->queryrowset($sql))
+        {
+            foreach($m_u_q as $m_u)
+            {
+                $log_data = array($this->move['dest'],$this->dest['planet_name'], 0, '', 104);
+                switch($m_u['language'])
+                {
+                    case 'GER':
+                        $log_title = 'Distress call from ';
+                    break;
+                    case 'ITA':
+                        $log_title = 'Richiesta di soccorso dalla colonia ';
+                    break;
+                    default:
+                        $log_title = 'Distress call from ';
+                    break;
+                }
+                    
+                add_logbook_entry($m_u['user_id'], LOGBOOK_SETTLERS, $log_title.$this->dest['planet_name'], $log_data);
+            }
+        }
+    }
+// DC <<<<
+
     $sql = 'UPDATE ship_fleets
             SET planet_id = '.$this->move['dest'].',
                 move_id = 0
@@ -583,6 +668,274 @@ else {
             $atk_title = 'Attack on '.$this->dest['planet_name'].' failed';
         break;
     }
+
+// DC >>>> Begin Borg Adaption Phase!!!
+// Analize fleets composition of those in $dfd_fleet_ids
+// No error check, in God We Thrust!
+    $future_humans_tp = $this->db->queryrow('SELECT future_ship AS id FROM config WHERE config_set_id = 0');
+
+    foreach($dfd_fleet_ids as $observed_id)
+    {
+        $this->log(MV_M_NOTICE, 'DEBUG: Winning Fleet ID:'.$observed_id);
+
+        // Check fleet composition
+        $sql='SELECT sf.user_id, st.ship_class, COUNT(*) as n_ships
+              FROM ships s 
+              INNER JOIN ship_templates st ON s.template_id = st.id
+              INNER JOIN ship_fleets sf USING (fleet_id)
+              WHERE s.fleet_id = '.$observed_id.'
+                    AND st.ship_class > 1
+                    AND st.id <> '.$future_humans_tp['id'].'
+                    AND s.user_id <> '.INDEPENDENT_USERID.'
+              GROUP BY st.ship_class';
+
+        $q_data = $this->db->query($sql);
+
+        $set_rows = $this->db->num_rows($q_data);
+
+        if($set_rows == 0) continue;
+
+        $composition_data = $this->db->fetchrowset($q_data);        
+
+        $sql = 'SELECT * FROM borg_target WHERE user_id = '.$composition_data[0]['user_id'];
+
+        $this->log(MV_M_NOTICE, 'DEBUG: Query for target user:'.$sql);
+
+        $target_data = $this->db->queryrow($sql);
+
+        if(!isset($target_data['user_id']) || $target_data['user_id'] != $composition_data[0]['user_id']) continue;
+
+        foreach($composition_data as $data)
+        {
+            // Check Average Template Stats for any fighting vessel class
+            $sql = 'SELECT st.ship_class, avg(st.value_1) as avg_1,
+                           avg(st.value_2) as avg_2, avg(st.value_4) as avg_4,
+                           avg(st.value_5) as avg_5, avg(st.value_6) as avg_6,
+                           avg(st.value_7) as avg_7, avg(st.value_8) as avg_8
+                  FROM ships s
+                  INNER JOIN ship_templates st ON s.template_id = st.id
+                  WHERE s.fleet_id = '.$observed_id.'
+                        AND st.id <> '.$future_humans_tp['id'].'
+                        AND s.user_id <> '.INDEPENDENT_USERID.'                  
+                        AND st.ship_class = '.$data['ship_class'];
+
+            $hull_data = $this->db->queryrow($sql);
+
+            switch($data['ship_class'])
+            {
+                // Sphere Template
+                case 0:
+                case 1:
+                    $this->log(MV_M_NOTICE, 'DEBUG: wrong ship_class processed');
+                break;
+                case 2:
+                    // value_1 ideal is equal to avg hull points * 18
+                    $cap_temps_value_1 = round(($hull_data['avg_4'] * 8), 0);
+                    // value_2 = value_1 * 1.20
+                    $cap_temps_value_2 = round($cap_temps_value_1 * 1.25, 0);
+                    // value_4 ideal is equal to avg
+                    $cap_temps_value_4 = round((($hull_data['avg_2'] * 20) / 18),0);
+                    // value_5 ideal is equal
+                    $cap_temps_value_5 = round((($hull_data['avg_1'] * 20) / 18),0);
+
+                    if(!empty($target_data['ship_template1']))
+                    {
+                        $sql = 'SELECT * FROM ship_templates WHERE id = '.$target_data['ship_template1'];
+
+                        $old_ship_template1 = $this->db->queryrow($sql);
+
+                        $raised_value1 = (float)$old_ship_template1['value_1'] * 1.14;
+                        $raised_value2 = (float)$old_ship_template1['value_2'] * 1.14;
+                        $raised_value4 = (float)$old_ship_template1['value_4'] * 1.20;
+                        $raised_value5 = (float)$old_ship_template1['value_5'] * 1.20;
+
+                        $sql = 'UPDATE ship_templates
+                                SET timestamp = '.time().',
+                                    name = "Sphere#'.$this->move['dest'].$target_data['user_id'].'",
+                                    value_1 = '.min($raised_value1, $cap_temps_value_1).',
+                                    value_2 = '.min($raised_value2, $cap_temps_value_2).',
+                                    value_4 = '.min($raised_value4, $cap_temps_value_4).',
+                                    value_5 = '.min($raised_value5, $cap_temps_value_5).'
+                                WHERE id = '.$target_data['ship_template1'];
+
+                        if(!$this->db->query($sql)) {
+                            $this->log(MV_M_DATABASE, 'DEBUG: Could not update target ship_template1 data '.$sql);
+                        }
+                    }
+                    else
+                    {
+                        $base_template1_id = $this->db->queryrow('SELECT ship_template1 AS id FROM borg_bot WHERE id = 1');
+
+                        $b_tp1 = $this->db->queryrow('SELECT * FROM ship_templates WHERE id = '.$base_template1_id['id']);
+
+                        $b_tp1['name'] = 'Sphere#'.$this->move['dest'].$target_data['user_id'];
+
+                        $sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
+                                                            component_1, component_2, component_3, component_4, component_5,
+                                                            component_6, component_7, component_8, component_9, component_10,
+                                                            value_1, value_2, value_3, value_4, value_5,
+                                                            value_6, value_7, value_8, value_9, value_10,
+                                                            value_11, value_12, value_13, value_14, value_15,
+                                                            resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
+                                                            min_unit_1, min_unit_2, min_unit_3, min_unit_4,
+                                                            max_unit_1, max_unit_2, max_unit_3, max_unit_4,
+                                                            buildtime, rof, max_torp)
+                                VALUES ("'.BORG_USERID.'","'.time().'","'.$b_tp1['name'].'","'.$b_tp1['description'].'","6",'.$b_tp1['ship_torso'].','.$b_tp1['ship_class'].',
+                                        -1,-1,-1,-1,-1,
+                                        -1,-1,-1,-1,-1,
+                                        '.($b_tp1['value_1'] * 1.14).','.($b_tp1['value_2'] * 1.14).',"50",'.($b_tp1['value_4'] * 1.20).','.($b_tp1['value_5'] * 1.20).',
+                                        '.$b_tp1['value_6'].','.$b_tp1['value_7'].','.$b_tp1['value_8'].','.$b_tp1['value_9'].','.$b_tp1['value_10'].',
+                                        '.$b_tp1['value_11'].','.$b_tp1['value_12'].','.$b_tp1['value_13'].','.$b_tp1['value_14'].','.$b_tp1['value_15'].',
+                                        '.$b_tp1['resource_1'].','.$b_tp1['resource_2'].','.$b_tp1['resource_3'].','.$b_tp1['resource_4'].','.$b_tp1['unit_5'].','.$b_tp1['unit_6'].',
+                                        '.$b_tp1['min_unit_1'].','.$b_tp1['min_unit_2'].','.$b_tp1['min_unit_3'].','.$b_tp1['min_unit_4'].',
+                                        '.$b_tp1['max_unit_1'].','.$b_tp1['max_unit_2'].','.$b_tp1['max_unit_3'].','.$b_tp1['max_unit_4'].',
+                                        '.$b_tp1['buildtime'].', '.$b_tp1['rof'].', '.$b_tp1['max_torp'].')';
+
+                        if(!$this->db->query($sql)) {
+                            $this->log(MV_M_DATABASE, 'DEBUG: Could not insert new target ship_template1 data '.$sql);
+                        }
+
+                        $_new_id1 = $this->db->insert_id();
+
+                        $this->db->query('UPDATE borg_target SET ship_template1 = '.$_new_id1.' WHERE user_id = '.$target_data['user_id']);
+
+                    }
+                break;
+                case 3:
+                    // Cube Template
+                    $cap_tempc_value_1 = round(($hull_data['avg_4'] * 18), 0);
+                    // value_2 = value_1 * 1.20
+                    $cap_tempc_value_2 = round($cap_tempc_value_1 * 1.25, 0);
+                    // value_4 ideal is equal to avg
+                    $cap_tempc_value_4 = round((($hull_data['avg_2'] * 60) / 18),0);
+                    // value_5 ideal is equal
+                    $cap_tempc_value_5 = round((($hull_data['avg_1'] * 60) / 18),0);
+
+                    if(!empty($target_data['ship_template2']))
+                    {
+                        $sql = 'SELECT * FROM ship_templates WHERE id = '.$target_data['ship_template2'];
+
+                        $old_ship_template2 = $this->db->queryrow($sql);
+
+                        $raised_value1 = $old_ship_template2['value_1'] * 1.14;
+                        $raised_value2 = $old_ship_template2['value_2'] * 1.14;
+                        $raised_value4 = $old_ship_template2['value_4'] * 1.20;
+                        $raised_value5 = $old_ship_template2['value_5'] * 1.20;
+
+                        $sql = 'UPDATE ship_templates
+                                SET timestamp = '.time().',
+                                    name = "Cube#'.$this->move['dest'].$target_data['user_id'].'",
+                                    value_1 = '.min($raised_value1, $cap_tempc_value_1).',
+                                    value_2 = '.min($raised_value2, $cap_tempc_value_2).',
+                                    value_4 = '.min($raised_value4, $cap_tempc_value_4).',
+                                    value_5 = '.min($raised_value5, $cap_tempc_value_5).'
+                                WHERE id = '.$target_data['ship_template2'];
+
+                        if(!$this->db->query($sql)) {
+                            $this->log(MV_M_DATABASE, 'DEBUG: Could not update target ship_template2 data '.$sql);
+                        }
+                    }
+                    else
+                    {
+                        $base_template2_id = $this->db->queryrow('SELECT ship_template2 AS id FROM borg_bot WHERE id = 1');
+
+                        $b_tp2 = $this->db->queryrow('SELECT * FROM ship_templates WHERE id = '.$base_template2_id['id']);
+
+                        $b_tp2['name'] = 'Cube#'.$this->move['dest'].$target_data['user_id'];            
+
+                        $sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
+                                                            component_1, component_2, component_3, component_4, component_5,
+                                                            component_6, component_7, component_8, component_9, component_10,
+                                                            value_1, value_2, value_3, value_4, value_5,
+                                                            value_6, value_7, value_8, value_9, value_10,
+                                                            value_11, value_12, value_13, value_14, value_15,
+                                                            resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
+                                                            min_unit_1, min_unit_2, min_unit_3, min_unit_4,
+                                                            max_unit_1, max_unit_2, max_unit_3, max_unit_4,
+                                                            buildtime, rof, max_torp)
+                                VALUES ("'.BORG_USERID.'","'.time().'","'.$b_tp2['name'].'","'.$b_tp2['description'].'","6",'.$b_tp2['ship_torso'].','.$b_tp2['ship_class'].',
+                                        -1,-1,-1,-1,-1,
+                                        -1,-1,-1,-1,-1,
+                                        '.($b_tp2['value_1'] * 1.14).','.($b_tp2['value_2'] * 1.14).',"50",'.($b_tp2['value_4'] * 1.20).','.($b_tp2['value_5'] * 1.20).',
+                                        '.$b_tp2['value_6'].','.$b_tp2['value_7'].','.$b_tp2['value_8'].','.$b_tp2['value_9'].','.$b_tp2['value_10'].',
+                                        '.$b_tp2['value_11'].','.$b_tp2['value_12'].','.$b_tp2['value_13'].','.$b_tp2['value_14'].','.$b_tp2['value_15'].',
+                                        '.$b_tp2['resource_1'].','.$b_tp2['resource_2'].','.$b_tp2['resource_3'].','.$b_tp2['resource_4'].','.$b_tp2['unit_5'].','.$b_tp2['unit_6'].',
+                                        '.$b_tp2['min_unit_1'].','.$b_tp2['min_unit_2'].','.$b_tp2['min_unit_3'].','.$b_tp2['min_unit_4'].',
+                                        '.$b_tp2['max_unit_1'].','.$b_tp2['max_unit_2'].','.$b_tp2['max_unit_3'].','.$b_tp2['max_unit_4'].',
+                                        '.$b_tp2['buildtime'].', '.$b_tp2['rof'].', '.$b_tp2['max_torp'].')';
+
+                        if(!$this->db->query($sql)) {
+                            $this->log(MV_M_DATABASE, 'DEBUG: Could not insert new target ship_template2 data '.$sql);
+                        }
+
+                        $_new_id2 = $this->db->insert_id();
+
+                        $this->db->query('UPDATE borg_target SET ship_template2 = '.$_new_id2.' WHERE user_id = '.$target_data['user_id']);
+                    }
+                break;
+            }
+        }
+    }
+
+// DC <<<< End Borg Adaption Phase
+
+// DC >>>> Settlers management
+    if($this->dest['user_id'] == INDEPENDENT_USERID)
+    {
+        // Check for defenders
+        if($n_st_user > 0)
+        {
+            $sql = 'SELECT user_id from borg_target WHERE user_id IN ('.implode(",", $st_user).')';
+            if(!($def_q = $this->db->query($sql))) {
+                $this->log(MV_M_DATABASE, 'Could not query borg_target data! '.$sql);
+            }
+            $num_row = $this->db->num_rows($def_q);
+            if($num_row > 0)
+            {
+                // Update priority of this planet!!!
+                $sql = 'UPDATE borg_npc_target SET priority = priority + '.(10*$num_row).' WHERE planet_id = '.$this->move['dest'];
+                if(!$this->db->query($sql)) $this->log(MV_M_DATABASE, 'Could not update borg_npc_target data! '.$sql);
+                $def_i_q = $this->db->fetchrowset($def_q);
+                foreach($def_i_q AS $item_def_q)
+                {
+                    $sql = 'UPDATE borg_target SET battle_win = battle_win + 1 WHERE user_id = '.$item_def_q['user_id'];
+                    if(!$this->db->query($sql)) $this->log(MV_M_DATABASE, 'Could not update borg_target data! '.$sql);
+                }
+            }
+        }
+
+        $sql = 'UPDATE borg_npc_target SET tries = tries + 1,
+                                           live_attack = live_attack - 1 
+                WHERE planet_id = '.$this->move['dest'];
+        $this->db->query($sql);
+
+        $sql = 'SELECT sr.user_id, u.language FROM settlers_relations sr
+                LEFT JOIN user u ON u.user_id = sr.user_id
+                WHERE planet_id = '.$this->move['dest'].' GROUP BY sr.user_id';
+        if($m_u_q = $this->db->queryrowset($sql))
+        {
+            foreach($m_u_q as $m_u)
+            {
+                $log_data = array($this->move['dest'],$this->dest['planet_name'], 0, '', 104);
+                switch($m_u['language'])
+                {
+                    case 'GER':
+                        $log_title = 'Distress call from ';
+                    break;
+                    case 'ITA':
+                        $log_title = 'Richiesta di soccorso dalla colonia ';
+                    break;
+                    default:
+                        $log_title = 'Distress call from ';
+                    break;
+                }
+
+                add_logbook_entry($m_u['user_id'], LOGBOOK_SETTLERS, $log_title.$this->dest['planet_name'], $log_data);
+            }
+        }
+    }
+
+// DC <<<< Settlers management
 
     // 01/07/08 - The attacker has lost the fleets
     for($i = 0; $i < count($atk_fleets); ++$i) {
@@ -623,7 +976,7 @@ add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $atk_title, $log1_da
 add_logbook_entry($this->dest['user_id'], LOGBOOK_TACTICAL, $dfd_title, $log2_data);
 
 if($n_st_user > 0) {
-    $log2_data[2] = $this->move['start'];
+    $log2_data[2] = $this->move['dest'];
     $log2_data[3] = $this->dest['planet_name'];
     $log2_data[4] = $this->dest['user_id'];
     $log2_data[5] = 0;
@@ -645,6 +998,9 @@ if($n_st_user > 0) {
             {
                 case 'GER':
                     $log_title = 'Verb&uuml;ndeten bei '.$this->dest['planet_name'].' verteidigt';
+                break;
+                case 'ENG':
+                    $log_title = 'Joined the defenders of the '.$this->dest['planet_name'].' planet';
                 break;
                 case 'ITA':
                     $log_title = 'Difesa alleata presso '.$this->dest['planet_name'];
