@@ -83,6 +83,7 @@ class moves_common {
         'skip_action' => false,
         'keep_move_alive' => false,
 
+        'ar_escaped_combat' => false,
         'combat_happened' => false
     );
 
@@ -791,9 +792,19 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
 
                 // If the attacker has won (the fleet AR)
                 // the move can then be terminated immediately
+                // Now ships can run from combat. We have to check if any ships fled the fight
+                // before calling the move a "skipped action"
 
                 if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
-                    $this->flags['skip_action'] = true;
+                    $sql = 'SELECT COUNT(*) as ship_escaped FROM ships
+                            WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+                    $e_s_c = $this->db->queryrowset($sql);
+
+                    // Escaped ships counter
+                    if(isset($e_s_c['ship_escaped']) && $e_s_c['ship_escaped'] > 0)
+                        $this->flags['ar_escaped_combat'] = true;
+                    else
+                        $this->flags['skip_action'] = true;
                 }
 
                 $log1_data = array(40, $this->move['user_id'], $this->move['start'], $this->start['planet_name'], $this->start['user_id'], $this->move['dest'], $this->dest['planet_name'], $this->dest['user_id'], MV_CMB_ATTACKER, ($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER), 0,0, $atk_fleets, $dfd_fleets, null, $ar_user[$i]);
@@ -839,50 +850,80 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
             $this->log(MV_M_NOTICE, 'Skipped_action_main()');
         }
         else {
-            if($this->_action_main() != MV_EXEC_OK) {
-                return $this->log(MV_M_ERROR, 'Could not exec successfully _action_main()! SKIP');
+            // DC ---- Here we go, first steps into "Fog of War"
+            // DC ---- FoW 2.0 Beta - Ally Section
+            if(!empty($this->move['user_alliance']))
+            {
+                $sql = 'SELECT * FROM starsystems_details WHERE system_id = '.$this->dest['system_id'].' AND alliance_id = '.$this->move['user_alliance'];
+                $_res = $this->db->queryrow($sql);
+                if(!isset($_res['alliance_id']))
+                {
+                    $sql = 'INSERT INTO starsystems_details (system_id, alliance_id, timestamp)
+                            VALUES ('.$this->dest['system_id'].', '.$this->move['user_alliance'].', '.time().')';
+                    $this->db->query($sql); // No error check plz.
+                }
             }
-            else {
+            // DC ---- FoW 2.0 Beta -- User Section
+            $sql = 'SELECT * FROM starsystems_details WHERE system_id = '.$this->dest['system_id'].' AND user_id = '.$this->move['user_id'];
+            $_res = $this->db->queryrow($sql);
+            if(!isset($_res['user_id']))
+            {
+                $sql = 'INSERT INTO starsystems_details (system_id, user_id, timestamp)
+                        VALUES ('.$this->dest['system_id'].', '.$this->move['user_id'].', '.time().')';
+                $this->db->query($sql); // No error check plz.
+            }
 
-                // DC ---- Here we go, first steps into "Fog of War"
-                // DC  We never have been here before?
-                // DC  500 = I was already here 
-                $sql = 'SELECT COUNT(*) AS been_there FROM planet_details
-                        WHERE planet_id = '.$this->dest['planet_id'].'
-                        AND log_code = 500 AND user_id = '.$this->move['user_id'];
-                if(($_flag = $this->db->queryrow($sql)) === false)
+            // DC Now, if the planet is unsettled...
+            if(empty($this->dest['user_id'])) 
+            {
+                // DC Maybe we did boldly go where nobody has boldly gone before?
+                $sql = 'SELECT COUNT(*) AS been_here FROM planet_details WHERE planet_id = '.$this->dest['planet_id'].' AND user_id = '.$this->move['user_id'].' AND log_code IN (1,2)';            
+                if(!$_flag = $this->db->queryrow($sql))
                     $this->log(MV_M_DATABASE, 'Could not query planet details data! CONTINUE!');
-
-                if($_flag['been_there'] < 1) {
-                    // DC ---- Ok, we never have been here before
-                    // DC First, let's mark this planet as a know one
-                    $sql = 'INSERT INTO planet_details (planet_id, system_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
-                            VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.time().', 500)';
-                    if(!$this->db->query($sql))
-                        $this->log(MV_M_DATABASE, 'Could not insert new planet details data! CONTINUE!');
-
-                    // DC Now, if the planet is unsettled...
-                    if(empty($this->dest['user_id'])) {
-                        // DC Maybe we did boldly go where nobody has boldly gone before?
-                        $sql = 'SELECT COUNT(*) AS first_here FROM planet_details WHERE planet_id = '.$this->dest['planet_id'].' AND log_code = 1';
-                        if(!$_flag = $this->db->queryrow($sql))
-                            $this->log(MV_M_DATABASE, 'Could not query planet details data! CONTINUE!');
-
-                        if($_flag['first_here'] == 0) {
-                            // DC Yeah, we made it!
-                            $sql = 'INSERT INTO planet_details (planet_id, system_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
-                                    VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.time().', 1)';
-                        }
-                        else {
-                            // DC Bad luck, we are seconds...
-                           $sql = 'INSERT INTO planet_details (planet_id, system_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
-                                   VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.time().', 2)';
-                        }
+                if($_flag['been_here'] == 0) {
+                    // DC Yeah, we made it!
+                    $sql = 'SELECT COUNT(*) AS first_here FROM planet_details WHERE planet_id = '.$this->dest['planet_id'].' AND log_code = 1';
+                    if(!$_flag = $this->db->queryrow($sql))
+                        $this->log(MV_M_DATABASE, 'Could not query planet details data! CONTINUE!');
+                    if($_flag['first_here'] == 0)
+                    {
+                        $sql = 'INSERT INTO planet_details (planet_id, system_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
+                                VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.time().', 1)';
+                        if(!$this->db->query($sql))
+                            $this->log(MV_M_DATABASE, 'Could not insert new planet details data! CONTINUE!');                            
+                    }
+                    else
+                    {
+                        // DC Bad luck, we are seconds...
+                        // DC AND NOW we need to check if we already placed our flag here...
+                        $sql = 'INSERT INTO planet_details (planet_id, system_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
+                                VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.time().', 2)';
                         if(!$this->db->query($sql))
                             $this->log(MV_M_DATABASE, 'Could not insert new planet details data! CONTINUE!');
                     }
                 }
-                // DC ----
+
+            }
+            // DC ----
+
+            if($this->flags['ar_escaped_combat'])
+            {
+                $this->log(MV_M_NOTICE, 'Escaped from combat: will bounce back');
+                $num_ticks = round(($this->move['move_finish'] - $this->move['move_start'])*1.10, 0);
+                $sql = 'UPDATE scheduler_shipmovement
+                        SET dest = '.$this->move['start'].', start = '.$this->move['dest'].', 
+                            move_begin  = '.$this->move['move_finish'].',
+                            move_finish = '.($this->move['move_finish'] + $num_ticks).',
+                            action_code = 11,
+                            action_data = ""
+                        WHERE move_id = '.$this->mid;
+                if(!$this->db->query($sql))
+                    $this->log(MV_M_DATABASE, 'Could not insert new planet details data! CONTINUE!');
+                $this->flags['keep_move_alive'] = true;
+            }
+            elseif($this->_action_main() != MV_EXEC_OK)
+            {
+                return $this->log(MV_M_ERROR, 'Could not exec successfully _action_main()! SKIP');
             }
         }
 
