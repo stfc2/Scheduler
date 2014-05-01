@@ -59,6 +59,8 @@ class moves_action_26 extends moves_common {
 
 			$actual_exp = $ship_details['experience'];
 
+			if($actual_exp < 1) $actual_exp = 1;
+
             $exp = ($actual_exp > 0) ? (2.5/((float)$actual_exp*0.0635))+0.6 : 40;
 
 			$sql = 'UPDATE ships SET experience = experience+'.$exp.'
@@ -108,14 +110,42 @@ class moves_action_26 extends moves_common {
 			$_survey3 = 0;
 		}
 
-		// Salviamo i dati nella planet_history
+		// Update planet_details
 
-		$sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code, ship_name, survey_1, survey_2, survey_3)
-			VALUES ('.$this->move['dest'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.time().', 100,"'.$name_of_ship.'", '.$_survey1.', '.$_survey2.', '.$_survey3.')';
-		
-		if(!$this->db->query($sql)) {
-			return $this->log(MV_M_DATABASE, 'Could not update planet details! SKIP');
-		}
+        $sql = 'SELECT id from planet_details
+                WHERE log_code = 100 AND planet_id = '.$this->move['dest'].' AND user_id = '.$this->move['user_id'];
+
+        if(!$res = $this->db->queryrow($sql))
+        {
+            // No old data present (I hope...), insert the data
+            $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id,
+                                                source_uid, source_aid, timestamp,
+                                                log_code, ship_name,
+                                                survey_1, survey_2, survey_3)
+                    VALUES ('.$this->move['dest'].', '.$this->move['user_id'].', '.$this->move['user_alliance'].',
+                            '.$this->move['user_id'].', '.$this->move['user_alliance'].', '.time().',
+                            100,"'.$name_of_ship.'",
+                            '.$_survey1.', '.$_survey2.', '.$_survey3.')';
+
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not insert planet details data! SKIP');
+            }
+        }
+        else
+        {
+            // Update data already present, avoid to fill table with row will never be read
+            $sql = 'UPDATE planet_details
+                    SET timestamp = '.time().', 
+                        ship_name = "'.$name_of_ship.'",
+                        survey_1 = '.$_survey1.',
+                        survey_2 = '.$_survey2.',
+                        survey_3 = '.$_survey3.'
+                    WHERE id = '.$res['id']; 
+
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update planet details data! SKIP');
+            }
+        }
 
 
 		// Inseriamo la notifica nel logbook
