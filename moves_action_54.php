@@ -396,6 +396,12 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             if($this->dest['user_id'] == INDEPENDENT_USERID) {
                 $this->log(MV_M_NOTICE, 'Colony: Settlers being attacked!!! They gonna be mad!');
 
+                $sql = 'DELETE FROM settlers_relations WHERE planet_id = '.$this->move['dest'].' AND user_id = '.$this->move['user_id'];
+
+                if(!$this->db->query($sql)) {
+                    $this->log(MV_M_DATABASE, 'Could not update settlers moods! CONTINUE!');
+                }
+
                 if(!empty($this->move['user_alliance']) && $this->move['user_alliance_status'] > 2)
                     $sql = 'INSERT INTO settlers_relations
                             SET planet_id = '.$this->move['dest'].',
@@ -404,7 +410,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                                 race_id = '.$this->move['user_race'].',
                                 timestamp = '.time().',
                                 log_code = 11,
-                                mood_modifier = - 30';
+                                mood_modifier = - 50';
                 else
                     $sql = 'INSERT INTO settlers_relations
                             SET planet_id = '.$this->move['dest'].',
@@ -412,11 +418,14 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                                 race_id = '.$this->move['user_race'].',
                                 timestamp = '.time().',
                                 log_code = 11,
-                                mood_modifier = - 30';
+                                mood_modifier = - 50';
 
                 if(!$this->db->query($sql)) {
                     $this->log(MV_M_DATABASE, 'Could not update settlers moods! CONTINUE!');
                 }
+
+                $this->check_best_mood($this->move['dest'], false);
+
             }
 
             $this->flags['keep_move_alive'] = true;

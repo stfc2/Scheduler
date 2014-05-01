@@ -371,6 +371,87 @@ class moves_common {
         }
     }
 
+    function check_best_mood($planet_id, $notify) {
+        /* This function will check all moods value on an indipedent planet and will set
+        * the fields best_mood and best_mood_user
+        */
+
+        /* AC: Domanda: questa query non si poteva scrivere nel modo seguente?
+         *
+         *  $sql = 'SELECT best_mood, best_mood_user FROM planets
+         *          WHERE planet_id = '.$planet_id.' AND planet_owner = '.INDIPENDENT_USERID;
+         *
+         *  if(!($q_p = $this->db->queryrow($sql));
+         *      return -1;
+         */
+        $sql = 'SELECT planet_name, planet_owner, best_mood, best_mood_user FROM planets
+                WHERE planet_id = '.$planet_id;
+
+        $q_p = $this->db->queryrow($sql);
+
+        if(empty($q_p['planet_owner']) || $q_p['planet_owner'] != INDEPENDENT_USERID) {
+            return -1;
+        }
+
+        /* AC: Questa parte potrebbe essere riscritta nel modo seguente:
+         *
+         *  $sql = 'SELECT user_id, SUM(mood_modifier) AS mood FROM settlers_relations
+         *           WHERE planet_id = '.$planet_id.' GROUP BY user_id ORDER BY timestamp ASC';
+         *  $q_p_m = $this->db->queryrowset($sql);
+         *
+         *  foreach($q_p_m as $q_m) {
+         *      if($q_m['mood'] > $best) {
+         *           $newbest = true;
+         *           $best = $q_m['mood'];
+         *           $best_id = $q_m['user_id'];
+         *       }
+         *   }
+         *   if($newbest) {
+         *       $sql = 'UPDATE planets
+         *               SET best_mood = '.$best.',
+         *                   best_mood_user = '.$best_id.'
+         *               WHERE planet_id = '.$planet_id;
+         *       $this->db->query($sql);
+         *   }
+         */
+        $sql = 'SELECT user_id, SUM(mood_modifier) AS mood FROM settlers_relations
+                WHERE planet_id = '.$planet_id.' GROUP BY user_id ORDER BY timestamp ASC';
+
+        $q_p_m = $this->db->query($sql);
+
+        $rows = $this->db->num_rows($q_p_m);
+
+        $best = $best_id = 0;
+
+        if($rows > 0) {
+            /* Db popolato.
+            * Scansione dei risultati della query e ricerca del valore più alto.
+            * Viene aggiornato il db
+            */
+            $q_m = $this->db->fetchrowset($q_p_m);
+            // Non che mi piaccia molto ma vabbè...
+            $best = $q_m[0]['mood'];
+            $best_id = $q_m[0]['user_id'];
+            for($i=0; $i < $rows; $i++) {
+                if($q_m[$i]['mood'] > $best) {
+                    $best = $q_m[$i]['mood'];
+                    $best_id = $q_m[$i]['user_id'];
+                }
+            }
+            $sql = 'UPDATE planets
+                    SET best_mood = '.$best.',
+                        best_mood_user = '.$best_id.'
+                    WHERE planet_id = '.$planet_id;
+            $this->db->query($sql);
+        }
+
+        if(!empty($best_id) && $q_p['best_mood_user'] != $best_id && $notify) {
+            return $q_p['best_mood_user'];
+        }
+
+        return 0;
+    }
+
     function get_distance($s_system, $d_system) {
         global $SYSTEM_WIDTH;
 
