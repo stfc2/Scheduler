@@ -1,5 +1,5 @@
 <?php
-/*    
+/*
     This file is part of STFC.
     Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
 
@@ -59,7 +59,7 @@ if(($atk_crews = $this->db->queryrowset($sql)) === false) {
 $user_id = $this->dest['user_id'];
 $planetary_attack = true;
 
-// The course could be optimized, but it should be possible 
+// The course could be optimized, but it should be possible
 // compatibility to provide much action_51.php maintained
 $cur_user = array(
     'user_id' => $user_id,
@@ -285,7 +285,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                 return $this->log(MV_M_DATABASE, 'Could not update dest planet units data! SKIP');
             }
 
-            // 090408 DC:  ------ Finally the fucking soldiers have done their job!!!! 
+            // 090408 DC:  ------ Finally the fucking soldiers have done their job!!!!
             $this->log(MV_M_NOTICE, 'Update ships with the minimum troops value');
 
             $sql = 'UPDATE ships ss, ship_templates st
@@ -298,7 +298,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
             if(!$this->db->query($sql))
                 return $this->log(MV_M_DATABASE, 'Could not update attacking ships! SKIP');
-            // 090408 DC:  ------ 
+            // 090408 DC:  ------
 
             $action_status = -1;
 
@@ -668,6 +668,8 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                     SET planet_owner = '.$this->move['user_id'].',
                         planet_owned_date = '.time().',
                         planet_owner_enum = '.($n_planets - 1).',
+                        best_mood = 0,
+                        best_mood_user = 0,
                         planet_available_points = '.($this->get_structure_points($this->move['user_id'], $this->move['dest'])).',
                         resource_4 = 0,
                         recompute_static = 1,
@@ -758,10 +760,64 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             if($this->dest['user_id'] == INDEPENDENT_USERID) {
                 $this->log(MV_M_NOTICE, 'Colony: Settlers taken over!!! They gonna be no more...');
 
-                $sql = 'DELETE FROM planet_details WHERE planet_id = '.$this->dest['planet_id'].' AND log_code = 300';
+                $sql = 'SELECT user_id, user_name, language FROM settlers_relations
+                                                            INNER JOIN user USING user_id
+                        WHERE planet_id = '.$this->move['dest'].' AND user_id NOT = '.$this->move['user_id'].'
+                        GROUP BY user_id';
+
+                if($res=$this->db->queryrowset($sql))
+                {
+                    foreach($res as $res_item)
+                    {
+                        $log_data = array($this->move['dest'],$this->dest['planet_name'], 0, '', 105, $res_item['user_name']);
+                        switch($res_item['language'])
+                        {
+                            case 'GER':
+                                $log_title = 'Automatic distress message from ';
+                            break;
+                            case 'ITA':
+                                $log_title = 'Richiesta automatica di soccorso dalla colonia ';
+                            break;
+                            default:
+                                $log_title = 'Automatic distress message from ';
+                            break;
+                        }
+
+                        add_logbook_entry($res_item['user_id'], LOGBOOK_SETTLERS, $log_title.$this->dest['planet_name'], $log_data);
+                    }
+                }
+
+                $sql = 'DELETE FROM settlers_relations WHERE planet_id = '.$this->dest['planet_id'];
 
                 if(!$this->db->query($sql)) {
                     $this->log(MV_M_DATABASE, 'Could not delete settlers moods! CONTINUE!');
+                }
+
+                $sql = 'SELECT planet_id FROM settlers_relations WHERE user_id = '.$this->move['user_id'].' GROUP BY planet_id';
+
+                if($res=$this->db->queryrowset($sql))
+                {
+                    foreach($res as $res_item)
+                    {
+                        // Clear all + logs on the planet
+                        $sql = 'DELETE FROM settlers_relations
+                                WHERE user_id = '.$this->move['user_id'].'
+                                AND planet_id = '.$res_item['planet_id'].'
+                                AND log_code IN ("2", "3", "4")';
+
+                        if(!$this->db->query($sql)) {
+                            $this->log(MV_M_DATABASE, 'Could not delete settlers relations data! '.$sql.' CONTINUE');
+                        }
+
+                        $sql = 'INSERT INTO settlers_relations SET planet_id = '.$res_item['planet_id'].',
+                                                                   user_id = '.$this->move['user_id'].',
+                                                                   timestamp = '.time().', log_code = 12,
+                                                                   mood_modifier = -50';
+
+                        $this->db->query($sql);
+
+                        $this->check_best_mood($res_item['planet_id'], false);
+                    }
                 }
             }
 // DC ----
@@ -829,7 +885,8 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                     }
                 }
 
-                $num_item = ($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "n" || $this->dest['planet_type'] == "y"  || $this->dest['planet_type'] == "e" || $this->dest['planet_type'] == "f" || $this->dest['planet_type'] == "g" ? 2 : 1);
+                $num_item = ($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "o" || $this->dest['planet_type'] == "y"  ||
+                             $this->dest['planet_type'] == "x" || $this->dest['planet_type'] == "f" || $this->dest['planet_type'] == "g" ? 2 : 1);
                 send_premonition_to_user($this->move['user_id'], $num_item);
 
                 $sql = 'SELECT * FROM borg_target WHERE user_id = '.$this->move['user_id'];
@@ -837,14 +894,15 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                 $already_acquired = $this->db->num_rows($bot_target_data);
                 if($already_acquired < 1)
                 {
-                    $honor_prize = ($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "n" ? 40 : 15);
-                    $sql='INSERT INTO borg_target (user_id, planets_taken) VALUES ('.$this->move['user_id'].', 1)';
+                    $honor_prize = ($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "o" || $this->dest['planet_type'] == "y"  ||
+                                    $this->dest['planet_type'] == "x" || $this->dest['planet_type'] == "f" || $this->dest['planet_type'] == "g" ? 40 : 15);
+                    $sql='INSERT INTO borg_target (user_id, planets_taken, battle_win) VALUES ('.$this->move['user_id'].', 1, 1)';
                     $this->db->query($sql);
                 }
                 else
                 {
                     $honor_bonus_data = $this->db->fetchrow($bot_target_data);
-                    // Tenere aggiornati i valori qui indicati con quelli presenti in borg.php
+                    // Keep values align with those present in in borg.php
                     if($honor_bonus_data['threat_level'] > 1400.0)
                         $honor_bonus = 5.0;
                     elseif($honor_bonus_data['threat_level'] > 950.0)
@@ -856,7 +914,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                     else
                         $honor_bonus = 1.0;
                     $honor_prize = ($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "n" || $this->dest['planet_type'] == "y"  || $this->dest['planet_type'] == "e" || $this->dest['planet_type'] == "f" || $this->dest['planet_type'] == "g" ? 40 : 15) * $honor_bonus;
-                    $sql='UPDATE borg_target SET planets_taken = planets_taken + 1 WHERE user_id = '.$this->move['user_id'];
+                    $sql='UPDATE borg_target SET planets_taken = planets_taken + 1, battle_win = battle_win +1 WHERE user_id = '.$this->move['user_id'];
                     $this->db->query($sql);
                 }
 
