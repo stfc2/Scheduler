@@ -2115,15 +2115,29 @@ else {
         $sql = 'DELETE FROM planet_details WHERE user_id = '.$user['user_id']; /*.' AND log_code IN (101, 102, 500)';*/
 
         $db->query($sql);
+
+        $sql = 'DELETE FROM starsystems_details WHERE user_id = '.$user['user_id'];
+        $db->query($sql);
+
+        $sql = 'UPDATE starsystems SET system_closed = 0, system_owner = 0 WHERE system_owner = '.$user['user_id'];
+        $db->query($sql);
+
+//DC ---- Settlers Maintenance: clean up all the settlers mood data of the deleted player
+        $sql = 'DELETE FROM settlers_relations WHERE user_id = '.$user['user_id'];
+        $db->query($sql);
+
+        $sql = 'UPDATE planets SET best_mood = 0, best_mood_user = 0 WHERE best_mood_user = '.$user['user_id'];
+        $db->query($sql);
 //DC ----
 
         $sql = 'UPDATE planets
-                    SET planet_owner='.INDEPENDENT_USERID.',
-                        planet_owned_date = '.time().',
+                    SET planet_owner=0,
+                        planet_name = "Lost world",
+                        planet_owned_date = 0,
                         resource_1 = 10000,
                         resource_2 = 10000,
                         resource_3 = 10000,
-                        resource_4 = '.mt_rand(0, 5000).',
+                        resource_4 = 0,
                         recompute_static = 1, 
                         building_1 = '.mt_rand(0, 9).',
                         building_2 = '.mt_rand(0, 9).',
@@ -2136,15 +2150,18 @@ else {
                         building_10 = '.mt_rand(5, 15).',
                         building_11 = '.mt_rand(0, 9).',
                         building_13 = '.mt_rand(0, 10).',
-                        unit_1 = '.mt_rand(500, 1500).',
-                        unit_2 = '.mt_rand(500, 1000).',
-                        unit_3 = '.mt_rand(0, 500).',
+                        unit_1 = 0,
+                        unit_2 = 0,
+                        unit_3 = 0,
                         unit_4 = 0,
                         unit_5 = 0,
                         unit_6 = 0,
                         workermine_1 = 100,
                         workermine_2 = 100,
                         workermine_3 = 100,
+                        research_2 = 0,
+                        research_3 = 0,
+                        research_4 = 0,
                         catresearch_1 = 0,
                         catresearch_2 = 0,
                         catresearch_3 = 0,
@@ -2157,6 +2174,7 @@ else {
                         catresearch_10 = 0,
                         unittrain_actual = 0,
                         unittrainid_nexttime=0,
+                        planet_insurrection_time = 0,
                         planet_surrender=0
             WHERE planet_owner = '.$user['user_id'];
 
