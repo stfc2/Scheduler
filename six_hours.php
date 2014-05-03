@@ -110,26 +110,33 @@ $sdl->finish_job('Mine Job'); // terminates the timer
 // Ok, now we try to update the user_max_colo
 $sdl->start_job('Recalculate colony ship limits');
 
-$sql = 'SELECT user_points FROM user ORDER BY user_points DESC LIMIT 30,1';
-if(!$limit = $db->queryrow($sql)) {
-    $sdl->log('<b>Error:</b> Could not query user points data! CONTINUED');
-    $limit['user_points'] = 2000;
+// Activate colony limit only if there are at least 30 players
+$sql = 'SELECT count(user_id) as num_users FROM user 
+        WHERE user_active = 1 AND user_auth_level = '.STGC_PLAYER;
+if(!$players = $db->queryrow($sql)) {
+    $sdl->log('<b>Error:</b> Could not query users number! SKIP');
 }
-// Are there "big" players present?
-elseif($limit['user_points'] <= 2000) {
-    $limit['user_points'] = 2000;
+elseif($players['num_users'] > 30) {
+    $sql = 'SELECT user_points FROM user ORDER BY user_points DESC LIMIT 30,1';
+    if(!$limit = $db->queryrow($sql)) {
+        $sdl->log('<b>Error:</b> Could not query user points data! CONTINUED');
+        $limit['user_points'] = 2000;
+    }
+    // Are there "big" players present?
+    elseif($limit['user_points'] <= 2000) {
+        $limit['user_points'] = 2000;
+    }
+
+    // Who is ABOVE the threshold can have only five colony ship at a time!!!
+    $sql = 'UPDATE user SET user_max_colo = 5 WHERE user_points > '.$limit['user_points'];
+    if(!$db->query($sql))
+        $sdl->log('<b>Error:</b> Cannot set user_max_colo to 5! CONTINUED');
+
+    //Who is equal to or smaller than the threshold, can do as many colony ship as he want!!!
+    $sql = 'UPDATE user SET user_max_colo = 0 WHERE user_points <= '.$limit['user_points'];
+    if(!$db->query($sql))
+        $sdl->log('<b>Error:</b> Cannot set user_max_colo to 0! CONTINUED');
 }
-
-// Who is ABOVE the threshold can have only five colony ship at a time!!!
-$sql = 'UPDATE user SET user_max_colo = 5 WHERE user_points > '.$limit['user_points'];
-if(!$db->query($sql))
-    $sdl->log('<b>Error:</b> Cannot set user_max_colo to 5! CONTINUED');
-
-//Who is equal to or smaller than the threshold, can do as many colony ship as he want!!!
-$sql = 'UPDATE user SET user_max_colo = 0 WHERE user_points <= '.$limit['user_points'];
-if(!$db->query($sql))
-    $sdl->log('<b>Error:</b> Cannot set user_max_colo to 0! CONTINUED');
-
 $sdl->finish_job('Recalculate colony ship limits');
 
 // #######################################################################################
