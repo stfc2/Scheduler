@@ -52,6 +52,8 @@ define ('BORG_CUBE', 'Borg Cube');
 
 define ('BORG_TACT', 'Borg Tact Cube');
 
+define ('BORG_UM0', 'Borg Unimatrix 0');
+
 define ('BORG_RACE','6'); // Well, this one should be defined in global.php among the other races */
 
 define ('BORG_QUADRANT', 2); // Default Borg belong to Delta quadrant

@@ -414,13 +414,92 @@ class Borg extends NPC
             $this->bot['ship_template3'] = $this->db->insert_id();
         }
 
+        if($this->bot['unimatrixzero_tp']==0)
+        {
+            /**
+             * Brief comments of FIRST prototype of Unimatrix Zero:
+             *
+             * Light weapons: 1
+             * Heavy weapons: 1
+             * Planetary weapons: 1
+             * Torpedoes: 1
+             * ROF: 1
+             * Hull: 1
+             * Shield: 1
+             *
+             * Reaction: 1
+             * Readiness: 1
+             * Agility: 1
+             * Experience: 1
+             * Warp: 10 (Borg has transwarp engines)
+             *
+             * Sensors: 1
+             * Camouflage: 0
+             * Energy available: 1
+             * Energy used: 1
+             *
+             * Resources needed for construction:
+             *
+             * Metal: 1
+             * Minerals: 1
+             * Dilithium: 1
+             * Workers: 1
+             * Technicians: 1
+             * Physicians: 1
+             *
+             * Minimum crew:
+             *
+             * Drone simple: 1
+             * Assault drone: 1
+             * Elite drone: 1
+             * Commander drone: 1
+             *
+             * Maximum crew:
+             *
+             * Drone simple: 1   <--- Max 65535
+             * Assault drone: 1
+             * Elite drone: 1
+             * Commander drone: 1
+             */
+            $reload++;
+            $sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class, 
+            									component_1, component_2, component_3, component_4, component_5, 
+            									component_6, component_7, component_8, component_9, component_10,
+            									value_1, value_2, value_3, value_4, value_5,
+            									value_6, value_7, value_8, value_9, value_10,
+            									value_11, value_12, value_13, value_14, value_15,
+            									resource_1, resource_2, resource_3, resource_4, unit_5, unit_6, 
+            									min_unit_1, min_unit_2, min_unit_3, min_unit_4,
+            									max_unit_1, max_unit_2, max_unit_3, max_unit_4, 
+            									buildtime, rof, max_torp)
+            		VALUES ('.$this->bot['user_id'].','.time().', "'.BORG_UM0.'", "Main Borg Base", '.BORG_RACE.',12,3,
+            				-1, -1, -1, -1, -1,
+            				-1, -1, -1, -1, -1,
+            				1, 1, 1, 1, 1,
+            				1, 1, 1, 1, 1,
+            				1, 1, 1, 1, 0,
+            				1, 1, 1, 1, 1, 1,
+            				1, 1, 1, 1,
+            				1, 1, 1, 1,
+            				0, 1, 1)';
+
+            if(!$this->db->query($sql)) {
+                $this->sdl->log('<b>Error:</b> Could not save BOT Unimatrix Zero - ABORTED '.$sql, $log);
+                return;
+            }
+
+            // Update ship template id with the freshly created one
+            $this->bot['unimatrixzero_tp'] = $this->db->insert_id();
+        }
+
         if($reload > 0) {
             $this->sdl->log('Ship templates built', $log);
 
             $sql = 'UPDATE borg_bot
                     SET ship_template1 = '.$this->bot['ship_template1'].',
                         ship_template2 = '.$this->bot['ship_template2'].',
-                        ship_template3 = '.$this->bot['ship_template3'].'
+                        ship_template3 = '.$this->bot['ship_template3'].',
+                        unimatrixzero_tp = '.$this->bot['unimatrixzero_tp'].'
                     WHERE user_id = '.$this->bot['user_id'];
             if(!$this->db->query($sql))
                 $this->sdl->log('<b>Error:</b> Could not update SevenOfNine ID card with ship templates info - CONTINUED', $log);
