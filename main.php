@@ -1885,7 +1885,7 @@ $sdl->finish_job('World Scheduler');
 // ########################################################################################
 // Remove inactive player
 
-$sdl->start_job('Remove inactive Player');
+$sdl->start_job('Remove inactive players');
 
 
 // Do not delete yet activated player
@@ -1894,7 +1894,7 @@ $sql = 'DELETE FROM user
               user_registration_time < '.($game->TIME - (49 * 60 * 60));
 
 if(!$db->query($sql)) {
-    $sdl->log('<b>Notice:</b> Could not delete unactivated users! CONTINUED');
+    $sdl->log('<b>Notice:</b> Could not delete inactivated users! CONTINUED');
 }
 
 
@@ -1983,7 +1983,7 @@ $sql = 'SELECT u.user_id, u.user_active, u.user_auth_level, u.user_points, u.use
         WHERE u.user_active = 4';
 
 if(!$q_user = $db->query($sql)) {
-    $sdl->log('<b>Notice:</b> Could not query deleteable user data! CONTINUED');
+    $sdl->log('<b>Notice:</b> Could not query deletable user data! CONTINUED');
 }
 else {
     while($user = $db->fetchrow($q_user)) {
@@ -2095,38 +2095,49 @@ else {
 
         $db->query($sql);
 
+
         $sql = 'DELETE FROM alliance_application
                 WHERE application_user = '.$user['user_id'];
 
         $db->query($sql);
 
-//DC ---- Historycal record for faction vanishing from universe, log_code '28'
+//DC ---- Historical record for faction vanishing from universe, log_code '28'
         $sql = 'SELECT planet_id FROM planets WHERE planet_owner = '.$user['user_id'];
         if($vanishing = $db->query($sql)) {
             while($_temp = $db->fetchrow($vanishing)) {
 //DC ---- we record no data for identification of vanished player... he/she is gone and forgot
                 $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
-                        VALUES ('.$_temp['planet_id'].', 0, 0, 0, 0, '.time().', 28)';
+                        VALUES ('.$_temp['planet_id'].', 0, 0, 0, 0, '.$game->TIME.', 28)';
                 $db->query($sql);
             }
         }
 
 //DC ---- FoW Maintenance: we clean up all the data collected by the deleted player
-        $sql = 'DELETE FROM planet_details WHERE user_id = '.$user['user_id']; /*.' AND log_code IN (101, 102, 500)';*/
+        $sql = 'DELETE FROM planet_details
+                WHERE user_id = '.$user['user_id'];
 
         $db->query($sql);
 
-        $sql = 'DELETE FROM starsystems_details WHERE user_id = '.$user['user_id'];
+        $sql = 'DELETE FROM starsystems_details
+                WHERE user_id = '.$user['user_id'];
+
         $db->query($sql);
 
-        $sql = 'UPDATE starsystems SET system_closed = 0, system_owner = 0 WHERE system_owner = '.$user['user_id'];
-        $db->query($sql);
+        if(HOME_SYSTEM_PRIVATE) {
+            /* Too many user create and delete their accounts, leave star system closed...
+            $sql = 'UPDATE starsystems SET system_closed = 0, system_owner = 0 WHERE system_owner = '.$user['user_id'];
+            $db->query($sql);*/
+        }
 
 //DC ---- Settlers Maintenance: clean up all the settlers mood data of the deleted player
-        $sql = 'DELETE FROM settlers_relations WHERE user_id = '.$user['user_id'];
+        $sql = 'DELETE FROM settlers_relations
+                WHERE user_id = '.$user['user_id'];
+
         $db->query($sql);
 
-        $sql = 'UPDATE planets SET best_mood = 0, best_mood_user = 0 WHERE best_mood_user = '.$user['user_id'];
+        $sql = 'UPDATE planets SET best_mood = 0, best_mood_user = 0
+                WHERE best_mood_user = '.$user['user_id'];
+
         $db->query($sql);
 //DC ----
 
@@ -2189,8 +2200,10 @@ else {
             $sdl->log('<b>Error:</b> Could not set logbook message to read! CONTIUED');
         }
 
+        /* 07/05/14 - AC: Too many users create and delete their accounts leave the entries in the DB
         $sql = 'DELETE FROM user
-                WHERE user_id = '.$user['user_id'];
+                WHERE user_id = '.$user['user_id'];*/
+        $sql = 'UPDATE user SET user_active = 5 WHERE user_id = '.$user['user_id'];
 
         if(!$db->query($sql)) {
             $sdl->log('<b>Error:</b> Could not delete final user data! CONTIUED');
@@ -2207,33 +2220,32 @@ else {
 $sql = 'SELECT user_id, user_name FROM user WHERE user_active = 3 AND last_active < '.($game->TIME - (3 * 60 * 60));
 
 if(!$undel_user = $db->query($sql)) {
-    $sdl->log('<b>Notice:</b> Could not select user_active3 data! CONTINUED');
+    $sdl->log('<b>Notice:</b> Could not select user_active = 3 data! CONTINUED');
 }
 else {
-  while($user = $db->fetchrow($undel_user)) {
+    while($user = $db->fetchrow($undel_user)) {
   
-    $sdl->log('- User <b>#'.$user['user_id'].'</b> ( '.$user['user_name'].'  ) has requested deletion, but not confirmed! (Fake attempt?)');
+        $sdl->log('- User <b>#'.$user['user_id'].'</b> ( '.$user['user_name'].'  ) has requested deletion, but not confirmed! (Fake attempt?)');
 
-    $sql = 'UPDATE user
-            SET user_active = 1
-            WHERE user_active = 3 AND
-            last_active < '.($game->TIME - (3 * 60 * 60));
+        $sql = 'UPDATE user
+                SET user_active = 1
+                WHERE user_active = 3 AND
+                      last_active < '.($game->TIME - (3 * 60 * 60));
     
-    if(!$db->query($sql)) {
-      $sdl->log('<b>Notice:</b> Could not select user_active3 data! CONTINUED');
+        if(!$db->query($sql)) {
+            $sdl->log('<b>Notice:</b> Could not set back user_active = 1 data! CONTINUED');
+        }
     }
-  
-  }
 }
 
 
-$sdl->finish_job('Remove inactive Player');
+$sdl->finish_job('Remove inactive players');
 
 // ########################################################################################
 // ########################################################################################
-// Ghostfleets repair (taken from Fix_all)
+// Ghost fleets repair (taken from Fix_all)
 
-$sdl->start_job('Resolve ghost fleet');
+$sdl->start_job('Resolve ghost fleets');
 
 
 
@@ -2358,7 +2370,7 @@ if(!$db->query($sql)) {
 
 
 
-$sdl->finish_job('Resolve ghost fleet');
+$sdl->finish_job('Resolve ghost fleets');
 
 
 
