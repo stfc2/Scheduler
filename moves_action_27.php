@@ -35,7 +35,7 @@ class moves_action_27 extends moves_common {
 
     function _action_main() {
 
-        global $PLANETS_DATA, $RACE_DATA, $TECH_DATA, $TECH_NAME, $MAX_RESEARCH_LVL, $ACTUAL_TICK;
+        global $PLANETS_DATA, $RACE_DATA, $TECH_DATA, $TECH_NAME, $MAX_RESEARCH_LVL, $ACTUAL_TICK, $cfg_data;
 
         // #############################################################################
         // Away Team Missions!!!
@@ -766,42 +766,42 @@ class moves_action_27 extends moves_common {
 
                 if($log_data[5] == 0)
                 {
+                    $sql = 'SELECT * FROM `ship_templates`
+                            WHERE `id` = '.$cfg_data['settler_tmp_4'];
+                    if(($stpl = $this->db->queryrow($sql)) === false)
+                        return $this->log(MV_M_DATABASE, '<b>Error:</b> Could not query settlers ship template data');
+
                     if($orbital_counter > 1 && $orbital_counter < STL_MAX_ORBITAL)
                     {
-                        // No access to DB, let's put the values right in, REMEMBER TO CHECK THE TEMPLATE IN THE DB WHEN EDITING THIS!!!
-                        // Orbital cannon tp hardcoded!!! DANGER!!!
-                        $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, last_refit_time)
-                                VALUES ('.$od_q['fleet_id'].', '.INDEPENDENT_USERID.', 170, 0, 1500, '.time().', 300, 5, '.time().')';
-                        $tally = 0;
+                        $fleet_id = $od_q['fleet_id'];
                         $orbital_to_made = min((STL_MAX_ORBITAL - $orbital_counter), 10);
-                        while($tally < $orbital_to_made)
-                        {
-                            if(!$this->db->query($sql)) 
-                            {
-                                return $this->log(MV_M_DATABASE, 'Error while adding an orbital cannon for Settlers ---> '.$sql);
-                            }
-                            $tally++;
-                        }
                     }
                     else
                     {
                         // Orbital defence fleet not exists. Let's create this.
-                        // Orbital cannon tp hardcoded!!! DANGER!!!
-                        $sql = 'INSERT INTO ship_fleets (fleet_name, user_id, planet_id, alert_phase, move_id, n_ships)
-                                VALUES ("Orbital'.$this->move['dest'].'", '.INDEPENDENT_USERID.', '.$this->move['dest'].', '.ALERT_PHASE_GREEN.', 0, 5)';
+                        $sql = 'INSERT INTO ship_fleets (fleet_name, user_id, planet_id,
+                                                         alert_phase, move_id, n_ships)
+                                VALUES ("Orbital'.$this->move['dest'].'", '.INDEPENDENT_USERID.', '.$this->move['dest'].',
+                                        '.ALERT_PHASE_GREEN.', 0, 10)';
                         $this->db->query($sql);
                         $fleet_id = $this->db->insert_id();
-                        $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, last_refit_time)
-                                VALUES ('.$fleet_id.', '.INDEPENDENT_USERID.', 170, 0, 1500, '.time().', 300, 5, '.time().')';
-                        $tally = 0;
-                        while($tally < 10)
+                        $orbital_to_made = 10;
+                    }
+
+                    $sql = 'INSERT INTO ships (fleet_id, user_id, template_id,
+                                               experience, hitpoints, construction_time,
+                                               torp, rof, last_refit_time)
+                            VALUES ('.$fleet_id.', '.INDEPENDENT_USERID.', '.$cfg_data['settler_tmp_4'].',
+                                    '.$stpl['value_9'].', '.$stpl['value_5'].', '.time().',
+                                    '.$stpl['max_torp'].', '.$stpl['rof'].', '.time().')';
+                    $tally = 0;
+                    while($tally < $orbital_to_made)
+                    {
+                        if(!$this->db->query($sql)) 
                         {
-                            if(!$this->db->query($sql)) 
-                            {
-                                return $this->log(MV_M_DATABASE, 'Error while adding an orbital cannon for Settlers ---> '.$sql);
-                            }
-                            $tally++;
+                            return $this->log(MV_M_DATABASE, 'Error while adding an orbital cannon for Settlers ---> '.$sql);
                         }
+                        $tally++;
                     }
 
                     $orbital_reward = 1*$tally;
