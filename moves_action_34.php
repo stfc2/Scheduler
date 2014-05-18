@@ -248,19 +248,63 @@ class moves_action_34 extends moves_common {
                     $title='Routesperre';
                 break;
                 case 'ITA':
-                    $message='Ciao '.$this->move['user_name'].',<br>non le rotte commerciali tra account sitter e sittato non sono ammesse.<br>Questo messaggio &egrave; stato generato automaticamente, lamentele al team di STFC2 sono inutili.<br>~ Abuso Sitting Automatico';
+                    $message='Ciao '.$this->move['user_name'].',<br>le rotte commerciali tra account sitter e sittato non sono ammesse.<br>Questo messaggio &egrave; stato generato automaticamente, lamentele al team di STFC2 sono inutili.<br>~ Sistema anti abuso sitting';
                     $title='Rotta bloccata';
                 break;
                 default:
-                    $message='Hello '.$this->move['user_name'].',<br>trade routes between sitter and sitted account are forbidden.<br>This message was automatically generated, complaints to the STFC2 team bring nothing.<br>~Automatic Abuse Sitting';
+                    $message='Hello '.$this->move['user_name'].',<br>trade routes between sitter and sitted account are forbidden.<br>This message is automatically generated complaints to the team STFC2 are useless.<br>~Sitting Abuse Prevention System';
                     $title='Route blocked';
                 break;
             }
-            SystemMessage($this->move['user_id'],$title,$message);
-            return $this->log(MV_M_NOTICE, $log_message);
         }
 
         /* END OF RULE TO AVOID ROUTES BETWEEN SITTER AND SITTED */
+
+        /* START OF RULE TO AVOID ROUTES WITH SETTLERS */
+        if($this->dest['user_id'] == INDEPENDENT_USERID) {
+            $route_blocked = true;
+
+            switch($this->move['language'])
+            {
+                case 'GER':
+                    $message='Hallo '.$this->move['user_name'].',<br>Handelswege mit Siedler sind verboten.<br>Diese Nachricht wurde automatisch generiert, Beschwerden beim STFC2-Team bringen nichts.<br>~ Siedler-Abuse-Automatik';
+                    $title='Routesperre';
+                break;
+                case 'ITA':
+                    $message='Ciao '.$this->move['user_name'].',<br>le rotte commerciali con i Coloni non sono ammesse.<br>Questo messaggio &egrave; stato generato automaticamente, lamentele al team di STFC2 sono inutili.<br>~ Sistema anti abuso Coloni';
+                    $title='Rotta bloccata';
+                break;
+                default:
+                    $message='Hello '.$this->move['user_name'].',<br>trade routes with Settlers are forbidden.<br>This message is automatically generated complaints to the team STFC2 are useless.<br>~Settlers Abuse Prevention System';
+                    $title='Route blocked';
+                break;
+            }
+
+            $log_message = 'Trade route between user <b>'.$this->move['user_id'].'</b> and Settlers are forbidden!!!';
+        }
+        /* END OF RULE TO AVOID ROUTES WITH SETTLERS */
+
+        // Route not allowed: log it, inform the admin and deactivate
+        if($route_blocked) {
+            $this->log(MV_M_NOTICE, $log_message);
+
+            SystemMessage($this->move['user_id'],$title,$message);
+
+            //Send a copy to the admin
+            SystemMessage(10,$title,$message);
+
+            // Deactivate the move
+            $sql = 'UPDATE ship_fleets
+                SET planet_id = '.$this->move['dest'].',
+                move_id = 0
+                WHERE fleet_id IN ('.$this->fleet_ids_str.')';
+
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update fleets data! SKIP');
+            }
+
+            return MV_EXEC_OK;
+        }
 
         $this->do_unloading();
 
