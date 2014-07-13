@@ -94,6 +94,9 @@ if(($result = $db->query($sql)) === false) {
     $sdl->log('<b>Error:</b> cannot select user data!');
 }
 else {
+    if(!$db->query('UPDATE user SET num_hits=0, num_sitting=0'))
+        $sdl->log('<b>Error:</b> cannot reset sitting information!');
+
     while ($user=$db->fetchrow($result))
     {
         /* 08/05/08 - AC: It seems that sometime 'num_hits' can be 0, check added */
@@ -139,9 +142,6 @@ else {
         $sdl->log('User sitting locked: ID '.$user['user_id'].' Name: '.$user['user_name'].' Abuse: '.$val);
     }
 }
-
-if(!$db->query('UPDATE user SET num_hits=0, num_sitting=0'))
-    $sdl->log('<b>Error:</b> cannot reset sitting information!');
 
 $sdl->finish_job('Sitting abuse check');
 
