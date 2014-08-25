@@ -86,7 +86,7 @@ $sdl->finish_job('Reset New Registration Count');
 
 $sdl->start_job('Sitting abuse check');
 
-$sql = 'SELECT * FROM user
+$sql = 'SELECT user_id,user_name,num_hits,num_sitting FROM user
         WHERE (num_sitting/(num_hits+1))>0.35 AND
               (num_sitting>50 OR (num_hits<10 AND num_sitting>30))';
 
@@ -99,10 +99,8 @@ else {
 
     while ($user=$db->fetchrow($result))
     {
-        /* 08/05/08 - AC: It seems that sometime 'num_hits' can be 0, check added */
-        if($user['num_hits'] == 0) $user['num_hits'] = 1;
-
-        $val=($user['num_sitting']+1)/$user['num_hits'];
+        /* 25/08/14 - AC: According to the used query, num_sitting cannot be zero instead num_hits could be */
+        $val=$user['num_sitting']/($user['num_hits']+1);
 
         /* 24/04/08 - AC: Add language translation based on user language */
         switch($user['language'])
