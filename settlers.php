@@ -54,7 +54,7 @@ class Settlers extends NPC
                                     user_registration_time, user_registration_ip,
                                           user_birthday, user_gender, plz, country, user_enable_sig,
                                           user_message_sig, user_signature, user_notepad, user_options, message_basement)
-                         VALUES ('.INDEPENDENT_USERID.', '.STGC_BOT.', "Coloni(NPG)", "SettlersBot", "'.md5("settlers").'",
+                         VALUES ('.INDEPENDENT_USERID.', '.STGC_BOT.', "Coloni(NPC)", "SettlersBot", "'.md5("settlers").'",
                                  "settlers@stfc.it", 1, 13, "/stfc_gfx/", "skin1/", '.time().', "127.0.0.1",
                                  "25.06.2008", "", 16162 , "IT", 1,
                                  "",  "", "", "", "")';

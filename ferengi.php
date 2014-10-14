@@ -90,7 +90,7 @@ class Ferengi extends NPC
                                       user_race, user_gfxpath, user_skinpath, user_registration_time, user_registration_ip,
                                       user_birthday, user_gender, plz, country,user_enable_sig,user_message_sig,
                                       user_signature, user_notepad, user_options, message_basement)
-                    VALUES ('.FERENGI_USERID.',1, "Quark(NPG)", "Bot", "'.md5("bundu").'", "xxx@xxx.de", '.STGC_BOT.',
+                    VALUES ('.FERENGI_USERID.',1, "Quark(NPC)", "Bot", "'.md5("bundu").'", "xxx@xxx.de", '.STGC_BOT.',
                             5, "/stfc_gfx/", "skin1/", '.time().', "100.0.0.1",
                             "20.04.2007", "w", 76149 , "DE",1,"<br><br><p><b>I.A. of the Ferengi Trade Guild</b></p>",
                             "I live in the computing centre Karlsruhe - so now however conclusion with merry","","","")';
@@ -105,7 +105,7 @@ class Ferengi extends NPC
             // Update BOT card
             $sql = 'UPDATE FHB_Bot
                     SET user_id="'.FERENGI_USERID.'",
-                        user_name="Quark(NPG)",
+                        user_name="Quark(NPC)",
                         user_tick="'.$ACTUAL_TICK.'",
                         user_loginname="Bot",
                         user_race="5"
