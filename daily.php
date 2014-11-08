@@ -259,25 +259,25 @@ $files = array(
 foreach ($files as $key => $file) {
     //$sdl->log("Compressing file ".$file."...");
 
-	// Compress file if it exists
-	if (file_exists($file)) {
-    	// Name of the gz file we are creating
-    	$gzfile = $file.".gz";
+    // Compress file if it exists
+    if (file_exists($file)) {
+        // Name of the gz file we are creating
+        $gzfile = $file.".gz";
 
-    	// Open the gz file (w9 is the highest compression)
-    	if(($fp = gzopen ($gzfile, 'w9')) === false)
-        	$sdl->log('<b>Error:</b> cannot create compressed file '.$gzfile);
-    	else {
-        	// Compress the file
-        	gzwrite ($fp, file_get_contents($file));
+        // Open the gz file (w9 is the highest compression)
+        if(($fp = gzopen ($gzfile, 'w9')) === false)
+            $sdl->log('<b>Error:</b> cannot create compressed file '.$gzfile);
+        else {
+            // Compress the file
+            gzwrite ($fp, file_get_contents($file));
 
-        	// Close the gz file and we are done
-        	gzclose($fp);
+            // Close the gz file and we are done
+            gzclose($fp);
 
-        	// Delete uncompressed file
-        	if(!unlink($file))
-            	$sdl->log('<b>Error:</b> cannot remove uncompressed file '.$file);
-    	}
+            // Delete uncompressed file
+            if(!unlink($file))
+                $sdl->log('<b>Error:</b> cannot remove uncompressed file '.$file);
+        }
     }
 }
 $sdl->finish_job('Compress log files');
