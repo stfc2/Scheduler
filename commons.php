@@ -37,9 +37,13 @@ class sql {
 	var $already_reconnected = -1; // With first connection become 0
 
 
-	function sql($server, $database, $user, $password = '') {
+	function sql($connection, $database, $user, $password = '') {
+		$server = strtok($connection, ':');
+		$port = strtok(':');
+
 		$this->login = array(
 			'server' => $server,
+			'port' => $port,
 			'database' => $database,
 			'user' => $user,
 			'password' => $password
@@ -47,8 +51,8 @@ class sql {
 	}
 
 	function raise_error($message = false, $number = false, $sql = '') {
-		if($message === false) $message = mysql_error($this->link_id);
-		if($number === false) $number = mysql_errno($this->link_id);
+		if($message === false) $message = $this->error();
+		if($number === false) $number = $this->errno();
 
 		$this->error = array(
 			'message' => $message,
@@ -60,7 +64,7 @@ class sql {
 	}
 
 	function connect() {
-		if(!is_resource($this->link_id)) {
+		if(!is_object($this->link_id)) {
 			if($this->already_reconnected == 5) {
 				global $sdl;
 
@@ -68,17 +72,10 @@ class sql {
 				exit;
 			}
 
-			if(!$this->link_id = @mysql_connect($this->login['server'], $this->login['user'], $this->login['password'])) {
+			if(!$this->link_id = @mysqli_connect($this->login['server'], $this->login['user'], $this->login['password'], $this->login['database'], $this->login['port'])) {
 				global $sdl;
 
-				$sdl->log('CRITICAL: Mysql->connect(): Could not connect to mysql server! DIE');
-				exit;
-			}
-
-			if(!@mysql_select_db($this->login['database'], $this->link_id)) {
-				global $sdl;
-
-				$sdl->log('CRITICAL: Mysql->connect(): Could not select database! DIE');
+				$sdl->log('CRITICAL: Mysql->connect(): Could not connect to mysql server and select database! DIE');
 				exit;
 			}
 
@@ -89,8 +86,8 @@ class sql {
 	}
 
 	function close() {
-		if(is_resource($this->link_id)) {
-			if(!@mysql_close($this->link_id)) {
+		if(is_object($this->link_id)) {
+			if(!@mysqli_close($this->link_id)) {
 				return $this->raise_error();
 			}
 		}
@@ -110,14 +107,14 @@ class sql {
 			$table_str[] = $tables[$i].' WRITE';
 		}
 		$sql = 'LOCK TABLES '.implode(',', $table_str);
-		if(!mysql_query($sql, $this->link_id)) {
+		if(!mysqli_query($this->link_id, $sql)) {
 			$this->raise_error(false, false, $sql);
 		}
 		return true;
 	}
 
 	function unlock() {
-		if(!mysql_query('UNLOCK TABLES', $this->link_id)) {
+		if(!mysqli_query($this->link_id, 'UNLOCK TABLES')) {
 		  $this->raise_error(false, false, 'UNLOCK TABLES');
 		}
 		return true;
@@ -128,9 +125,9 @@ class sql {
 			return false;
 		}
 
-		$query_function = ($unbuffered) ? 'mysql_unbuffered_query' : 'mysql_query';
+		$query_mode = ($unbuffered) ? MYSQLI_USE_RESULT : MYSQLI_STORE_RESULT;
 
-		if(!$this->query_id = @$query_function($query, $this->link_id)) {
+		if(!$this->query_id = @mysqli_query($this->link_id, $query, $query_mode)) {
 			return $this->raise_error(false, false, $query);
 		}
 
@@ -139,11 +136,11 @@ class sql {
 		return $this->query_id;
 	}
 
-	function fetchrow($query_id = 0, $result_type = MYSQL_ASSOC) {
-		if(!is_resource($query_id)) $query_id = $this->query_id;
+	function fetchrow($query_id = 0, $result_type = MYSQLI_ASSOC) {
+		if(!is_object($query_id)) $query_id = $this->query_id;
 
-		if(!$_row = @mysql_fetch_array($query_id, $result_type)) {
-			if(($_error = mysql_error()) !== '') {
+		if(!$_row = @mysqli_fetch_array($query_id, $result_type)) {
+			if(($_error = mysqli_error($this->link_id)) !== '') {
 				return $this->raise_error($_error);
 			}
 			else {
@@ -154,17 +151,17 @@ class sql {
 		return $_row;
 	}
 
-	function fetchrowset($query_id = 0, $result_type = MYSQL_ASSOC) {
-		if(!is_resource($query_id)) $query_id = $this->query_id;
+	function fetchrowset($query_id = 0, $result_type = MYSQLI_ASSOC) {
+		if(!is_object($query_id)) $query_id = $this->query_id;
 
 		$_row = $_rowset = array();
 
-		while($_row = @mysql_fetch_array($query_id, $result_type)) {
+		while($_row = @mysqli_fetch_array($query_id, $result_type)) {
 			$_rowset[] = $_row;
 		}
 
 		if(!$_rowset) {
-			if(($_error = mysql_error()) !== '') {
+			if(($_error = mysqli_error($this->link_id)) !== '') {
 				return $this->raise_error();
 			}
 			else {
@@ -175,7 +172,7 @@ class sql {
 		return $_rowset;
 	}
 
-	function queryrow($query, $result_type = MYSQL_ASSOC) {
+	function queryrow($query, $result_type = MYSQLI_ASSOC) {
 		if(!$_qid = $this->query($query)) {
 			return false;
 		}
@@ -183,7 +180,7 @@ class sql {
 		return $this->fetchrow($_qid, $result_type);
 	}
 
-	function queryrowset($query, $result_type = MYSQL_ASSOC) {
+	function queryrowset($query, $result_type = MYSQLI_ASSOC) {
 		if(!$_qid = $this->query($query, true)) {
 			return false;
 		}
@@ -192,9 +189,9 @@ class sql {
 	}
 
 	function free_result($query_id = 0) {
-		if(!is_resource($query_id)) $query_id = $this->query_id;
+		if(!is_object($query_id)) $query_id = $this->query_id;
 
-		if(!@mysql_free_result($query_id)) {
+		if(!@mysqli_free_result($query_id)) {
 			return $this->raise_error();
 		}
 
@@ -202,9 +199,9 @@ class sql {
 	}
 
 	function num_rows($query_id = 0) {
-		if(!is_resource($query_id)) $query_id = $this->query_id;
+		if(!is_object($query_id)) $query_id = $this->query_id;
 
-		$_num = @mysql_num_rows($query_id);
+		$_num = @mysqli_num_rows($query_id);
 
 		if($_num === false) {
 			return $this->raise_error();
@@ -214,7 +211,7 @@ class sql {
 	}
 
 	function affected_rows() {
-		$_num = @mysql_affected_rows($this->link_id);
+		$_num = @mysqli_affected_rows($this->link_id);
 
 		if($_num === false) {
 			return $this->raise_error();
@@ -224,13 +221,21 @@ class sql {
 	}
 
 	function insert_id() {
-		$_id = @mysql_insert_id($this->link_id);
+		$_id = @mysqli_insert_id($this->link_id);
 
-		if($_id === false) {
+		if($_id == 0) {
 			return $this->raise_error();
 		}
 
 		return $_id;
+	}
+
+	function error() {
+		return (is_object($this->link_id) ? mysqli_error($this->link_id) : mysqli_connect_error());
+	}
+
+	function errno() {
+		return (is_object($this->link_id) ? mysqli_errno($this->link_id) : mysqli_connect_errno());
 	}
 }
 
