@@ -105,7 +105,7 @@ class Borg extends NPC
                                       user_enable_sig,user_message_sig,
                                       user_signature, user_notepad, user_options, message_basement)
                      VALUES ('.BORG_USERID.', 1, "Borg(NPC)", "BorgBot", "'.md5("borgcube").'", "borg@stfc.it",
-                             '.STGC_BOT.', '.BORG_RACE.', "/stfc_gfx/", "skin1/", '.time().',
+                             '.STGC_BOT.', '.BORG_RACE.', "'.DEFAULT_GFX_PATH.'", "skin1/", '.time().',
                              "127.0.0.1", "23.05.2008", "", 16162 , "IT",
                              1, "<br><br><p><b>We are the Borg, resistance is futile</b></p>",
                              "'.BORG_SIGNATURE.'","", "", "")';
