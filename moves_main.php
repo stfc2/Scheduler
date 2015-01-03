@@ -89,7 +89,7 @@ $sql = 'SELECT ss.*,
         ORDER BY ss.move_id ASC';
 
 if(!$q_moves = $db->query($sql)) {
-    $sdl->log('- Moves Database Error: Could not select main moves data! MOVES ABORTERD');
+    $sdl->log('- Moves Database Error: Could not select main moves data! MOVES ABORTED');
 
     return MV_EXEC_ERROR;
 }
@@ -99,13 +99,13 @@ $sdl->log('- Moves: Starting process');
 
 while($cur_move = $db->fetchrow($q_moves)) {
     $action_class = 'moves_action_'.$cur_move['action_code'];
-    
+
     //if ($cur_move['action_code']<50 && $cur_move['action_code']!=24  && $cur_move['action_code']!=25)
 //{
-$mv = new $action_class($db, $cur_move, $CURRENT_TICK);
-    
+    $mv = new $action_class($db, $cur_move, $CURRENT_TICK);
+
     $mv->_main();
-    
+
     $mv = null;
 //}
 }
