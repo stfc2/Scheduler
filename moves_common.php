@@ -140,7 +140,6 @@ class moves_common {
     }
 
     function report($reason) {
-        global $CURRENT_TICK;
 
         $message = addslashes($reason.NL.NL.
                               'move_id: <b>'.$this->mid.'</b>'.NL.
@@ -150,7 +149,7 @@ class moves_common {
                               'dest: <b>'.$this->move['dest'].'</b>'.NL.
                               'move_begin: <b>'.$this->move['move_begin'].'</b>'.NL.
                               'move_finish: <b>'.$this->move['move_finish'].'</b>'.NL.
-                              'processing tick: <b>'.$CURRENT_TICK.'</b>');
+                              'processing tick: <b>'.$this->CURRENT_TICK.'</b>');
 
         SystemMessage(DATA_UID, 'Move ('.$reason.')', $message);
     }
