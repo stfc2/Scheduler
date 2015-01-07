@@ -783,7 +783,8 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
 
                 $this->log(MV_M_NOTICE, 'Doing combat in AR-loop #'.$i);
 
-                if($this->do_ship_combat(implode(',', $atk_fleet_ids), $this->fleet_ids_str, MV_COMBAT_LEVEL_OUTER) == MV_EXEC_ERROR) {
+                $atk_fleet_ids_str = implode(',', $atk_fleet_ids);
+                if($this->do_ship_combat($atk_fleet_ids_str, $this->fleet_ids_str, MV_COMBAT_LEVEL_OUTER) == MV_EXEC_ERROR) {
                     $this->log(MV_M_CRITICAL, 'Move Direct: Something went wrong with this fight!');
                     return MV_EXEC_ERROR;
                 }

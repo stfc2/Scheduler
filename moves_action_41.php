@@ -219,7 +219,9 @@ foreach($dfd_fleets as $i => $cur_fleet) {
 	$dfd_fleet_ids[] = $cur_fleet['fleet_id'];
 }
 
-if($this->do_ship_combat(implode(',', $atk_fleets_ids), implode(',', $dfd_fleet_ids), MV_COMBAT_LEVEL_ORBITAL) == MV_EXEC_ERROR) {
+$atk_fleet_ids_str = implode(',', $atk_fleets_ids);
+$dfd_fleet_ids_str = implode(',', $dfd_fleet_ids);
+if($this->do_ship_combat($atk_fleet_ids_str, $dfd_fleet_ids_str, MV_COMBAT_LEVEL_ORBITAL) == MV_EXEC_ERROR) {
 	$this->log(MV_M_DATABASE, 'Move Action 41: Something went wrong with this fight!');
 	return MV_EXEC_ERROR;
 }
