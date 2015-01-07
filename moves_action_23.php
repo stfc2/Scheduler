@@ -1,11 +1,11 @@
 <?php
-/*    
-	This file is part of STFC.
-	Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
-		
-	STFC is based on STGC,
-	Copyright 2003-2007 by Florian Brede (florian_brede@hotmail.com) and Philipp Schmidt
-	
+/*
+    This file is part of STFC.
+    Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
+
+    STFC is based on STGC,
+    Copyright 2003-2007 by Florian Brede (florian_brede@hotmail.com) and Philipp Schmidt
+
     STFC is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
@@ -27,7 +27,7 @@ class moves_action_23 extends moves_common {
         account_log($this->move['user_id'], $this->dest['user_id'], 1);
 
         // #############################################################################
-        // Schiffe aktualisieren
+        // Update ships
 
         $sql = 'UPDATE ships
                 SET user_id = '.$this->dest['user_id'].'
@@ -38,7 +38,7 @@ class moves_action_23 extends moves_common {
         }
 
         // #############################################################################
-        // Flotten aktualisieren
+        // Update fleets
 
         $sql = 'UPDATE ship_fleets
                 SET planet_id = '.$this->move['dest'].',
@@ -51,8 +51,8 @@ class moves_action_23 extends moves_common {
         }
 
         // #############################################################################
-        // Schulden überprüfen
-        
+        // Check debts
+
         $sql = 'SELECT id, resource_1, resource_2, resource_3, ship_id
                 FROM bidding_owed
                 WHERE user = '.$this->move['user_id'].' AND
@@ -150,7 +150,7 @@ class moves_action_23 extends moves_common {
         }
 
         // #############################################################################
-        // Logbuch-Eintrag erstellen
+        // Write Logbook
 
         $sql = 'SELECT st.name, st.ship_torso, st.race,
                        COUNT(s.ship_id) AS n_ships
@@ -198,7 +198,6 @@ class moves_action_23 extends moves_common {
                 $log_title2 = 'Fleet association of '.$this->move['user_name'].' has revealed';
             break;
         }
-
 
         add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $log_title1, $log_data);
         add_logbook_entry($this->dest['user_id'], LOGBOOK_TACTICAL, $log_title2, $log_data);

@@ -1,11 +1,11 @@
 <?php
-/*    
-	This file is part of STFC.
-	Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
-		
-	STFC is based on STGC,
-	Copyright 2003-2007 by Florian Brede (florian_brede@hotmail.com) and Philipp Schmidt
-	
+/*
+    This file is part of STFC.
+    Copyright 2006-2007 by Michael Krauss (info@stfc2.de) and Tobias Gafner
+
+    STFC is based on STGC,
+    Copyright 2003-2007 by Florian Brede (florian_brede@hotmail.com) and Philipp Schmidt
+
     STFC is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
@@ -32,7 +32,7 @@ class moves_action_21 extends moves_common {
                 SET planet_id = '.$this->move['dest'].',
                     move_id = 0
                 WHERE fleet_id IN ('.$this->fleet_ids_str.')';
-                
+
         if(!$this->db->query($sql)) {
             return $this->log(MV_M_DATABASE, 'Could not update fleets data! SKIP');
         }
