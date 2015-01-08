@@ -224,7 +224,7 @@ if($sphere_counter > $borg_std_num['counter'])
         $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, last_refit_time)
                 VALUES ('.$borg_fleet['fleet_id'].', '.BORG_USERID.', '.$borg_tp['sphere'].', '.$borg_std_tp['value_9'].', '.$borg_std_tp['value_5'].', '.time().', '.$borg_std_tp['max_torp'].', '.$borg_std_tp['rof'].', '.time().')';
         if(!$db->query($sql)) {
-            $sdl->log('<b>Error:</b>: could not insert new cube in ships! CONTINUE');
+            $sdl->log('<b>Error:</b>: could not insert new sphere in ships! CONTINUE');
         }
     }
 }
@@ -244,7 +244,7 @@ foreach($user_set as $s_user){
 
     $sql = 'UPDATE user SET user_charted = '.$charted['num'].', user_first_contact = '.$first_contact['num'].', user_settler_made = '.$settler_made['num'].', user_settler_best = '.$settler_best['num'].' WHERE user_id = '.$s_user['user_id'];
     if(!$db->query($sql)) {
-            $sdl->log('<b>Error:</b>: could not insert new cube in ships! CONTINUE. '.$sql);
+            $sdl->log('<b>Error:</b>: could not update user #'.$s_user['user_id'].' slow stats data! CONTINUE.');
     }
 }
 
