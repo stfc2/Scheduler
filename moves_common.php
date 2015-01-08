@@ -425,11 +425,11 @@ class moves_common {
 
         if($rows > 0) {
             /* Db popolato.
-            * Scansione dei risultati della query e ricerca del valore più alto.
+            * Scansione dei risultati della query e ricerca del valore piÃ¹ alto.
             * Viene aggiornato il db
             */
             $q_m = $this->db->fetchrowset($q_p_m);
-            // Non che mi piaccia molto ma vabbè...
+            // Non che mi piaccia molto ma vabbÃ¨...
             $best = $q_m[0]['mood'];
             $best_id = $q_m[0]['user_id'];
             for($i=0; $i < $rows; $i++) {
@@ -874,7 +874,7 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
             }
 
             // DC Now, if the planet is unsettled...
-            if(empty($this->dest['user_id'])) 
+            if(empty($this->dest['user_id']))
             {
                 // DC Maybe we did boldly go where nobody has boldly gone before?
                 $sql = 'SELECT COUNT(*) AS been_here FROM planet_details WHERE planet_id = '.$this->dest['planet_id'].' AND user_id = '.$this->move['user_id'].' AND log_code IN (1,2)';            
@@ -890,7 +890,7 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
                         $sql = 'INSERT INTO planet_details (planet_id, system_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
                                 VALUES ('.$this->dest['planet_id'].', '.$this->dest['system_id'].', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.$this->move['user_id'].', '.( (!empty($this->move['user_alliance'])) ? $this->move['user_alliance'] : 0 ).', '.time().', 1)';
                         if(!$this->db->query($sql))
-                            $this->log(MV_M_DATABASE, 'Could not insert new planet details data! CONTINUE!');                            
+                            $this->log(MV_M_DATABASE, 'Could not insert new planet details data! CONTINUE!');
                     }
                     else
                     {
