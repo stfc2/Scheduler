@@ -152,13 +152,15 @@ $sdl->finish_job('Building Scheduler');
 // ########################################################################################
 // Academy Scheduler
 
-$sdl->start_job('Academy Scheduler v3-blackeye');
+$sdl->start_job('Academy Scheduler v4-redear');
 
 $db->lock('planets');
 
-$db->query('UPDATE planets SET
-            unittrain_error = 0
-            WHERE unittrain_error <> 0');
+if(!$db->query('UPDATE planets SET
+                unittrain_error = 0
+                WHERE unittrain_error <> 0')) {
+    $sdl->log('<b>Error:</b> Cannot reset training errors - CONTINUED');
+}
 
 $tmp = 'SELECT p.planet_id,
                p.research_4,
@@ -229,7 +231,8 @@ else
     {
         // Look whether the construction number is within normal parameters, but should never lie outside:
         if ($planet['unittrain_actual'] < 1 || $planet['unittrain_actual'] > 10) {
-            $db->query('UPDATE planets SET unittrain_actual="1" WHERE planet_id="'.$planet['planet_id'].'"');
+            if(!$db->query('UPDATE planets SET unittrain_actual="1" WHERE planet_id="'.$planet['planet_id'].'"'))
+                $sdl->log('<b>Error:</b> Cannot fix training queue pointer on planet #'.$planet['planet_id'].'- CONTINUED');
         }
         // If within normal parameters
         else {
@@ -260,7 +263,7 @@ else
                             resource_3=resource_3-'.$need_res_3.',
                             resource_4=resource_4-'.$need_res_4.',
                             unit_'.$t.'=unit_'.$t.'+1';
-                }	
+                }
 
                 // 1. For the next unit jump + new time set:
                 // if left<=0
@@ -372,14 +375,14 @@ else
                                $planet['unit_6']*4);
 
                 if($planet['max_units'] <= $damn_units) {
-
-                    $db->query('UPDATE planets SET unittrain_error="2" WHERE planet_id="'.$planet['planet_id'].'"');
-                     //$sdl->log('No unit with ID # '.$planet['planet_id'].' was added because of lack of space');
+                    if(!$db->query('UPDATE planets SET unittrain_error="2" WHERE planet_id="'.$planet['planet_id'].'"'))
+                        $sdl->log('<b>Error:</b> Cannot set "unit space full" training error on planet #'.$planet['planet_id'].' CONTINUED');
                 }
                 else {
 
                     if (isset($sql) && count($sql)>0) {
-                        $db->query('UPDATE planets SET '.implode(",", $sql).' WHERE planet_id='.$planet['planet_id']);
+                        if(!$db->query('UPDATE planets SET '.implode(",", $sql).' WHERE planet_id='.$planet['planet_id']))
+                            $sdl->log('<b>Error:</b> Cannot update training queue on planet #'.$planet['planet_id'].' CONTINUED');
                     }
                 }
 
@@ -387,7 +390,8 @@ else
             }
             // If we did not have enough resources
             else {
-                $db->query('UPDATE planets SET unittrain_error="1" WHERE planet_id="'.$planet['planet_id'].'"');
+                if(!$db->query('UPDATE planets SET unittrain_error="1" WHERE planet_id="'.$planet['planet_id'].'"'))
+                    $sdl->log('<b>Error:</b> Cannot set "not enough resources" training error on planet #'.$planet['planet_id'].' CONTINUED');
             }
 
         } // End of "within normal parameters"
@@ -397,7 +401,7 @@ else
 
 $db->unlock('planets');
 
-$sdl->finish_job('Academy Scheduler v3-blackeye');
+$sdl->finish_job('Academy Scheduler v4-redear');
 
 
 
