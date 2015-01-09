@@ -154,7 +154,7 @@ $sdl->finish_job('Building Scheduler');
 
 $sdl->start_job('Academy Scheduler v4-redear');
 
-$db->lock('planets');
+$db->lock();
 
 if(!$db->query('UPDATE planets SET
                 unittrain_error = 0
@@ -399,7 +399,7 @@ else
     } // End while
 } // End of: Successfull Planet Query
 
-$db->unlock('planets');
+$db->unlock();
 
 $sdl->finish_job('Academy Scheduler v4-redear');
 
