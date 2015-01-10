@@ -623,7 +623,7 @@ class Borg extends NPC
 		 */
 		$this->sdl->start_job('Sensors monitor', TICK_LOG_FILE_NPC);
 		$msgs_number=0;
-		$sql='SELECT * FROM `scheduler_shipmovement`
+		$sql='SELECT user_id FROM `scheduler_shipmovement`
 		      WHERE user_id>9 AND
 		            move_status=0 AND
 		            move_exec_started!=1 AND
@@ -761,7 +761,9 @@ class Borg extends NPC
 
             // Creating the NEW Unimatrix Zero!
 
-            $sql= 'SELECT * FROM `ship_templates` WHERE `id` = '.$this->bot['unimatrixzero_tp'];
+            $sql = 'SELECT max_unit_1, max_unit_2, max_unit_3, max_unit_4, rof, max_torp,
+                           value_5, value_9
+                    FROM `ship_templates` WHERE `id` = '.$this->bot['unimatrixzero_tp'];
             if(($stpl = $this->db->queryrow($sql)) === false)
                 $this->sdl->log('<b>Error:</b> Could not query Unimatrix Zero template data - '.$sql, TICK_LOG_FILE_NPC);
 
@@ -777,7 +779,9 @@ class Borg extends NPC
 
             // We add the FIRST tactical cube
 
-            $sql= 'SELECT * FROM `ship_templates` WHERE `id` = '.$this->bot['ship_template3'];
+            $sql = 'SELECT max_unit_1, max_unit_2, max_unit_3, max_unit_4, rof, max_torp,
+                           value_5, value_9
+                    FROM `ship_templates` WHERE `id` = '.$this->bot['ship_template3'];
             if(($stpl = $this->db->queryrow($sql)) === false)
                 $this->sdl->log('<b>Error:</b> Could not query Borg Tactical Cube template data - '.$sql, TICK_LOG_FILE_NPC);
 
@@ -793,7 +797,9 @@ class Borg extends NPC
 
             // We add SIX cubes
 
-            $sql= 'SELECT * FROM `ship_templates` WHERE `id` = '.$this->bot['ship_template2'];
+            $sql = 'SELECT max_unit_1, max_unit_2, max_unit_3, max_unit_4, rof, max_torp,
+                           value_5, value_9
+                    FROM `ship_templates` WHERE `id` = '.$this->bot['ship_template2'];
             if(($stpl = $this->db->queryrow($sql)) === false)
                 $this->sdl->log('<b>Error:</b> Could not query Borg Cube template data - '.$sql, TICK_LOG_FILE_NPC);
 
@@ -811,7 +817,9 @@ class Borg extends NPC
 
             // We add TWENTYFOUR spheres
 
-            $sql= 'SELECT * FROM `ship_templates` WHERE `id` = '.$this->bot['ship_template1'];
+            $sql = 'SELECT max_unit_1, max_unit_2, max_unit_3, max_unit_4, rof, max_torp,
+                           value_5, value_9
+                    FROM `ship_templates` WHERE `id` = '.$this->bot['ship_template1'];
             if(($stpl = $this->db->queryrow($sql)) === false)
                 $this->sdl->log('<b>Error:</b> Could not query Borg sphere template data - '.$sql, TICK_LOG_FILE_NPC);
 
@@ -853,7 +861,15 @@ class Borg extends NPC
 		$this->sdl->start_job('Create Borg defences on assimilated planets', TICK_LOG_FILE_NPC);
 
 		// We need many infos here, for StartBuild() function
-		$sql = 'SELECT * FROM planets WHERE npc_last_action < '.$ACTUAL_TICK.' AND planet_owner = '.BORG_USERID.' ORDER BY npc_last_action ASC LIMIT 0, 3';
+		$sql = 'SELECT planet_id, planet_type,
+		               building_1, building_2, building_3, building_4, building_5,
+                       building_6, building_7, building_8, building_9, building_10,
+                       building_11, building_12, building_13,
+                       resource_1, resource_2, resource_3,
+                       research_3, research_4,
+                       unittrain_actual
+		        FROM planets
+		        WHERE npc_last_action < '.$ACTUAL_TICK.' AND planet_owner = '.BORG_USERID.' ORDER BY npc_last_action ASC LIMIT 0, 3';
 
 		$planets = $this->db->query($sql);
 
@@ -1004,7 +1020,10 @@ class Borg extends NPC
 
 			$max_live_attack = floor($res['user_planets'] / 18);
 
-			$sql='SELECT * FROM ship_fleets WHERE npc_last_action < '.$ACTUAL_TICK.' AND user_id = '.BORG_USERID.' AND move_id = 0 AND fleet_name LIKE "%Fleet Node%" ORDER BY npc_last_action ASC LIMIT 0, 1';
+			$sql='SELECT fleet_id, fleet_name FROM ship_fleets
+			      WHERE npc_last_action < '.$ACTUAL_TICK.' AND user_id = '.BORG_USERID.' AND
+			            move_id = 0 AND fleet_name LIKE "%Fleet Node%"
+			      ORDER BY npc_last_action ASC LIMIT 0, 1';
 
 			if(($setpoint = $this->db->query($sql)) === false)
 			{
@@ -1106,7 +1125,11 @@ class Borg extends NPC
 
 			if($threat_level > 1400.0)
 			{
-				$sql = 'SELECT * FROM ship_fleets WHERE npc_last_action < '.($ACTUAL_TICK + 240).' AND user_id = '.BORG_USERID.' AND move_id = 0 AND fleet_name LIKE "%Fleet Node%" ORDER BY npc_last_action ASC LIMIT 0, 3';
+				$sql = 'SELECT fleet_id, planet_id FROM ship_fleets
+				        WHERE npc_last_action < '.($ACTUAL_TICK + 240).' AND
+				              user_id = '.BORG_USERID.' AND move_id = 0 AND
+				              fleet_name LIKE "%Fleet Node%"
+				        ORDER BY npc_last_action ASC LIMIT 0, 3';
 				$attack_fleet_query = $this->db->query($sql);
 				$sort_string = ' ORDER BY planet_points DESC';
 				$max_attack = 3;
@@ -1115,7 +1138,11 @@ class Borg extends NPC
 			}
 			else if($threat_level > 950.0)
 			{
-				$sql = 'SELECT * FROM ship_fleets WHERE npc_last_action < '.($ACTUAL_TICK + 80).' AND user_id = '.BORG_USERID.' AND move_id = 0 AND fleet_name LIKE "%Fleet Node%" ORDER BY npc_last_action ASC LIMIT 0, 3';
+				$sql = 'SELECT fleet_id, planet_id FROM ship_fleets
+				        WHERE npc_last_action < '.($ACTUAL_TICK + 80).' AND
+				              user_id = '.BORG_USERID.' AND move_id = 0 AND
+				              fleet_name LIKE "%Fleet Node%"
+				        ORDER BY npc_last_action ASC LIMIT 0, 3';
 				$attack_fleet_query = $this->db->query($sql);
 				$sort_string = ' ORDER BY planet_points ASC LIMIT 0,40';
 				$max_attack = 3;
@@ -1123,7 +1150,11 @@ class Borg extends NPC
 			}
 			else if($threat_level > 450.0)
 			{
-				$sql = 'SELECT * FROM ship_fleets WHERE npc_last_action < '.$ACTUAL_TICK.' AND user_id = '.BORG_USERID.' AND move_id = 0 AND fleet_name LIKE "%Fleet Node%" ORDER BY npc_last_action ASC LIMIT 0, 2';
+				$sql = 'SELECT fleet_id, planet_id FROM ship_fleets
+				        WHERE npc_last_action < '.$ACTUAL_TICK.' AND
+				              user_id = '.BORG_USERID.' AND move_id = 0 AND
+				              fleet_name LIKE "%Fleet Node%"
+				        ORDER BY npc_last_action ASC LIMIT 0, 2';
 				$attack_fleet_query = $this->db->query($sql);
 				$sort_string = ' ORDER BY planet_points ASC LIMIT 0,20';
 				$max_attack = 2;
@@ -1131,7 +1162,11 @@ class Borg extends NPC
 			}
 			else if($threat_level > 200.0)
 			{
-				$sql = 'SELECT * FROM ship_fleets WHERE npc_last_action < '.$ACTUAL_TICK.' AND user_id = '.BORG_USERID.' AND move_id = 0 AND fleet_name LIKE "%Fleet Node%" ORDER BY npc_last_action ASC LIMIT 0, 1';
+				$sql = 'SELECT fleet_id, planet_id FROM ship_fleets
+				        WHERE npc_last_action < '.$ACTUAL_TICK.' AND
+				              user_id = '.BORG_USERID.' AND move_id = 0 AND
+				              fleet_name LIKE "%Fleet Node%"
+				        ORDER BY npc_last_action ASC LIMIT 0, 1';
 				$attack_fleet_query = $this->db->query($sql);
 				$sort_string = ' AND p.planet_type NOT IN("m", "o", "p") AND planet_points < 451 ORDER BY planet_points ASC LIMIT 0,5';
 				$max_attack = 1;
@@ -1281,7 +1316,9 @@ class Borg extends NPC
 
         if($num < 1) $num = 2; // Safeguard;
 
-        $sql= 'SELECT * FROM `ship_templates` WHERE `id` = '.$this->bot['ship_template1'];
+        $sql = 'SELECT max_unit_1, max_unit_2, max_unit_3, max_unit_4, rof, max_torp,
+                       value_5, value_9
+                FROM `ship_templates` WHERE `id` = '.$this->bot['ship_template1'];
         if(($stpl = $this->db->queryrow($sql)) === false)
             $this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql, TICK_LOG_FILE_NPC);
 

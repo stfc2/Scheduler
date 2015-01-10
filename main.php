@@ -113,7 +113,7 @@ $sdl->finish_job('Mine Job'); // terminates the timer
 
 $sdl->start_job('Building Scheduler');
 
-$sql = 'SELECT *
+$sql = 'SELECT planet_id,installation_type
         FROM scheduler_instbuild
         WHERE build_finish <= '.$ACTUAL_TICK;
 
@@ -843,7 +843,13 @@ $sdl->log('<font color=#0000ff>Shipdestruction (Wrecking) [Skipped '.$cfg_data['
 
 $sdl->start_job('Destruction based on troop strength');
 
-$sql = 'SELECT * FROM planets WHERE min_security_troops > (100+unit_1*2+unit_2*3+unit_3*4+unit_4*4) AND planet_owner>10';
+$sql = 'SELECT planet_id, planet_name, planet_owner,
+               unit_1, unit_2, unit_3, unit_4, min_security_troops,
+               building_1, building_2, building_3, building_4, building_5,
+               building_6, building_7, building_8, building_9, building_10,
+               building_11, building_12, building_13
+        FROM planets
+        WHERE min_security_troops > (100+unit_1*2+unit_2*3+unit_3*4+unit_4*4) AND planet_owner>10';
 if(($q_planets = $db->query($sql)) === false) {
     $sdl->log('<b>Error:</b> Could not query planets data to destroy buildings based on troop strength! - CONTINUED');
 }
@@ -857,10 +863,10 @@ while($planet = $db->fetchrow($q_planets)) {
         continue;
     }
 
-
-    $chance=5 - 5/$planet['min_security_troops']*($planet['unit_1']*2+$planet['unit_2']*3+$planet['unit_3']*4+$planet['unit_4']*4);
+    $security_troops = ($planet['unit_1']*2+$planet['unit_2']*3+$planet['unit_3']*4+$planet['unit_4']*4);
+    $chance=5 - 5/$planet['min_security_troops']*$security_troops;
     //$chance=5;$rand=5;
-    if ($rand<=$chance && $planet['min_security_troops']>($planet['unit_1']*2+$planet['unit_2']*3+$planet['unit_3']*4+$planet['unit_4']*4))
+    if ($rand<=$chance && $planet['min_security_troops']>$security_troops)
     {
         $victim=array(4,6,7,8,10,11,9);
         $chance*=20;
@@ -881,7 +887,7 @@ while($planet = $db->fetchrow($q_planets)) {
             'planet_name' => $planet['planet_name'],
             'building_id' => $rand_building,
             'prev_level' => $planet['building_'.$rand_building],
-            'troops_percent' => (100/$planet['min_security_troops']*($planet['unit_1']*2+$planet['unit_2']*3+$planet['unit_3']*4+$planet['unit_4']*4)),
+            'troops_percent' => (100/$planet['min_security_troops']*$security_troops),
             );
 
             /* 16/05/08 - AC: Add logbook title translation */
@@ -945,10 +951,15 @@ $sdl->finish_job('Planet insurrection set');
 
 $sdl->start_job('Planet revolution based on troop strength');
 
-$sql = 'SELECT * FROM planets WHERE
-			(	(min_security_troops > (100+unit_1*2+unit_2*3+unit_3*4+unit_4*4) AND planet_points<30)
-			OR	( (unit_1*2+unit_2*3+unit_3*4+unit_4*4) / min_security_troops < 0.3)
-			) AND planet_owner>10 AND planet_owner_enum>3 AND planet_insurrection_time>0 AND (UNIX_TIMESTAMP()-planet_insurrection_time)>3600*48';
+$sql = 'SELECT planet_id, planet_name, planet_owner, planet_points
+               unit_1, unit_2, unit_3, unit_4, min_security_troops,
+               user_alliance
+        FROM planets
+        LEFT JOIN user ON user_id = planet_owner
+        WHERE ((min_security_troops > (100+unit_1*2+unit_2*3+unit_3*4+unit_4*4) AND planet_points<30) OR
+               ((unit_1*2+unit_2*3+unit_3*4+unit_4*4) / min_security_troops < 0.3)) AND
+              planet_owner>10 AND planet_owner_enum>3 AND planet_insurrection_time>0 AND
+              (UNIX_TIMESTAMP()-planet_insurrection_time)>3600*48';
 
 if(($q_planets = $db->query($sql)) === false) {
     $sdl->log('<b>Error:</b> Could not query planets data to start revolutions based on troop strength! - CONTINUED');
@@ -1011,25 +1022,22 @@ while($planet = $db->fetchrow($q_planets)) {
                         unittrainid_nexttime=0
                         WHERE planet_id = '.$planet['planet_id'];
 
-
         $sdl->log('<b>Overtake:</b> Planet '.$planet['planet_name'].' ('.$planet['planet_id'].') | Troops: '.($planet['unit_1']*2+$planet['unit_2']*3+$planet['unit_3']*4+$planet['unit_4']*4).'    Needed: '.$planet['min_security_troops'].'   Factor: '.(($planet['unit_1']*2+$planet['unit_2']*3+$planet['unit_3']*4+$planet['unit_4']*4)/$planet['min_security_troops']).'   Points: '.$planet['planet_points']);
 
         if(!$db->query($sql)) {
             $sdl->log('<b>Error:</b> Could not perform revolution on planet <b>'.$planet['planet_id'].'</b>! - CONTINUED');
         }
+
 // DC ---- History record in planet_details, with label '27'
-	$sql = 'SELECT user_alliance from user WHERE user_id = '.$planet['planet_owner'];
-	
-	$_temp = $db->queryrow($sql);
-	
-	$sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)'
-		.'VALUES ('.$planet['planet_id'].', '.$planet['planet_owner'].', '.( (isset($_temp['user_alliance'])) ? $_temp['user_alliance'] : 0).', '.$planet['planet_owner'].', '.( (isset($_temp['user_alliance'])) ? $_temp['user_alliance'] : 0).', '.time().', 27)';
+
+        $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
+                VALUES ('.$planet['planet_id'].', '.$planet['planet_owner'].', '.$planet['user_alliance'].', '.$planet['planet_owner'].', '.$planet['user_alliance'].', '.time().', 27)';
 
         if(!$db->query($sql)) {
             $sdl->log('<b>Error:</b> Could not update planet details <b>'.$planet['planet_id'].'</b>! - CONTINUED');
         }
 // DC ----
-	
+
         $log_data=array(
             'planet_name' => $planet['planet_name'],
             'planet_id' => $planet['planet_id'],

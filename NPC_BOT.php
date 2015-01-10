@@ -97,7 +97,7 @@ class NPC
 	{
 		$this->sdl->start_job('Messages answer', TICK_LOG_FILE_NPC);
 		$msgs_number=0;
-		$sql = 'SELECT * FROM message
+		$sql = 'SELECT sender FROM message
 		        WHERE receiver='.$this->bot['user_id'].' AND rread=0';
 
 		if(!$q_message = $this->db->query($sql))
@@ -145,7 +145,7 @@ class NPC
 	{
 		$this->sdl->start_job('Sensors monitor', TICK_LOG_FILE_NPC);
 		$msgs_number=0;
-		$sql='SELECT * FROM `scheduler_shipmovement` WHERE user_id>9 AND 
+		$sql='SELECT user_id FROM `scheduler_shipmovement` WHERE user_id>9 AND 
 			move_status=0 AND move_exec_started!=1 AND move_finish>'.$ACTUAL_TICK.' AND  dest="'.$this->bot['planet_id'].'"';
 		$attackers=$this->db->query($sql);
 		while($attacker = $this->db->fetchrow($attackers))
@@ -203,7 +203,9 @@ class NPC
 
 			if(!$fleet_id) $this->sdl->log('Error - '.$fleet_id.' = empty', TICK_LOG_FILE_NPC);
 
-			$sql= 'SELECT * FROM `ship_templates` WHERE `id` = '.$template;
+			$sql= 'SELECT max_unit_1, max_unit_2, max_unit_3, max_unit_4, rof, max_torp,
+			              value_5, value_9
+			       FROM `ship_templates` WHERE `id` = '.$template;
 			if(($stpl = $this->db->queryrow($sql)) === false)
 				$this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql, TICK_LOG_FILE_NPC);
 
@@ -231,7 +233,7 @@ class NPC
 
 	function RestoreFleetLosses($name,$template,$num)
 	{
-		$query='SELECT * FROM `ship_fleets` WHERE fleet_name="'.$name.'" and user_id='.$this->bot['user_id'].' LIMIT 0, 1';
+		$query='SELECT fleet_id, n_ships FROM `ship_fleets` WHERE fleet_name="'.$name.'" and user_id='.$this->bot['user_id'].' LIMIT 0, 1';
 		$fleet=$this->db->queryrow($query);
 		if (empty($fleet)) {
 			$this->sdl->log('<u>Warning:</u> Fleet: '.$name.' does not exists! - SKIP', TICK_LOG_FILE_NPC);
@@ -247,7 +249,9 @@ class NPC
 			if(!$this->db->query($sql))
 				$this->sdl->log('<b>Error:</b> Could not update new fleets data', TICK_LOG_FILE_NPC);
 
-			$sql = 'SELECT * FROM ship_templates WHERE id = '.$template;
+			$sql = 'SELECT min_unit_1, min_unit_2, min_unit_3, min_unit_4, rof, max_torp,
+			               value_5, value_9
+			        FROM ship_templates WHERE id = '.$template;
 			if(($stpl = $this->db->queryrow($sql)) === false)
 				$this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql, TICK_LOG_FILE_NPC);
 
@@ -273,7 +277,7 @@ class NPC
 
 	function RepairFleet($name)
 	{
-		$query='SELECT fleet_id, n_ships FROM `ship_fleets` WHERE fleet_name="'.$name.'" and user_id='.$this->bot['user_id'].' LIMIT 0, 1';
+		$query='SELECT fleet_id FROM `ship_fleets` WHERE fleet_name="'.$name.'" and user_id='.$this->bot['user_id'].' LIMIT 0, 1';
 		$fleet=$this->db->queryrow($query);
 		$sql='SELECT s.ship_id, st.value_5, st.max_torp FROM ships s LEFT JOIN ship_templates st ON s.template_id = st.id WHERE fleet_id = '.$fleet['fleet_id'];
 		$ships=$this->db->query($sql);
@@ -300,7 +304,7 @@ class NPC
 		$res = BUILD_ERR_DB;
 
 		// Building queue full?
-		$this->db->queryrow('SELECT * FROM scheduler_instbuild WHERE planet_id='.$planet['planet_id']);
+		$this->db->queryrow('SELECT installation_type FROM scheduler_instbuild WHERE planet_id='.$planet['planet_id']);
 		if ($this->db->num_rows() >= BUILDING_QUEUE_LEN)
 			return BUILD_ERR_QUEUE;
 
@@ -358,7 +362,7 @@ class NPC
 					$this->sdl->log('<b>Error:</b> Cannot remove resources need for construction from planet #'.$planet['planet_id'].'!', TICK_LOG_FILE_NPC);
 
 				// Check planet activity
-				$sql = 'SELECT * FROM scheduler_instbuild
+				$sql = 'SELECT build_finish FROM scheduler_instbuild
 				        WHERE planet_id='.$planet['planet_id'].'
 				        ORDER BY build_finish DESC';
 				$userquery=$this->db->queryrow($sql);
@@ -409,7 +413,7 @@ class NPC
 	function LoadNPCUserData($botID)
 	{
 		// Initialize $bot attribute
-		$this->bot = $this->db->queryrow('SELECT * FROM user WHERE user_id = '.$botID);
+		$this->bot = $this->db->queryrow('SELECT user_id FROM user WHERE user_id = '.$botID);
 	}
 
 	public function NPC(&$db, &$sdl)

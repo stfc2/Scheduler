@@ -150,7 +150,14 @@ $borg = new NPC($db,$sdl);
 $borg -> LoadNPCUserData(BORG_USERID);
 
 // We need many infos here, for StartBuild() function
-$sql = 'SELECT * FROM planets WHERE planet_owner = '.BORG_USERID;
+$sql = 'SELECT planet_id, planet_type,
+               building_1, building_2, building_3, building_4, building_5,
+               building_6, building_7, building_8, building_9, building_10,
+               building_11, building_12, building_13,
+               resource_1, resource_2, resource_3, resource_4
+               research_3, research_4,
+               workermine_1, workermine_2, workermine_3
+        FROM planets WHERE planet_owner = '.BORG_USERID;
 $borg_planets = $db->query($sql);
 while($planet=$db->fetchrow($borg_planets)) {
     // If we have at least a workers slot

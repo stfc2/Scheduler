@@ -44,7 +44,7 @@ class Ferengi extends NPC
 
         $this->sdl->start_job('Ramona basic system', $log);
 
-        // First of all retrieve the BOT quick storage table        
+        // First of all retrieve the BOT quick storage table
         if(!($Bot_exe=$this->db->query('SELECT * FROM FHB_Bot LIMIT 0,1'))) {
             // Create the table if does not exists
             $sql = "CREATE TABLE IF NOT EXISTS `FHB_Bot` (
@@ -251,13 +251,13 @@ class Ferengi extends NPC
         $starttime = ( microtime() + time() );
         $debug_array_logen=0;
         $debug_sql_logen=0;
-        if($debug_zu= $this->db->queryrow('SELECT * FROM FHB_debug LIMIT 0,1'))
+        /*if($debug_zu= $this->db->queryrow('SELECT debug,sql,array,style FROM FHB_debug LIMIT 0,1'))
         {
             if($debug_zu['debug']==0 || $debug_zu['debug']==1)$debuggen=$debug_zu['debug'];
             if($debug_zu['array']==0 || $debug_zu['array']==1)$debug_array_logen=$debug_zu['array'];
             if($debug_zu['style']==0 || $debug_zu['style']==1)$type=$debug_zu['style'];
             if($debug_zu['sql']==0 || $debug_zu['sql']==1)$debug_sql_logen=$debug_zu['sql'];
-        }
+        }*/
 
         $this->sdl->log('<br><b>-------------------------------------------------------------</b><br>'.
             '<b>Starting Bot Scheduler at '.date('d.m.y H:i:s', time()).'</b>', TICK_LOG_FILE_NPC);
@@ -413,12 +413,12 @@ class Ferengi extends NPC
                     }
                     else
                     {
-                        $sql = 'SELECT * FROM bidding
+                        $sql = 'SELECT max_bid FROM bidding
                                 WHERE trade_id ="'.$tradedata['id'].'"
                                 ORDER BY max_bid DESC LIMIT 1,1';
                         $prelast_bid=$this->db->queryrow($sql);
 
-                        $sql = 'SELECT * FROM bidding
+                        $sql = 'SELECT max_bid FROM bidding
                                 WHERE trade_id ="'.$tradedata['id'].'"
                                 ORDER BY max_bid DESC LIMIT 1';
                         $last_bid=$this->db->queryrow($sql);
@@ -918,7 +918,7 @@ class Ferengi extends NPC
 
         // Empty accounts destruction
         $deleted_accounts = 0;
-        if(($destructible_debts=$this->db->query('SELECT * FROM schulden_table WHERE status=2'))==true)
+        if(($destructible_debts=$this->db->query('SELECT id FROM schulden_table WHERE status=2'))==true)
         {
             while($debt_to_remove=$this->db->fetchrow($destructible_debts))
             {
@@ -1470,7 +1470,8 @@ class Ferengi extends NPC
         // Learning is boring here fixed the cheating of resources by troops sale
         $this->sdl->start_job('Soldiers Transactions', TICK_LOG_FILE_NPC);
         $transactions=0;
-        $sql = 'SELECT * FROM FHB_cache_trupp_trade WHERE tick<='.$ACTUAL_TICK;
+        $sql = 'SELECT id, unit_1, unit_2, unit_3, unit_4, unit_5, unit_6
+                FROM FHB_cache_trupp_trade WHERE tick<='.$ACTUAL_TICK;
         if(!$troops_traded = $this->db->query($sql))
             $this->sdl->log('<b>Error:</b> cannot read troops transactions - SKIP',
                 TICK_LOG_FILE_NPC);
@@ -1536,7 +1537,7 @@ class Ferengi extends NPC
         $this->sdl->start_job('Creating ships', TICK_LOG_FILE_NPC);
 
         $this->sdl->log('Check fleet "Alpha-Fleet IVX" composition', TICK_LOG_FILE_NPC);
-        $query='SELECT * FROM `ship_fleets` WHERE fleet_name="Alpha-Fleet IVX" and user_id='.$this->bot['user_id'].' LIMIT 0, 1';
+        $query='SELECT fleet_id FROM `ship_fleets` WHERE fleet_name="Alpha-Fleet IVX" and user_id='.$this->bot['user_id'].' LIMIT 0, 1';
         $this->db->query($query);
         if($this->db->num_rows()<=0)
         {
@@ -1551,8 +1552,10 @@ class Ferengi extends NPC
 
                 if(!$fleet_id) $this->sdl->log('Error - '.$fleet_id.' = empty', TICK_LOG_FILE_NPC);
 
-                $sql_a= 'SELECT * FROM ship_templates WHERE id = '.$this->bot['ship_t_1'];
-                $sql_b= 'SELECT * FROM ship_templates WHERE id = '.$this->bot['ship_t_2'];
+                $sql_a= 'SELECT min_unit_1, min_unit_2, min_unit_3, min_unit_4, value_5, value_9
+                         FROM ship_templates WHERE id = '.$this->bot['ship_t_1'];
+                $sql_b= 'SELECT min_unit_1, min_unit_2, min_unit_3, min_unit_4, value_5, value_9
+                         FROM ship_templates WHERE id = '.$this->bot['ship_t_2'];
                 if(($stpl_a = $this->db->queryrow($sql_a)) === false)
                     $this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql_a, TICK_LOG_FILE_NPC);
                 if(($stpl_b = $this->db->queryrow($sql_b)) === false)
@@ -1593,7 +1596,7 @@ class Ferengi extends NPC
         $this->RestoreFleetLosses("Alpha-Fleet IVX",$this->bot['ship_t_2'],4000);
 
         $this->sdl->log('Check fleet "Interception Omega" composition', TICK_LOG_FILE_NPC);
-        $query='SELECT * FROM `ship_fleets` WHERE fleet_name="Interception Omega" and user_id='.$this->bot['user_id'].' LIMIT 0, 1';
+        $query='SELECT fleet_id FROM `ship_fleets` WHERE fleet_name="Interception Omega" and user_id='.$this->bot['user_id'].' LIMIT 0, 1';
         $this->db->query($query);
         if($this->db->num_rows()<=0)
         {
@@ -1606,7 +1609,8 @@ class Ferengi extends NPC
 
                 if(!$fleet_id) $this->sdl->log('Error - '.$fleet_id.' = empty', TICK_LOG_FILE_NPC);
 
-                $sql_b= 'SELECT * FROM ship_templates WHERE id = '.$this->bot['ship_t_2'];
+                $sql_b = 'SELECT min_unit_1, min_unit_2, min_unit_3, min_unit_4, value_5, value_9
+                          FROM ship_templates WHERE id = '.$this->bot['ship_t_2'];
                 if(($stpl_b = $this->db->queryrow($sql_b)) === false)
                     $this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql_b, TICK_LOG_FILE_NPC);
 

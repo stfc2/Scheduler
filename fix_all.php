@@ -186,7 +186,10 @@ if($tactical_counter > $borg_tact_num['counter'])
 }
 
 //Standard Cubes Check
-$sql = 'SELECT COUNT(*) AS counter FROM ships WHERE user_id = '.BORG_USERID.' AND fleet_id = '.$borg_fleet['fleet_id'].' AND template_id = '.$borg_tp['standard_cube']; 
+$sql = 'SELECT COUNT(*) AS counter FROM ships
+        INNER JOIN ship_templates ON template_id = id
+        WHERE user_id = '.BORG_USERID.' AND fleet_id = '.$borg_fleet['fleet_id'].' 
+        AND ship_torso = 10 AND ship_class = 3'; 
 $borg_std_num = $db->queryrow($sql);
 $standard_counter = $tactical_counter*6;
 $sdl->log('Unimatrix Zero Standard Cube count is: '.$standard_counter);
@@ -237,7 +240,7 @@ $sql = 'SELECT user_id FROM user WHERE user_active = 1 AND user_auth_level = 1';
 $user_set = $db->queryrowset($sql);
 
 foreach($user_set as $s_user){
-    $charted=$db->queryrow('SELECT COUNT(*) AS num FROM starsystems_details WHERE user_id = '.$s_user['user_id']);
+    $charted=$db->queryrow('SELECT COUNT(*) AS num FROM starsystems_details sd INNER JOIN starsystems ss USING (system_id) WHERE ss.system_closed = 0 AND sd.user_id = '.$s_user['user_id']);
     $first_contact=$db->queryrow('SELECT COUNT(*) AS num FROM settlers_relations WHERE user_id = '.$s_user['user_id'].' AND log_code = 1');
     $settler_made=$db->queryrow('SELECT COUNT(*) AS num FROM settlers_relations WHERE user_id = '.$s_user['user_id'].' AND log_code = 30');
     $settler_best=$db->queryrow('SELECT COUNT(*) AS num FROM planets WHERE planet_owner = '.INDEPENDENT_USERID.' AND best_mood_user = '.$s_user['user_id']);
@@ -306,7 +309,8 @@ $sdl->finish_job('Buildings / Research level fix');
 
 $sdl->start_job('Rioters planets take over by the settlers');
 
-$sql = 'SELECT * FROM planets WHERE ( planet_surrender < '.$ACTUAL_TICK.' AND planet_surrender > 0 )';
+$sql = 'SELECT planet_id,planet_owner FROM planets
+        WHERE ( planet_surrender < '.$ACTUAL_TICK.' AND planet_surrender > 0 )';
 
 if(($query_s_p = $db->query($sql)) === false) {
     $sdl->log('<b>Error:</b> Could not query surrending planets');

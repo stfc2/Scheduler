@@ -854,7 +854,7 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
             // DC ---- FoW 2.0 Beta - Ally Section
             if(!empty($this->move['user_alliance']))
             {
-                $sql = 'SELECT * FROM starsystems_details WHERE system_id = '.$this->dest['system_id'].' AND alliance_id = '.$this->move['user_alliance'];
+                $sql = 'SELECT alliance_id FROM starsystems_details WHERE system_id = '.$this->dest['system_id'].' AND alliance_id = '.$this->move['user_alliance'];
                 $_res = $this->db->queryrow($sql);
                 if(!isset($_res['alliance_id']))
                 {
@@ -864,7 +864,7 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
                 }
             }
             // DC ---- FoW 2.0 Beta -- User Section
-            $sql = 'SELECT * FROM starsystems_details WHERE system_id = '.$this->dest['system_id'].' AND user_id = '.$this->move['user_id'];
+            $sql = 'SELECT user_id FROM starsystems_details WHERE system_id = '.$this->dest['system_id'].' AND user_id = '.$this->move['user_id'];
             $_res = $this->db->queryrow($sql);
             if(!isset($_res['user_id']))
             {

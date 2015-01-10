@@ -890,7 +890,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                              $this->dest['planet_type'] == "x" || $this->dest['planet_type'] == "f" || $this->dest['planet_type'] == "g" ? 2 : 1);
                 send_premonition_to_user($this->move['user_id'], $num_item);
 
-                $sql = 'SELECT * FROM borg_target WHERE user_id = '.$this->move['user_id'];
+                $sql = 'SELECT threat_level FROM borg_target WHERE user_id = '.$this->move['user_id'];
                 $bot_target_data = $this->db->query($sql);
                 $already_acquired = $this->db->num_rows($bot_target_data);
                 if($already_acquired < 1)

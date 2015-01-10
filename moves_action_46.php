@@ -696,9 +696,10 @@ else {
 
         if($set_rows == 0) continue;
 
-        $composition_data = $this->db->fetchrowset($q_data);        
+        $composition_data = $this->db->fetchrowset($q_data);
 
-        $sql = 'SELECT * FROM borg_target WHERE user_id = '.$composition_data[0]['user_id'];
+        $sql = 'SELECT user_id, ship_template1, ship_template2
+                FROM borg_target WHERE user_id = '.$composition_data[0]['user_id'];
 
         $this->log(MV_M_NOTICE, 'DEBUG: Query for target user:'.$sql);
 
@@ -717,7 +718,7 @@ else {
                   INNER JOIN ship_templates st ON s.template_id = st.id
                   WHERE s.fleet_id = '.$observed_id.'
                         AND st.id <> '.$future_humans_tp['id'].'
-                        AND s.user_id <> '.INDEPENDENT_USERID.'                  
+                        AND s.user_id <> '.INDEPENDENT_USERID.'
                         AND st.ship_class = '.$data['ship_class'];
 
             $hull_data = $this->db->queryrow($sql);
@@ -741,7 +742,9 @@ else {
 
                     if(!empty($target_data['ship_template1']))
                     {
-                        $sql = 'SELECT * FROM ship_templates WHERE id = '.$target_data['ship_template1'];
+                        $sql = 'SELECT value_1, value_2, value_4, value_5
+                                FROM ship_templates
+                                WHERE id = '.$target_data['ship_template1'];
 
                         $old_ship_template1 = $this->db->queryrow($sql);
 
@@ -765,7 +768,7 @@ else {
                     }
                     else
                     {
-                        $base_template1_id = $this->db->queryrow('SELECT ship_template1 AS id FROM borg_bot WHERE id = 1');
+                        $base_template1_id = $this->db->queryrow('SELECT ship_template1 AS id FROM borg_bot');
 
                         $b_tp1 = $this->db->queryrow('SELECT * FROM ship_templates WHERE id = '.$base_template1_id['id']);
 
@@ -814,7 +817,9 @@ else {
 
                     if(!empty($target_data['ship_template2']))
                     {
-                        $sql = 'SELECT * FROM ship_templates WHERE id = '.$target_data['ship_template2'];
+                        $sql = 'SELECT value_1, value_2, value_4, value_5
+                                FROM ship_templates
+                                WHERE id = '.$target_data['ship_template2'];
 
                         $old_ship_template2 = $this->db->queryrow($sql);
 
@@ -838,11 +843,11 @@ else {
                     }
                     else
                     {
-                        $base_template2_id = $this->db->queryrow('SELECT ship_template2 AS id FROM borg_bot WHERE id = 1');
+                        $base_template2_id = $this->db->queryrow('SELECT ship_template2 AS id FROM borg_bot');
 
                         $b_tp2 = $this->db->queryrow('SELECT * FROM ship_templates WHERE id = '.$base_template2_id['id']);
 
-                        $b_tp2['name'] = 'Cube#'.$this->move['dest'].$target_data['user_id'];            
+                        $b_tp2['name'] = 'Cube#'.$this->move['dest'].$target_data['user_id'];
 
                         $sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
                                                             component_1, component_2, component_3, component_4, component_5,

@@ -427,7 +427,7 @@ class moves_action_27 extends moves_common {
 
                         $speech_value += $mood['alliance'];
 
-                        $sql = 'SELECT * FROM borg_target WHERE user_id = '.$this->move['user_id'];
+                        $sql = 'SELECT threat_level FROM borg_target WHERE user_id = '.$this->move['user_id'];
                         $bot_target_data = $this->db->query($sql);
                         $already_acquired = $this->db->num_rows($bot_target_data);
                         if($already_acquired > 0) {
@@ -445,7 +445,7 @@ class moves_action_27 extends moves_common {
                                 $speech_value += 10;
                         }
 
-                        $sql = 'SELECT * FROM user_diplomacy
+                        $sql = 'SELECT ud_id FROM user_diplomacy
                                 WHERE user1_id = '.INDEPENDENT_USERID.' AND user2_id = '.$this->move['user_id'];
                         $diplo_data = $this->db->queryrow($sql);
                         if(isset($diplo_data['ud_id']) && !empty($diplo_data['ud_id'])) {
@@ -719,7 +719,7 @@ class moves_action_27 extends moves_common {
                 // The player need to be ally of Settlers Faction
                 $sql = 'SELECT COUNT(*) as conto FROM user_diplomacy
                         WHERE user1_id = '.INDEPENDENT_USERID.' AND user2_id = '.$this->move['user_id'];
-                $diplo_data = $this->db->queryrow($sql);                
+                $diplo_data = $this->db->queryrow($sql);
 
                 if(!isset($diplo_data['conto']) || $diplo_data['conto'] != 1)
                 {
@@ -766,7 +766,7 @@ class moves_action_27 extends moves_common {
 
                 if($log_data[5] == 0)
                 {
-                    $sql = 'SELECT * FROM `ship_templates`
+                    $sql = 'SELECT value_5, value_9, rof, max_torp FROM `ship_templates`
                             WHERE `id` = '.$cfg_data['settler_tmp_4'];
                     if(($stpl = $this->db->queryrow($sql)) === false)
                         return $this->log(MV_M_DATABASE, '<b>Error:</b> Could not query settlers ship template data');
