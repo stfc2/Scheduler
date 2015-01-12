@@ -280,6 +280,13 @@ class Settlers extends NPC
                     $this->db->query($sql);
                     continue;
                 }
+                if($planet_to_serve['building_12'] < 9)
+                {
+                    $sql = 'UPDATE planets SET building_12 = 9, npc_last_action = '.$ACTUAL_TICK.', recompute_static = 1 WHERE planet_id = '.$planet_to_serve['planet_id'];
+                    $this->sdl->log('SQL 1.12'.$sql, TICK_LOG_FILE_NPC);
+                    $this->db->query($sql);
+                    continue;
+                }
                 // At this point, having rebuilt HQ and mines, Settlers automatically gains level 9 Academy.
                 if($planet_to_serve['building_6'] < 9)
                 {
@@ -340,6 +347,44 @@ class Settlers extends NPC
                     continue;
                 }
 
+                // Check for best mood!!!
+                
+                $newbest = false;
+                
+                $sql = 'SELECT user_id, SUM(mood_modifier) AS mood FROM settlers_relations
+                        WHERE planet_id = '.$planet_to_serve['planet_id'].' GROUP BY user_id ORDER BY timestamp ASC';
+                $q_p_m = $this->db->queryrowset($sql);
+                
+                // $this->sdl->log('DEBUG CHECK MOOD A'.$planet_to_serve['best_mood'].' '.$planet_to_serve['best_mood_user'], TICK_LOG_FILE_NPC);
+
+                $newbest = $best = $best_id = 0;
+                
+                foreach($q_p_m as $q_m) {
+                    if($q_m['mood'] > $best) {
+                        $newbest = true;
+                        $best = $q_m['mood'];
+                        $best_id = $q_m['user_id'];
+                    }
+                }
+                if($newbest) {
+                    $sql = 'UPDATE planets
+                            SET best_mood = '.$best.',
+                            best_mood_user = '.$best_id.'
+                            WHERE planet_id = '.$planet_to_serve['planet_id'];
+                    $this->db->query($sql);
+                }
+
+                // $this->sdl->log('DEBUG CHECK MOOD B '.$best.' '.$best_id, TICK_LOG_FILE_NPC);
+                
+                if($best_id != $planet_to_serve['best_mood_user'])
+                {
+                    $log_data = array($planet_to_serve['planet_id'],$planet_to_serve['planet_name'], 0, '', 100);
+                    add_logbook_entry($planet_to_serve['best_mood_user'], LOGBOOK_SETTLERS, 'Comunicazione prioritaria dalla colonia '.$planet_to_serve['planet_name'], $log_data);
+                    $planet_to_serve['best_mood'] = $best;
+                    $planet_to_serve['best_mood_user'] = $best_id;
+                    $this->db->query('UPDATE planets SET best_mood_planet = NULL WHERE planet_id = '.$planet_to_serve['planet_id']);
+                }
+                
                 // Let's activate the Academy! Sadly, we have to set ALL the fields for clearing them
                 if($planet_to_serve['unittrain_actual'] == 0 &&
                   ($planet_to_serve['planet_type'] == 'm' || $planet_to_serve['planet_type'] == 'o' || $planet_to_serve['planet_type'] == 'p'))
@@ -408,6 +453,8 @@ class Settlers extends NPC
                     continue;
                 }
 
+                // A - 6
+                // Settlers get back a ship from unsuccesful auction. 
                 $sql='SELECT ship_id FROM FHB_warteschlange WHERE user_id = '.INDEPENDENT_USERID.' LIMIT 0,1';
                 $notpayed=$this->db->queryrow($sql);
                 if(isset($notpayed['ship_id']) && !empty($notpayed['ship_id']))
@@ -424,6 +471,7 @@ class Settlers extends NPC
                     continue;
                 }
 
+                // A - 2
                 // Huge rewrite!
                 // If we have a ship in the spacedock, we can send it to the best friend of the planet or
                 // make and auction.
@@ -442,12 +490,18 @@ class Settlers extends NPC
                 $t_q=$this->db->queryrow($sql);
                 if(isset($t_q['ship_id']) && !empty($t_q['ship_id']))
                 {
+                    $player_found = FALSE;
                     $setl_q = $this->db->queryrow($sql);
                     if($planet_to_serve['best_mood'] >= 120)
                     {
+                        $player_chance = min((round(($planet_to_serve['best_mood'] - 120)/4 ,0) + 51), 96);
+                        if($player_chance > rand(0,100)) $player_found = TRUE;
+                    }
+                    if($player_found)
+                    {
                         // besty found. Make a fleet, put the ship into int, warn it about that.
-                        $sql = 'SELECT user_capital from user WHERE user_id = '.$planet_to_serve['best_mood_user'];
-                        $setl_bf = $this->db->queryrow($sql);
+                        // $sql = 'SELECT user_capital from user WHERE user_id = '.$planet_to_serve['best_mood_user'];
+                        // $setl_bf = $this->db->queryrow($sql);
                         $sql='INSERT INTO ship_fleets (fleet_name, user_id, planet_id, move_id, n_ships)
                                      VALUES ("Reinforcement", '.$planet_to_serve['best_mood_user'].', '.$planet_to_serve['planet_id'].', 0, 1)';
                         $this->sdl->log('SQL A - 2.A1 '.$sql, TICK_LOG_FILE_NPC);
@@ -458,7 +512,7 @@ class Settlers extends NPC
                         $this->db->query($sql);
                         //Here we need multilanguage customization
                         $log_title = 'Nuova unit&agrave; disponibile dalla colonia indipendente '.$planet_to_serve['planet_name'];
-                        $log_data = array($planet_to_serve['planet_id'], $planet_to_serve['planet_name'], $t_q['ship_id'], $t_q['name'], $type = 0, $r_c = 0);
+                        $log_data = array($planet_to_serve['planet_id'], $planet_to_serve['planet_name'], $t_q['ship_id'], $t_q['name'], 0, 0);
                         add_logbook_entry($planet_to_serve['best_mood_user'], LOGBOOK_SETTLERS, $log_title, $log_data);
                         $sql = 'UPDATE planets SET npc_last_action = '.($ACTUAL_TICK + 20).' WHERE planet_id = '.$planet_to_serve['planet_id'];
                         $this->sdl->log('SQL A - 2.A5 '.$sql, TICK_LOG_FILE_NPC);
@@ -491,11 +545,14 @@ class Settlers extends NPC
 
                 }
 
-
+                // A - 4
+                // Troops sent to players / CC
                 if($planet_to_serve['planet_type'] == 'a' || $planet_to_serve['planet_type'] == 'b' || $planet_to_serve['planet_type'] == 'c' || $planet_to_serve['planet_type'] == 'd')
                 {
                     // Supplies first and second level troops
                     $_ress_4 = $_unit_1 = $_unit_2 = 0;
+                    $_unit_1_cut = $_unit_2_cut = 0;
+                    $_unit_trade = 0.20;
                     $troops_check = ($planet_to_serve['unit_1']*2) + ($planet_to_serve['unit_2']*3) + ($planet_to_serve['unit_3']*4) + ($planet_to_serve['unit_4']*4);
                     $security_check = $planet_to_serve['min_security_troops'] * 0.75;
                     if($troops_check > $security_check) {
@@ -510,10 +567,35 @@ class Settlers extends NPC
                     {
                         if($planet_to_serve['best_mood'] >= 120)
                         {
-                            $sql = 'SELECT user_capital from user WHERE user_id = '.$planet_to_serve['best_mood_user'];
-                            $setl_bf = $this->db->queryrow($sql);
+                            $_unit_1_cut = round($_unit_trade*$_unit_1);
+                            $_unit_2_cut = round($_unit_trade*$_unit_2);
+                            // $sql = 'UPDATE FHB_Handels_Lager SET unit_1=unit_1+'.$_unit_1_cut.', unit_2=unit_2+'.$_unit_2_cut.' WHERE id=1';
+                            $avail_tick = mt_rand(23,420);
+                            $avail_tick = $avail_tick + $ACTUAL_TICK;
+                            $sql = 'INSERT INTO `FHB_cache_trupp_trade` (`unit_1` , `unit_2` , tick ) VALUES ('.$_unit_1_cut.', '.$_unit_2_cut.', '.$avail_tick.')';                                                        
+                            $this->sdl->log('SQL A - 4.0.3.0'.$sql, TICK_LOG_FILE_NPC);
+                            $this->db->query($sql);
+                            // This is tricky!!!
+                            // Il pianeta indicato in best_mood_planet potrebbe non appartenere più al giocatore, tuttavia
+                            // in questo modo ci risparmiamo una lettura al DB
+                            $log_title = 'Truppe in arrivo dalla colonia '.$planet_to_serve['planet_name'];
+                            $log_data = array($planet_to_serve['planet_id'], $planet_to_serve['planet_name'], 0, 0, 101, 0);                            
+                            if(is_null($planet_to_serve['best_mood_planet']))
+                            {
+                                $sql = 'SELECT user_capital from user WHERE user_id = '.$planet_to_serve['best_mood_user'];
+                                $setl_bf = $this->db->queryrow($sql);
+                                $target_planet = $setl_bf['user_capital'];
+                            }
+                            else {                                
+                                $target_planet = $planet_to_serve['best_mood_planet'];
+                                $log_data[5] = 1;
+                                $log_data[6] = $target_planet;
+                                $sql = 'SELECT planet_name from planets WHERE planet_id = '.$planet_to_serve['best_mood_planet'];
+                                $setl_bfp = $this->db->queryrow($sql);                                
+                                $log_data[7] = $setl_bfp['planet_name'];
+                            }
                             $sql = 'INSERT INTO scheduler_resourcetrade (planet,resource_1,resource_2,resource_3,resource_4,unit_1,unit_2,unit_3,unit_4,unit_5,unit_6,arrival_time)
-                                VALUES ('.$setl_bf['user_capital'].', 0, 0, 0, '.$_ress_4.', '.$_unit_1.', '.$_unit_2.', 0, 0, 0, 0, '.($ACTUAL_TICK + 120).')';
+                                VALUES ('.$target_planet.', 0, 0, 0, '.$_ress_4.', '.($_unit_1 - $_unit_1_cut).', '.($_unit_2 - $_unit_2_cut).', 0, 0, 0, 0, '.($ACTUAL_TICK + 120).')';
                             $this->sdl->log('SQL A - 4.0.1'.$sql, TICK_LOG_FILE_NPC);
                             $this->db->query($sql);
                             $sql = 'UPDATE planets SET npc_last_action = '.($ACTUAL_TICK + 480).',
@@ -523,14 +605,18 @@ class Settlers extends NPC
                                     WHERE planet_id = '.$planet_to_serve['planet_id'];
                             $this->sdl->log('SQL A - 4.0.2'.$sql, TICK_LOG_FILE_NPC);
                             $this->db->query($sql);
-                            $log_title = 'Truppe in arrivo dalla colonia '.$planet_to_serve['planet_name'];
-                            $log_data = array($planet_to_serve['planet_id'], $planet_to_serve['planet_name'], 0, 0, $type = 101, $r_c = 0);
+                            $log_data[8]['unit_1'] = $_unit_1 - $_unit_1_cut;
+                            $log_data[8]['unit_2'] = $_unit_2 - $_unit_2_cut;
+                            $log_data[8]['ress_4'] = $_ress_4;
                             add_logbook_entry($planet_to_serve['best_mood_user'], LOGBOOK_SETTLERS, $log_title, $log_data);
                             continue;
                         }
                         else
                         {
-                            $sql = 'UPDATE FHB_Handels_Lager SET unit_1=unit_1+'.$_unit_1.', unit_2=unit_2+'.$_unit_2.' WHERE id=1';
+                            // $sql = 'UPDATE FHB_Handels_Lager SET unit_1=unit_1+'.$_unit_1.', unit_2=unit_2+'.$_unit_2.' WHERE id=1';
+                            $avail_tick = mt_rand(23,420);
+                            $avail_tick = $avail_tick + $ACTUAL_TICK;
+                            $sql = 'INSERT INTO `FHB_cache_trupp_trade` (`unit_1` , `unit_2` , tick ) VALUES ('.$_unit_1.', '.$_unit_2.', '.$avail_tick.')';                            
                             $this->sdl->log('SQL A - 4.1.1'.$sql, TICK_LOG_FILE_NPC);
                             $this->db->query($sql);
                             $sql = 'UPDATE planets SET npc_last_action = '.($ACTUAL_TICK + 480).',
@@ -548,6 +634,8 @@ class Settlers extends NPC
                 {
                     // Supply workers and specs
                     $_ress_4 = $_unit_5 = $_unit_6 = 0;
+                    $_unit_5_cut = $_unit_6_cut = 0;
+                    $_unit_trade = 0.20;                    
                     $troops_check = ($planet_to_serve['unit_1']*2) + ($planet_to_serve['unit_2']*3) + ($planet_to_serve['unit_3']*4) + ($planet_to_serve['unit_4']*4);
                     $security_check = $planet_to_serve['min_security_troops'] * 0.75;
                     if($troops_check > $security_check) {
@@ -562,10 +650,32 @@ class Settlers extends NPC
                     {
                         if($planet_to_serve['best_mood'] >= 120)
                         {
-                            $sql = 'SELECT user_capital from user WHERE user_id = '.$planet_to_serve['best_mood_user'];
-                            $setl_bf = $this->db->queryrow($sql);
+                            $_unit_5_cut = round($_unit_trade*$_unit_5);
+                            $_unit_6_cut = round($_unit_trade*$_unit_6);
+                            // $sql = 'UPDATE FHB_Handels_Lager SET unit_5=unit_5+'.$_unit_5_cut.', unit_6=unit_6+'.$_unit_6_cut.' WHERE id=1';
+                            $avail_tick = mt_rand(23,420);
+                            $avail_tick = $avail_tick + $ACTUAL_TICK;
+                            $sql = 'INSERT INTO `FHB_cache_trupp_trade` (`unit_5` , `unit_6` , tick ) VALUES ('.$_unit_5_cut.', '.$_unit_6_cut.', '.$avail_tick.')';                            
+                            $this->sdl->log('SQL A - 4.0.3'.$sql, TICK_LOG_FILE_NPC);
+                            $this->db->query($sql);
+                            $log_title = 'Truppe in arrivo dalla colonia '.$planet_to_serve['planet_name'];
+                            $log_data = array($planet_to_serve['planet_id'], $planet_to_serve['planet_name'], 0, 0, 101, 0);                            
+                            if(is_null($planet_to_serve['best_mood_planet']))
+                            {
+                                $sql = 'SELECT user_capital from user WHERE user_id = '.$planet_to_serve['best_mood_user'];
+                                $setl_bf = $this->db->queryrow($sql);
+                                $target_planet = $setl_bf['user_capital'];
+                            }
+                            else {
+                                $target_planet = $planet_to_serve['best_mood_planet'];
+                                $log_data[5] = 1;
+                                $log_data[6] = $target_planet;
+                                $sql = 'SELECT planet_name from planets WHERE planet_id = '.$planet_to_serve['best_mood_planet'];
+                                $setl_bfp = $this->db->queryrow($sql);                                
+                                $log_data[7] = $setl_bfp['planet_name'];                                
+                            }
                             $sql = 'INSERT INTO scheduler_resourcetrade (planet,resource_1,resource_2,resource_3,resource_4,unit_1,unit_2,unit_3,unit_4,unit_5,unit_6,arrival_time)
-                                VALUES ('.$setl_bf['user_capital'].', 0, 0, 0, '.$_ress_4.', 0, 0, 0, 0, '.$_unit_5.', '.$_unit_6.', '.($ACTUAL_TICK + 120).')';
+                                VALUES ('.$target_planet.', 0, 0, 0, '.$_ress_4.', 0, 0, 0, 0, '.($_unit_5 - $_unit_5_cut).', '.($_unit_6 - $_unit_6_cut).', '.($ACTUAL_TICK + 120).')';
                             $this->sdl->log('SQL A - 4.3.1'.$sql, TICK_LOG_FILE_NPC);
                             $this->db->query($sql);
                             $sql = 'UPDATE planets SET npc_last_action = '.($ACTUAL_TICK + 480).',
@@ -575,14 +685,18 @@ class Settlers extends NPC
                                     WHERE planet_id = '.$planet_to_serve['planet_id'];
                             $this->sdl->log('SQL A - 4.3.2'.$sql, TICK_LOG_FILE_NPC);
                             $this->db->query($sql);
-                            $log_title = 'Truppe in arrivo dalla colonia '.$planet_to_serve['planet_name'];
-                            $log_data = array($planet_to_serve['planet_id'], $planet_to_serve['planet_name'], 0, 0, $type = 101, $r_c = 0);
+                            $log_data[8]['unit_5'] = $_unit_5 - $_unit_5_cut;
+                            $log_data[8]['unit_6'] = $_unit_6 - $_unit_6_cut;
+                            $log_data[8]['ress_4'] = $_ress_4;
                             add_logbook_entry($planet_to_serve['best_mood_user'], LOGBOOK_SETTLERS, $log_title, $log_data);
                             continue;
                         }
                         else
                         {
-                            $sql = 'UPDATE FHB_Handels_Lager SET unit_5=unit_5+'.$_unit_5.', unit_6=unit_6+'.$_unit_6.' WHERE id=1';
+                            // $sql = 'UPDATE FHB_Handels_Lager SET unit_5=unit_5+'.$_unit_5.', unit_6=unit_6+'.$_unit_6.' WHERE id=1';
+                            $avail_tick = mt_rand(23,420);
+                            $avail_tick = $avail_tick + $ACTUAL_TICK;
+                            $sql = 'INSERT INTO `FHB_cache_trupp_trade` (`unit_5` , `unit_6` , tick ) VALUES ('.$_unit_5.', '.$_unit_6.', '.$avail_tick.')';
                             $this->sdl->log('SQL A - 4.4.1'.$sql, TICK_LOG_FILE_NPC);
                             $this->db->query($sql);
                             $sql = 'UPDATE planets SET npc_last_action = '.($ACTUAL_TICK + 480).',
@@ -596,12 +710,13 @@ class Settlers extends NPC
                     }
                 }
 
+                // A - 4
+                // Mining planets
+                // We check the planet real production and get 55% of that
+                // So the math is:  $_ress_X = 0.55*(add_X*20*24)
                 if($planet_to_serve['planet_type'] == 'j' || $planet_to_serve['planet_type'] == 's' || $planet_to_serve['planet_type'] == 'i' ||
                    $planet_to_serve['planet_type'] == 't' || $planet_to_serve['planet_type'] == 'x' || $planet_to_serve['planet_type'] == 'y')
                 {
-                    // Mining planets
-                    // We check the planet real production and get 55% of that
-                    // So the math is:  $_ress_X = 0.55*(add_X*20*24)
                     $_ress_1 = $_ress_2 = $_ress_3 = 0;
                     $_ress_1_cut = $_ress_2_cut = $_ress_3_cut = 0;
                     // Should we put this value in a define?
@@ -621,7 +736,7 @@ class Settlers extends NPC
                     }
                     elseif($planet_to_serve['planet_type'] == 's')
                     {
-                        $_ress_2 = round(0.40*($planet_to_serve['add_2']*20*24));
+                        $_ress_2 = round($_ress_rateo*($planet_to_serve['add_2']*20*24));
                         if($_ress_2 < $planet_to_serve['resource_2'])
                         {
                             $planet_to_serve['resource_2'] = $planet_to_serve['resource_2'] - $_ress_2;
@@ -632,7 +747,7 @@ class Settlers extends NPC
                     }
                     elseif($planet_to_serve['planet_type'] == 'i' || $planet_to_serve['planet_type'] == 't')
                     {
-                        $_ress_3 = round(0.40*($planet_to_serve['add_3']*20*24));
+                        $_ress_3 = round($_ress_rateo*($planet_to_serve['add_3']*20*24));
                         if($_ress_3 < $planet_to_serve['resource_3'])
                         {
                             $planet_to_serve['resource_3'] = $planet_to_serve['resource_3'] - $_ress_3;
@@ -643,7 +758,7 @@ class Settlers extends NPC
                     }
                     elseif($planet_to_serve['planet_type'] == 'x' || $planet_to_serve['planet_type'] == 'y')
                     {
-                        $_ress_1 = round(0.40*($planet_to_serve['add_1']*20*24));
+                        $_ress_1 = round($_ress_rateo*($planet_to_serve['add_1']*20*24));
                         if($_ress_1 < $planet_to_serve['resource_1'])
                         {
                             $planet_to_serve['resource_1'] = $planet_to_serve['resource_1'] - $_ress_1;
@@ -651,7 +766,7 @@ class Settlers extends NPC
                         }
                         else
                             $_ress_1 = 0;
-                        $_ress_2 = round(0.40*($planet_to_serve['add_2']*20*24));
+                        $_ress_2 = round($_ress_rateo*($planet_to_serve['add_2']*20*24));
                         if($_ress_2 < $planet_to_serve['resource_2'])
                         {
                             $planet_to_serve['resource_2'] = $planet_to_serve['resource_2'] - $_ress_2;
@@ -659,7 +774,7 @@ class Settlers extends NPC
                         }
                         else
                             $_ress_2 = 0;
-                        $_ress_3 = round(0.40*($planet_to_serve['add_3']*20*24));
+                        $_ress_3 = round($_ress_rateo*($planet_to_serve['add_3']*20*24));
                         if($_ress_3 < $planet_to_serve['resource_3'])
                         {
                             $planet_to_serve['resource_3'] = $planet_to_serve['resource_3'] - $_ress_3;
@@ -677,10 +792,24 @@ class Settlers extends NPC
 
                         if($planet_to_serve['best_mood'] >= 120)
                         {
-                            $sql = 'SELECT user_capital from user WHERE user_id = '.$planet_to_serve['best_mood_user'];
-                            $setl_bf = $this->db->queryrow($sql);
+                            $log_title = 'Risorse in arrivo dalla colonia '.$planet_to_serve['planet_name'];
+                            $log_data = array($planet_to_serve['planet_id'], $planet_to_serve['planet_name'], 0, 0, 102, 0);                            
+                            if(is_null($planet_to_serve['best_mood_planet']))
+                            {
+                                $sql = 'SELECT user_capital from user WHERE user_id = '.$planet_to_serve['best_mood_user'];
+                                $setl_bf = $this->db->queryrow($sql);
+                                $target_planet = $setl_bf['user_capital'];
+                            }
+                            else {
+                                $target_planet = $planet_to_serve['best_mood_planet'];
+                                $log_data[5] = 1;
+                                $log_data[6] = $target_planet;
+                                $sql = 'SELECT planet_name from planets WHERE planet_id = '.$planet_to_serve['best_mood_planet'];
+                                $setl_bfp = $this->db->queryrow($sql);                                
+                                $log_data[7] = $setl_bfp['planet_name'];                                
+                            }
                             $sql = 'INSERT INTO scheduler_resourcetrade (planet,resource_1,resource_2,resource_3,resource_4,unit_1,unit_2,unit_3,unit_4,unit_5,unit_6,arrival_time)
-                                           VALUES ('.$setl_bf['user_capital'].', '.($_ress_1 - $_ress_1_cut).', '.($_ress_2 - $_ress_2_cut).', '.($_ress_3 - $_ress_3_cut).', 0, 0, 0, 0, 0, 0, 0, '.($ACTUAL_TICK + 120).')';
+                                           VALUES ('.$target_planet.', '.($_ress_1 - $_ress_1_cut).', '.($_ress_2 - $_ress_2_cut).', '.($_ress_3 - $_ress_3_cut).', 0, 0, 0, 0, 0, 0, 0, '.($ACTUAL_TICK + 120).')';
                             $this->sdl->log('SQL A - 4.5.1'.$sql, TICK_LOG_FILE_NPC);
                             $this->db->query($sql);
                             $sql = 'UPDATE planets SET npc_last_action = '.($ACTUAL_TICK + 480).',
@@ -690,8 +819,9 @@ class Settlers extends NPC
                                     WHERE planet_id = '.$planet_to_serve['planet_id'];
                             $this->sdl->log('SQL A - 4.5.2'.$sql, TICK_LOG_FILE_NPC);
                             $this->db->query($sql);
-                            $log_title = 'Risorse in arrivo dalla colonia '.$planet_to_serve['planet_name'];
-                            $log_data = array($planet_to_serve['planet_id'], $planet_to_serve['planet_name'], 0, 0, $type = 102, $r_c = 0);
+                            $log_data[8]['ress_1'] = $_ress_1 - $_ress_1_cut;
+                            $log_data[8]['ress_2'] = $_ress_2 - $_ress_2_cut;
+                            $log_data[8]['ress_3'] = $_ress_3 - $_ress_3_cut;
                             add_logbook_entry($planet_to_serve['best_mood_user'], LOGBOOK_SETTLERS, $log_title, $log_data);
                             continue;
                         }
@@ -712,10 +842,11 @@ class Settlers extends NPC
                     }
                 }
 
+                // A - 3
+                // Let's build a ship!!! We could avoid the use of the scheduler, just to decrease the overhead...
+                // In the definitive version, only certain planets should build ships.
                 if($planet_to_serve['planet_type'] == 'h' || $planet_to_serve['planet_type'] == 'n')
                 {
-                    // Let's build a ship!!! We could avoid the use of the scheduler, just to decrease the overhead...
-                    // In the definitive version, only certain planets should build ships.
                     $sql = 'SELECT COUNT(*) as ship_queue FROM scheduler_shipbuild WHERE planet_id = '.$planet_to_serve['planet_id'];
                     $s_q = $this->db->queryrow($sql);
                     if($s_q['ship_queue'] == 0)
@@ -767,43 +898,43 @@ class Settlers extends NPC
                     }
                 }
 
-
-                    // Planetary Orbital Shield!!!!
-                    // Let's give Settlers something for self-defense against Borg and nasty players
-                    $sql='SELECT fleet_id FROM ship_fleets WHERE fleet_name = "Orbital'.$planet_to_serve['planet_id'].'"';
-                    $od_q = $this->db->queryrow($sql);
-                    if(isset($od_q['fleet_id']) && !empty($od_q['fleet_id']))
+                // A - 5
+                // Planetary Orbital Shield!!!!
+                // Let's give Settlers something for self-defense against Borg and nasty players
+                $sql='SELECT fleet_id FROM ship_fleets WHERE fleet_name = "Orbital'.$planet_to_serve['planet_id'].'"';
+                $od_q = $this->db->queryrow($sql);
+                if(isset($od_q['fleet_id']) && !empty($od_q['fleet_id']))
+                {
+                    $sql='SELECT COUNT(*) AS counter FROM ships WHERE fleet_id = '.$od_q['fleet_id'];
+                    $orbital_check=$this->db->queryrow($sql);
+                    if($orbital_check['counter'] < 50)
                     {
-                         $sql='SELECT COUNT(*) AS counter FROM ships WHERE fleet_id = '.$od_q['fleet_id'];
-                         $orbital_check=$this->db->queryrow($sql);
-                         if($orbital_check['counter'] < 50)
-                         {
-                              //No access to DB, let's put the values right in, REMEMBER TO CHECK THE TEMPLATE IN THE DB WHEN EDITING THIS!!!
-                              $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, last_refit_time)
-                              VALUES ('.$od_q['fleet_id'].', '.INDEPENDENT_USERID.', '.$cfg_data['settler_tmp_4'].', 0, 100, '.time().', 300, 5, '.time().')';
-                              $this->db->query($sql);
-                              $sql = 'UPDATE planets SET npc_last_action = '.($ACTUAL_TICK + 160).' WHERE planet_id = '.$planet_to_serve['planet_id'];
-                         $this->sdl->log('SQL A - 5.1 '.$sql, TICK_LOG_FILE_NPC);
-                         $this->db->query($sql);
-                         continue;
-                        }
-                    }
-                    else
-                    {
-                        // Orbital defence fleet not exists. Let's create this.
-                        $sql = 'INSERT INTO ship_fleets (fleet_name, user_id, planet_id, alert_phase, move_id, n_ships)
-                            VALUES ("Orbital'.$planet_to_serve['planet_id'].'", '.INDEPENDENT_USERID.', '.$planet_to_serve['planet_id'].', '.ALERT_PHASE_GREEN.', 0, 1)';
-                        $this->db->query($sql);
-                        $fleet_id = $this->db->insert_id();
+                        //No access to DB, let's put the values right in, REMEMBER TO CHECK THE TEMPLATE IN THE DB WHEN EDITING THIS!!!
                         $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, last_refit_time)
-                            VALUES ('.$fleet_id.', '.INDEPENDENT_USERID.', '.$cfg_data['settler_tmp_4'].', 0, 100, '.time().', 300, 5, '.time().')';
+                                VALUES ('.$od_q['fleet_id'].', '.INDEPENDENT_USERID.', '.$cfg_data['settler_tmp_4'].', 0, 100, '.time().', 300, 5, '.time().')';
                         $this->db->query($sql);
                         $sql = 'UPDATE planets SET npc_last_action = '.($ACTUAL_TICK + 160).' WHERE planet_id = '.$planet_to_serve['planet_id'];
-                        $this->sdl->log('SQL A - 5.0 '.$sql, TICK_LOG_FILE_NPC);
+                        $this->sdl->log('SQL A - 5.1 '.$sql, TICK_LOG_FILE_NPC);
                         $this->db->query($sql);
                         continue;
                     }
-
+                }
+                else
+                {
+                // Orbital defence fleet not exists. Let's create this.
+                    $sql = 'INSERT INTO ship_fleets (fleet_name, user_id, planet_id, alert_phase, move_id, n_ships)
+                            VALUES ("Orbital'.$planet_to_serve['planet_id'].'", '.INDEPENDENT_USERID.', '.$planet_to_serve['planet_id'].', '.ALERT_PHASE_GREEN.', 0, 1)';
+                    $this->db->query($sql);
+                    $fleet_id = $this->db->insert_id();
+                    $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, last_refit_time)
+                            VALUES ('.$fleet_id.', '.INDEPENDENT_USERID.', '.$cfg_data['settler_tmp_4'].', 0, 100, '.time().', 300, 5, '.time().')';
+                    $this->db->query($sql);
+                    $sql = 'UPDATE planets SET npc_last_action = '.($ACTUAL_TICK + 160).' WHERE planet_id = '.$planet_to_serve['planet_id'];
+                    $this->sdl->log('SQL A - 5.0 '.$sql, TICK_LOG_FILE_NPC);
+                    $this->db->query($sql);
+                    continue;
+                }
+                
                 $sql = 'UPDATE planets SET npc_last_action = '.($ACTUAL_TICK + 20).' WHERE planet_id = '.$planet_to_serve['planet_id'];
                 $this->sdl->log('SQL E '.$sql, TICK_LOG_FILE_NPC);
                 $this->db->query($sql);
