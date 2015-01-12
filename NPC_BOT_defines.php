@@ -71,4 +71,37 @@ define ('BORG_MAXPLANETS', 1); // Start to assimilate below this planets amount
 
 // Constant for Mayflower Settlers BOT
 
+define('LC_FIRST_CONTACT', 1);
+define('LC_DIPLO_SPEECH', 2);
+
+define('LC_SUP_TECH', 3);
+define('LC_SUP_MEDI', 4);
+define('LC_SUP_DFNS', 5);
+define('LC_SUP_AUTO', 6);
+define('LC_SUP_MINE',7);
+define('LC_MIL_ORBITAL', 8); 
+
+define('LC_REL_MULTIC', 10);
+define('LC_REL_TSUPER', 11);
+define('LC_REL_CHAMPN', 12);
+define('LC_REL_INNVTR', 13);
+define('LC_REL_OPPSTR', 14);
+define('LC_REL_PLURLS', 15);
+define('LC_REL_PRESTG', 16);
+define('LC_REL_DEFNDR', 17);
+define('LC_REL_CMPTNT', 18);
+define('LC_REL_LIBERT', 19);
+define('LC_REL_LEADER', 20);
+define('LC_REL_MECENA', 21);
+define('LC_REL_WORSHP', 22);
+define('LC_REL_PREDAT', 23);
+define('LC_REL_STRNGR', 24);
+define('LC_REL_UNABLE', 25);
+define('LC_REL_EXPLOI', 26);
+define('LC_REL_PREY',   27);
+
+define('LC_COLO_FOUNDER', 30);
+define('LC_COLO_GIVER', 31);
+
+define('STL_MAX_ORBITAL', 120);
 ?>
