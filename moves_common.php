@@ -839,6 +839,120 @@ $this->log(MV_M_NOTICE,'AR-query:<br>"'.$sql.'"<br>');
 
                 $this->log(MV_M_NOTICE, 'Leaving AR-loop #'.$i);
             }
+            
+            // #############################################################################
+            // Look for stationed fleets in Yellow Alert!!!
+            // Non è la migliore delle scelte perché aggiungiamo un secondo loop
+            
+            $sql = 'SELECT DISTINCT f.user_id,
+                           u.user_alliance, u.user_name,
+                           ud.ud_id, ud.accepted, u.language,
+                           ad.ad_id, ad.type, ad.status
+                    FROM (ship_fleets f)
+                    INNER JOIN user u ON u.user_id = f.user_id
+                    LEFT JOIN user_diplomacy ud ON ( ( ud.user1_id = '.$this->move['user_id'].' AND ud.user2_id = f.user_id ) OR ( ud.user1_id = f.user_id AND ud.user2_id = '.$this->move['user_id'].' ) )
+                    LEFT JOIN alliance_diplomacy ad ON ( ( ad.alliance1_id = '.$this->move['user_alliance'].' AND ad.alliance2_id = u.user_alliance) OR ( ad.alliance1_id = u.user_alliance AND ad.alliance2_id = '.$this->move['user_alliance'].' ) )
+                    WHERE f.planet_id = '.$this->move['dest'].' AND
+                          f.user_id <> '.$this->move['user_id'].' AND
+                          f.alert_phase = '.ALERT_PHASE_YELLOW;
+            
+            $ay_query = $this->db->query($sql);
+            
+            $ay_n_user = $this->db->num_rows($ay_query);
+            
+            if($ay_n_user > 0) {
+                
+                $ay_user = array();
+                
+                $ay_rows = $this->db->fetchrowset($ay_query);
+                
+                // Raccogliamo info sulla flotta IN ARRIVO (ossia quella legata alla mossa in elaborazione)
+                // per averle già pronte per la scrittura dei log da mandare ai giocatori.
+                // Utilizzo queryrowset perché, salvo cataclismi, la flotta in movimento HA una composizione coerente e leggibile.
+                
+                $sql = 'SELECT st.name, st.race, st.ship_torso, st.ship_class, COUNT(st.name) as n_ships 
+                        FROM ship_templates st
+                        INNER JOIN ships s ON s.template_id = st.id
+                        INNER JOIN ship_fleets f ON f.fleet_id = s.fleet_id
+                        WHERE f.fleet_id IN ('.$this->fleet_ids_str.')
+                        GROUP BY st.name
+                        ORDER BY st.ship_class DESC, st.ship_torso DESC';
+                
+                $ay_ship_list = $this->db->queryrowset($sql);
+                
+                $ay_move_name = $this->db->queryrow('SELECT user_name FROM user WHERE user_id = '.$this->move['user_id']); 
+                
+                foreach ($ay_rows as $ay_uid) {
+                    if($ay_uid['user_alliance'] != 0 && ($ay_uid['user_alliance'] == $this->move['user_alliance'])) continue;
+
+                    if(isset($ay_uid['ud_id']) && !empty($ay_uid['ud_id'])) {
+                        if($ay_uid['accepted'] == 1) continue;
+                    }
+
+                    if(isset($ay_uid['ad_id']) && !empty($ay_uid['ad_id'])) {
+                        if( ($ay_uid['type'] == ALLIANCE_DIPLOMACY_PACT) && ($ay_uid['status'] == 0) ) continue;
+                    }
+
+                    $ay_user[] = array($ay_uid['user_id'], $ay_uid['language']);
+                    
+
+                    $this->log(MV_M_NOTICE,'AY-User ID is '.$ay_uid['user_id']);
+                    
+                }
+
+$this->log(MV_M_NOTICE,'AY-user(s): <b>'.count($ay_user).'</b>');
+
+                for($i = 0; $i < count($ay_user); ++$i) {
+                    $this->log(MV_M_NOTICE, 'Entering AY-loop #'.$i);
+                    
+                    $sql = 'SELECT f.fleet_id, f.fleet_name
+                            FROM (ship_fleets f)
+                            INNER JOIN user u ON u.user_id = f.user_id
+                             WHERE f.planet_id = '.$this->move['dest'].' AND
+                              f.user_id = '.$ay_user[$i][0].' AND
+                              f.alert_phase = '.ALERT_PHASE_YELLOW;
+
+                    $this->log(MV_M_NOTICE,'AY-query:<br>"'.$sql.'"<br>');
+                    
+                    if(($sgnl_fleets = $this->db->queryrowset($sql)) === false) {
+                        return $this->log(MV_M_DATABASE, 'Could not query signaling fleets in AY! SKIP');
+                    }
+
+                    foreach($sgnl_fleets as $ihh => $cur_fleet) {
+                        $log_data[0] = 100; // Codice mossa fasullo per far funzionare il logbook
+                        $log_data[1] = $this->move['user_id'];
+                        $log_data[2] = $this->move['start'];
+                        $log_data[3] = $this->start['planet_name'];
+                        $log_data[4] = $this->start['user_id'];
+                        $log_data[5] = $this->move['dest'];
+                        $log_data[6] = $this->dest['planet_name'];
+                        $log_data[7] = $this->dest['user_id'];
+                        $log_data[8] = $cur_fleet['fleet_id'];
+                        $log_data[9] = $cur_fleet['fleet_name'];
+                        $log_data[10] = array_sum($this->n_ships);
+                        $log_data[11] = $ay_ship_list;
+                        $log_data[12] = $ay_move_name['user_name'];
+                        
+                        switch($ay_user[$i][1])
+                        {
+                            case 'GER':
+                                $log_title = 'AY-fleet reporting the arrival of a fleet on planet '.$this->dest['planet_name'];
+                                break;
+                            case 'ITA':
+                                $log_title = 'Flotta in AG comunica arrivo di navi sul pianeta '.$this->dest['planet_name'];
+                                break;
+                            default:
+                                $log_title = 'AY-fleet reporting the arrival of ships on planet '.$this->dest['planet_name'];
+                                break;
+                        }
+
+                        add_logbook_entry($ay_user[$i][0], LOGBOOK_TACTICAL_2, $log_title, $log_data);                        
+                    }                    
+                    
+                    
+                    
+                }
+            }
         }
 
         // #############################################################################

@@ -234,6 +234,15 @@ if($sphere_counter > $borg_std_num['counter'])
 $sdl->finish_job('Unimatrix Zero Maintenance');
 
 
+$sdl->start_job('borg_npc_target Maintenance');
+
+$db->query('UPDATE borg_npc_target SET timeout = '.$ACTUAL_TICK.' + 1440, delay = 1 WHERE tries > 4 AND delay = 0');
+
+$db->query('UPDATE borg_npc_target SET timeout = 0, tries = 0, delay = 0, priority = priority + 1 WHERE delay = 1 AND timeout < '.$ACTUAL_TICK);
+
+$sdl->finish_job('borg_npc_target Maintenance');
+
+
 $sdl->start_job('User SlowStats Update');
 
 $sql = 'SELECT user_id FROM user WHERE user_active = 1 AND user_auth_level = 1';
@@ -388,13 +397,6 @@ while($surrender = $db->fetchrow($query_s_p)) {
 
     if(!$db->query($sql)) {
         $sdl->log('<b>Error:</b> Could not remove settlers_relations entry for <b>'.$surrender['planet_id'].'</b>! CONTINUED');
-    }
-
-    $sql = 'INSERT INTO settlers_relations (planet_id, user_id, race_id, timestamp, log_code, mood_modifier)
-            VALUES ('.$surrender['planet_id'].', '.$surrender['planet_owner'].', '.$_temp['user_race'].', '.time().', 31, 50 )';
-
-    if(!$db->query($sql)) {
-        $sdl->log('<b>Error:</b> Could not insert new settlers_relations for <b>'.$surrender['planet_id'].'</b>! CONTINUED');
     }
 }
 

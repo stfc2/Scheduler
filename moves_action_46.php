@@ -671,218 +671,121 @@ else {
     }
 
 // DC >>>> Begin Borg Adaption Phase!!!
-// Analize fleets composition of those in $dfd_fleet_ids
-// No error check, in God We Thrust!
-    $future_humans_tp = $this->db->queryrow('SELECT future_ship AS id FROM config WHERE config_set_id = 0');
+    
+    $adaption_chance_array = array (
+        'no_event'  => 90,
+        'adapt_PRI' => 15,
+        'adapt_SEC' => 15,
+        'adapt_SHI' => 7,
+        'adapt_ARM' => 10,
+        'adapt_REA' => 4,
+        'adapt_RED' => 4,
+        'adapt_AGI' => 4,
+        'adapt_ROF' => 1
+    );
 
-    foreach($dfd_fleet_ids as $observed_id)
-    {
-        $this->log(MV_M_NOTICE, 'DEBUG: Winning Fleet ID:'.$observed_id);
+    $adaption_array = array();
 
-        // Check fleet composition
-        $sql='SELECT sf.user_id, st.ship_class, COUNT(*) as n_ships
-              FROM ships s 
-              INNER JOIN ship_templates st ON s.template_id = st.id
-              INNER JOIN ship_fleets sf USING (fleet_id)
-              WHERE s.fleet_id = '.$observed_id.'
-                    AND st.ship_class > 1
-                    AND st.id <> '.$future_humans_tp['id'].'
-                    AND s.user_id <> '.INDEPENDENT_USERID.'
-              GROUP BY st.ship_class';
-
-        $q_data = $this->db->query($sql);
-
-        $set_rows = $this->db->num_rows($q_data);
-
-        if($set_rows == 0) continue;
-
-        $composition_data = $this->db->fetchrowset($q_data);
-
-        $sql = 'SELECT user_id, ship_template1, ship_template2
-                FROM borg_target WHERE user_id = '.$composition_data[0]['user_id'];
-
-        $this->log(MV_M_NOTICE, 'DEBUG: Query for target user:'.$sql);
-
-        $target_data = $this->db->queryrow($sql);
-
-        if(!isset($target_data['user_id']) || $target_data['user_id'] != $composition_data[0]['user_id']) continue;
-
-        foreach($composition_data as $data)
-        {
-            // Check Average Template Stats for any fighting vessel class
-            $sql = 'SELECT st.ship_class, avg(st.value_1) as avg_1,
-                           avg(st.value_2) as avg_2, avg(st.value_4) as avg_4,
-                           avg(st.value_5) as avg_5, avg(st.value_6) as avg_6,
-                           avg(st.value_7) as avg_7, avg(st.value_8) as avg_8
-                  FROM ships s
-                  INNER JOIN ship_templates st ON s.template_id = st.id
-                  WHERE s.fleet_id = '.$observed_id.'
-                        AND st.id <> '.$future_humans_tp['id'].'
-                        AND s.user_id <> '.INDEPENDENT_USERID.'
-                        AND st.ship_class = '.$data['ship_class'];
-
-            $hull_data = $this->db->queryrow($sql);
-
-            switch($data['ship_class'])
-            {
-                // Sphere Template
-                case 0:
-                case 1:
-                    $this->log(MV_M_NOTICE, 'DEBUG: wrong ship_class processed');
-                break;
-                case 2:
-                    // value_1 ideal is equal to avg hull points * 18
-                    $cap_temps_value_1 = round(($hull_data['avg_4'] * 8), 0);
-                    // value_2 = value_1 * 1.20
-                    $cap_temps_value_2 = round($cap_temps_value_1 * 1.25, 0);
-                    // value_4 ideal is equal to avg
-                    $cap_temps_value_4 = round((($hull_data['avg_2'] * 20) / 18),0);
-                    // value_5 ideal is equal
-                    $cap_temps_value_5 = round((($hull_data['avg_1'] * 20) / 18),0);
-
-                    if(!empty($target_data['ship_template1']))
-                    {
-                        $sql = 'SELECT value_1, value_2, value_4, value_5
-                                FROM ship_templates
-                                WHERE id = '.$target_data['ship_template1'];
-
-                        $old_ship_template1 = $this->db->queryrow($sql);
-
-                        $raised_value1 = (float)$old_ship_template1['value_1'] * 1.14;
-                        $raised_value2 = (float)$old_ship_template1['value_2'] * 1.14;
-                        $raised_value4 = (float)$old_ship_template1['value_4'] * 1.20;
-                        $raised_value5 = (float)$old_ship_template1['value_5'] * 1.20;
-
-                        $sql = 'UPDATE ship_templates
-                                SET timestamp = '.time().',
-                                    name = "Sphere#'.$this->move['dest'].$target_data['user_id'].'",
-                                    value_1 = '.min($raised_value1, $cap_temps_value_1).',
-                                    value_2 = '.min($raised_value2, $cap_temps_value_2).',
-                                    value_4 = '.min($raised_value4, $cap_temps_value_4).',
-                                    value_5 = '.min($raised_value5, $cap_temps_value_5).'
-                                WHERE id = '.$target_data['ship_template1'];
-
-                        if(!$this->db->query($sql)) {
-                            $this->log(MV_M_DATABASE, 'DEBUG: Could not update target ship_template1 data '.$sql);
-                        }
-                    }
-                    else
-                    {
-                        $base_template1_id = $this->db->queryrow('SELECT ship_template1 AS id FROM borg_bot');
-
-                        $b_tp1 = $this->db->queryrow('SELECT * FROM ship_templates WHERE id = '.$base_template1_id['id']);
-
-                        $b_tp1['name'] = 'Sphere#'.$this->move['dest'].$target_data['user_id'];
-
-                        $sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
-                                                            component_1, component_2, component_3, component_4, component_5,
-                                                            component_6, component_7, component_8, component_9, component_10,
-                                                            value_1, value_2, value_3, value_4, value_5,
-                                                            value_6, value_7, value_8, value_9, value_10,
-                                                            value_11, value_12, value_13, value_14, value_15,
-                                                            resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
-                                                            min_unit_1, min_unit_2, min_unit_3, min_unit_4,
-                                                            max_unit_1, max_unit_2, max_unit_3, max_unit_4,
-                                                            buildtime, rof, max_torp)
-                                VALUES ("'.BORG_USERID.'","'.time().'","'.$b_tp1['name'].'","'.$b_tp1['description'].'","6",'.$b_tp1['ship_torso'].','.$b_tp1['ship_class'].',
-                                        -1,-1,-1,-1,-1,
-                                        -1,-1,-1,-1,-1,
-                                        '.($b_tp1['value_1'] * 1.14).','.($b_tp1['value_2'] * 1.14).',"50",'.($b_tp1['value_4'] * 1.20).','.($b_tp1['value_5'] * 1.20).',
-                                        '.$b_tp1['value_6'].','.$b_tp1['value_7'].','.$b_tp1['value_8'].','.$b_tp1['value_9'].','.$b_tp1['value_10'].',
-                                        '.$b_tp1['value_11'].','.$b_tp1['value_12'].','.$b_tp1['value_13'].','.$b_tp1['value_14'].','.$b_tp1['value_15'].',
-                                        '.$b_tp1['resource_1'].','.$b_tp1['resource_2'].','.$b_tp1['resource_3'].','.$b_tp1['resource_4'].','.$b_tp1['unit_5'].','.$b_tp1['unit_6'].',
-                                        '.$b_tp1['min_unit_1'].','.$b_tp1['min_unit_2'].','.$b_tp1['min_unit_3'].','.$b_tp1['min_unit_4'].',
-                                        '.$b_tp1['max_unit_1'].','.$b_tp1['max_unit_2'].','.$b_tp1['max_unit_3'].','.$b_tp1['max_unit_4'].',
-                                        '.$b_tp1['buildtime'].', '.$b_tp1['rof'].', '.$b_tp1['max_torp'].')';
-
-                        if(!$this->db->query($sql)) {
-                            $this->log(MV_M_DATABASE, 'DEBUG: Could not insert new target ship_template1 data '.$sql);
-                        }
-
-                        $_new_id1 = $this->db->insert_id();
-
-                        $this->db->query('UPDATE borg_target SET ship_template1 = '.$_new_id1.' WHERE user_id = '.$target_data['user_id']);
-
-                    }
-                break;
-                case 3:
-                    // Cube Template
-                    $cap_tempc_value_1 = round(($hull_data['avg_4'] * 18), 0);
-                    // value_2 = value_1 * 1.20
-                    $cap_tempc_value_2 = round($cap_tempc_value_1 * 1.25, 0);
-                    // value_4 ideal is equal to avg
-                    $cap_tempc_value_4 = round((($hull_data['avg_2'] * 60) / 18),0);
-                    // value_5 ideal is equal
-                    $cap_tempc_value_5 = round((($hull_data['avg_1'] * 60) / 18),0);
-
-                    if(!empty($target_data['ship_template2']))
-                    {
-                        $sql = 'SELECT value_1, value_2, value_4, value_5
-                                FROM ship_templates
-                                WHERE id = '.$target_data['ship_template2'];
-
-                        $old_ship_template2 = $this->db->queryrow($sql);
-
-                        $raised_value1 = $old_ship_template2['value_1'] * 1.14;
-                        $raised_value2 = $old_ship_template2['value_2'] * 1.14;
-                        $raised_value4 = $old_ship_template2['value_4'] * 1.20;
-                        $raised_value5 = $old_ship_template2['value_5'] * 1.20;
-
-                        $sql = 'UPDATE ship_templates
-                                SET timestamp = '.time().',
-                                    name = "Cube#'.$this->move['dest'].$target_data['user_id'].'",
-                                    value_1 = '.min($raised_value1, $cap_tempc_value_1).',
-                                    value_2 = '.min($raised_value2, $cap_tempc_value_2).',
-                                    value_4 = '.min($raised_value4, $cap_tempc_value_4).',
-                                    value_5 = '.min($raised_value5, $cap_tempc_value_5).'
-                                WHERE id = '.$target_data['ship_template2'];
-
-                        if(!$this->db->query($sql)) {
-                            $this->log(MV_M_DATABASE, 'DEBUG: Could not update target ship_template2 data '.$sql);
-                        }
-                    }
-                    else
-                    {
-                        $base_template2_id = $this->db->queryrow('SELECT ship_template2 AS id FROM borg_bot');
-
-                        $b_tp2 = $this->db->queryrow('SELECT * FROM ship_templates WHERE id = '.$base_template2_id['id']);
-
-                        $b_tp2['name'] = 'Cube#'.$this->move['dest'].$target_data['user_id'];
-
-                        $sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
-                                                            component_1, component_2, component_3, component_4, component_5,
-                                                            component_6, component_7, component_8, component_9, component_10,
-                                                            value_1, value_2, value_3, value_4, value_5,
-                                                            value_6, value_7, value_8, value_9, value_10,
-                                                            value_11, value_12, value_13, value_14, value_15,
-                                                            resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
-                                                            min_unit_1, min_unit_2, min_unit_3, min_unit_4,
-                                                            max_unit_1, max_unit_2, max_unit_3, max_unit_4,
-                                                            buildtime, rof, max_torp)
-                                VALUES ("'.BORG_USERID.'","'.time().'","'.$b_tp2['name'].'","'.$b_tp2['description'].'","6",'.$b_tp2['ship_torso'].','.$b_tp2['ship_class'].',
-                                        -1,-1,-1,-1,-1,
-                                        -1,-1,-1,-1,-1,
-                                        '.($b_tp2['value_1'] * 1.14).','.($b_tp2['value_2'] * 1.14).',"50",'.($b_tp2['value_4'] * 1.20).','.($b_tp2['value_5'] * 1.20).',
-                                        '.$b_tp2['value_6'].','.$b_tp2['value_7'].','.$b_tp2['value_8'].','.$b_tp2['value_9'].','.$b_tp2['value_10'].',
-                                        '.$b_tp2['value_11'].','.$b_tp2['value_12'].','.$b_tp2['value_13'].','.$b_tp2['value_14'].','.$b_tp2['value_15'].',
-                                        '.$b_tp2['resource_1'].','.$b_tp2['resource_2'].','.$b_tp2['resource_3'].','.$b_tp2['resource_4'].','.$b_tp2['unit_5'].','.$b_tp2['unit_6'].',
-                                        '.$b_tp2['min_unit_1'].','.$b_tp2['min_unit_2'].','.$b_tp2['min_unit_3'].','.$b_tp2['min_unit_4'].',
-                                        '.$b_tp2['max_unit_1'].','.$b_tp2['max_unit_2'].','.$b_tp2['max_unit_3'].','.$b_tp2['max_unit_4'].',
-                                        '.$b_tp2['buildtime'].', '.$b_tp2['rof'].', '.$b_tp2['max_torp'].')';
-
-                        if(!$this->db->query($sql)) {
-                            $this->log(MV_M_DATABASE, 'DEBUG: Could not insert new target ship_template2 data '.$sql);
-                        }
-
-                        $_new_id2 = $this->db->insert_id();
-
-                        $this->db->query('UPDATE borg_target SET ship_template2 = '.$_new_id2.' WHERE user_id = '.$target_data['user_id']);
-                    }
-                break;
-            }
+    foreach($adaption_chance_array as $event => $probability) {
+        for($i = 0; $i < $probability; ++$i) {
+            $adaption_array[] = $event;
         }
     }
+    
+    $adaption_event = $adaption_array[array_rand($adaption_array)];
+    
+    if($adaption_event == 'no_event') {
+        $this->log(MV_M_NOTICE, 'Borg Adaption Phase not occured this time.');
+    }
+    else {
+        $this->log(MV_M_NOTICE, 'Borg Adaption Phase begin NOW.');
+        $borg_bot = $this->db->queryrow('SELECT ship_template2 FROM borg_bot WHERE id = 1');
+    
+        $borgcube_tp = $this->db->queryrow('SELECT * FROM ship_templates WHERE owner = '.BORG_USERID.' AND id = '.$borg_bot['ship_template2']);        
+        
+        $newvalue1 = $borgcube_tp['value_1'];
+        $newvalue2 = $borgcube_tp['value_2'];
+        $newvalue4 = $borgcube_tp['value_4'];
+        $newvalue5 = $borgcube_tp['value_5'];
+        $newvalue6 = $borgcube_tp['value_6'];
+        $newvalue7 = $borgcube_tp['value_7'];
+        $newvalue8 = $borgcube_tp['value_8'];
+        $newrof    = $borgcube_tp['rof'];
+        
+        switch($adaption_event) {
+            case 'adapt_PRI':
+                $newvalue1 = $newvalue1 * 1.015;
+                $this->log(MV_M_NOTICE, 'Borg Primary Attack Value ++.');
+                break;
+            case 'adapt_SEC':
+                $newvalue2 = $newvalue2 * 1.015;
+                $this->log(MV_M_NOTICE, 'Borg Secondary Attack Value ++.');
+                break;
+            case 'adapt_SHI':
+                $newvalue4 = $newvalue4 * 1.025;
+                $this->log(MV_M_NOTICE, 'Borg Armor Value ++.');
+                break;
+            case 'adapt_ARM':
+                $newvalue5 = $newvalue5 * 1.020;
+                $this->log(MV_M_NOTICE, 'Borg Shield Value ++.');
+                break;
+            case 'adapt_REA':
+                $newvalue6 = $newvalue6 + 1;
+                $this->log(MV_M_NOTICE, 'Borg Reaction Value ++.');
+                break;
+            case 'adapt_RED':
+                $newvalue7 = $newvalue7 + 1;
+                $this->log(MV_M_NOTICE, 'Borg Readiness Value ++.');
+                break;
+            case 'adapt_AGI':
+                $newvalue8 = $newvalue8 + 1;
+                $this->log(MV_M_NOTICE, 'Borg Agility Value ++.');
+                break;
+            case 'adapt_ROF':
+                $newrof = $newrof + 1;
+                $_ratio = $newvalue1 / (int)$borgcube_tp['rof'];
+                $newvalue1 = round(($newrof * $_ratio), 0);
+                $_ratio = $newvalue2 / (int)$borgcube_tp['rof'];
+                $newvalue2 = round(($newrof * $_ratio), 0);
+                $this->log(MV_M_NOTICE, '+++ Borg ROF Value +++.');
+                break;
+        }
+        
+        $oldversion = 0;
+        
+        sscanf($borgcube_tp['name'],"Adapted Cube#%u",$oldversion);
+        
+        $sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class,
+                                                component_1, component_2, component_3, component_4, component_5,
+                                                component_6, component_7, component_8, component_9, component_10,
+                                                value_1, value_2, value_3, value_4, value_5,
+                                                value_6, value_7, value_8, value_9, value_10,
+                                                value_11, value_12, value_13, value_14, value_15,
+                                                resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
+                                                min_unit_1, min_unit_2, min_unit_3, min_unit_4,
+                                                max_unit_1, max_unit_2, max_unit_3, max_unit_4,
+                                                buildtime, rof, max_torp)
+                VALUES ("'.$borgcube_tp['owner'].'","'.time().'","Adapted Cube#'.($oldversion + 1).'","Assimilation ship","'.$borgcube_tp['race'].'",10,3,
+                            -1,-1,-1,-1,-1,
+                            -1,-1,-1,-1,-1,
+                            "'.$newvalue1.'","'.$newvalue2.'","400","'.$newvalue4.'","'.$newvalue5.'",
+                            "'.$newvalue6.'","'.$newvalue7.'","'.$newvalue8.'","60","10",
+                            "40","0","2000","2000","0",
+                            "500000","500000","500000","50000","10000","1000",
+                            "10000","2500","2500","500",
+                            "30000","7000","5000","1000",
+                            0, '.$newrof.', 1000)';
+        
+        $this->db->query($sql);
+        
+        $newtpid = $this->db->insert_id();
+        
+        $this->db->query('UPDATE borg_bot SET ship_template2 = '.$newtpid.' WHERE id = 1 ');
+        
+        $this->log(MV_M_NOTICE, 'Borg Adaption Phase ends NOW.');
+    }
 
+    
 // DC <<<< End Borg Adaption Phase
 
 // DC >>>> Settlers management

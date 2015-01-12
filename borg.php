@@ -105,7 +105,7 @@ class Borg extends NPC
                                       user_enable_sig,user_message_sig,
                                       user_signature, user_notepad, user_options, message_basement)
                      VALUES ('.BORG_USERID.', 1, "Borg(NPC)", "BorgBot", "'.md5("borgcube").'", "borg@stfc.it",
-                             '.STGC_BOT.', '.BORG_RACE.', "'.DEFAULT_GFX_PATH.'", "skin1/", '.time().',
+                             '.STGC_BOT.', '.BORG_RACE.', "/stfc_gfx/", "skin1/", '.time().',
                              "127.0.0.1", "23.05.2008", "", 16162 , "IT",
                              1, "<br><br><p><b>We are the Borg, resistance is futile</b></p>",
                              "'.BORG_SIGNATURE.'","", "", "")';
@@ -422,21 +422,21 @@ class Borg extends NPC
              * Light weapons: 1
              * Heavy weapons: 1
              * Planetary weapons: 1
-             * Torpedoes: 1
-             * ROF: 1
-             * Hull: 1
-             * Shield: 1
+             * Torpedoes: 25000
+             * ROF: 25
+             * Hull: 850000
+             * Shield: 850000
              *
-             * Reaction: 1
-             * Readiness: 1
-             * Agility: 1
-             * Experience: 1
+             * Reaction: 5
+             * Readiness: 80
+             * Agility: 5
+             * Experience: 100
              * Warp: 10 (Borg has transwarp engines)
              *
-             * Sensors: 1
+             * Sensors: 80
              * Camouflage: 0
-             * Energy available: 1
-             * Energy used: 1
+             * Energy available: 10000
+             * Energy used: 10000
              *
              * Resources needed for construction:
              *
@@ -449,17 +449,17 @@ class Borg extends NPC
              *
              * Minimum crew:
              *
-             * Drone simple: 1
-             * Assault drone: 1
-             * Elite drone: 1
-             * Commander drone: 1
+             * Drone simple: 65000
+             * Assault drone: 25000
+             * Elite drone: 25000
+             * Commander drone: 5000
              *
              * Maximum crew:
              *
-             * Drone simple: 1   <--- Max 65535
-             * Assault drone: 1
-             * Elite drone: 1
-             * Commander drone: 1
+             * Drone simple: 65000   <--- Max 65535
+             * Assault drone: 25000
+             * Elite drone: 25000
+             * Commander drone: 5000
              */
             $reload++;
             $sql = 'INSERT INTO ship_templates (owner, timestamp, name, description, race, ship_torso, ship_class, 
@@ -475,13 +475,13 @@ class Borg extends NPC
             		VALUES ('.$this->bot['user_id'].','.time().', "'.BORG_UM0.'", "Main Borg Base", '.BORG_RACE.',12,3,
             				-1, -1, -1, -1, -1,
             				-1, -1, -1, -1, -1,
-            				1, 1, 1, 1, 1,
-            				1, 1, 1, 1, 1,
-            				1, 1, 1, 1, 0,
+            				1, 1, 1, 850000, 850000,
+            				5, 80, 5, 100, 10,
+            				80, 0, 10000, 10000, 0,
             				1, 1, 1, 1, 1, 1,
-            				1, 1, 1, 1,
-            				1, 1, 1, 1,
-            				0, 1, 1)';
+            				65000, 25000, 25000, 5000,
+            				65000, 25000, 25000, 5000,
+            				0, 25, 25000)';
 
             if(!$this->db->query($sql)) {
                 $this->sdl->log('<b>Error:</b> Could not save BOT Unimatrix Zero - ABORTED '.$sql, $log);
@@ -650,11 +650,22 @@ class Borg extends NPC
 			// If the fleet does not exists
 			if(empty($fleet['fleet_id'])) {
 				// Create a new fleet
-				if($target['user_points'] > BORG_BIGPLAYER)
+                                if($target['user_points'] > BORG_BIGPLAYER) {
 					$fleet_id = $this->CreateFleet($target['planet_name'],$this->bot['ship_template2'],1);
-				else
+                                        $sql = 'UPDATE ship_fleets SET alert_phase = '.ALERT_PHASE_RED.', 
+						unit_1 = 1000, unit_2 = 1000, unit_3 = 4000, unit_4 = 100
+						WHERE fleet_id = '.$fleet_id;
+                                        if(!$this->db->query($sql))
+                                            $this->sdl->log('<b>Warning:</b> cannot update fleet alarm status to RED!', TICK_LOG_FILE_NPC);                                        
+                                }
+                                else {
 					$fleet_id = $this->CreateFleet($target['planet_name'],$this->bot['ship_template1'],3);
-
+                                        $sql = 'UPDATE ship_fleets SET alert_phase = '.ALERT_PHASE_RED.', 
+						unit_1 = (200*n_ships), unit_2 = (400*n_ships), unit_3 = (1200*n_ships), unit_4 = (40*n_ships)
+						WHERE fleet_id = '.$fleet_id;
+                                        if(!$this->db->query($sql))
+                                            $this->sdl->log('<b>Warning:</b> cannot update fleet alarm status to RED!', TICK_LOG_FILE_NPC);                                        
+                                }
 				// Send it to the planet
 				$this->SendBorgFleet($ACTUAL_TICK,$fleet_id, $target['planet_id']);
 				$send_message = true;
@@ -954,7 +965,7 @@ class Borg extends NPC
 				if($fleet['move_id'] == 0)
 				{
 					// Repair&Rearm Fleet
-					$this->RestoreFleetLosses('Fleet Node#'.$planet['planet_id'], $this->bot['ship_template2'], $n_ships);
+					$this->RestoreBorgFleet('Fleet Node#'.$planet['planet_id'], $n_ships);
 					$fleet_name = 'Fleet Node#'.$planet['planet_id'];
 					$this->RepairFleet($fleet_name);
 					// If it is not at planet, send it to the planet
@@ -967,12 +978,12 @@ class Borg extends NPC
 			$this->db->query('UPDATE planets SET npc_last_action = '.($ACTUAL_TICK + 240).' WHERE planet_id = '.$planet['planet_id']);
 		}
 
-		$this->sdl->finish_job('Create Borg defences on assimilated planets', TICK_LOG_FILE_NPC);
-		// ########################################################################################
-		// ########################################################################################
-		// Settlers Assimilation Program(tm)!!!
+$this->sdl->finish_job('Create Borg defences on assimilated planets', TICK_LOG_FILE_NPC);
+// ########################################################################################
+// ########################################################################################
+// Settlers Assimilation Program(tm)!!!
 
-		$this->sdl->start_job('Settlers Assimilation Program - BETA -', TICK_LOG_FILE_NPC);
+$this->sdl->start_job('Settlers Assimilation Program - BETA -', TICK_LOG_FILE_NPC);
 
         // Settlers Target Analysis phase
         $sql = 'SELECT planet_id, planet_type, bt.user_id FROM planets p
@@ -1035,13 +1046,13 @@ class Borg extends NPC
 				{
 					$this->sdl->log('DEBUG: Is now acting fleet '.$fleet_to_serve['fleet_id'].': '.$fleet_to_serve['fleet_name'], TICK_LOG_FILE_NPC );
 
-					$sql='SELECT planet_id, tries FROM planets p INNER JOIN borg_npc_target bnt USING (planet_id) WHERE planet_owner = '.INDEPENDENT_USERID.' AND bnt.primary_planet = 1 AND live_attack < '.(max(3, $max_live_attack)).' ORDER BY priority DESC, live_attack ASC, planet_owned_date ASC LIMIT 0, 1';
+					$sql='SELECT planet_id, tries, priority FROM planets p INNER JOIN borg_npc_target bnt USING (planet_id) WHERE planet_owner = '.INDEPENDENT_USERID.' AND bnt.primary_planet = 1 AND bnt.live_attack < '.(max(3, $max_live_attack)).' AND bnt.delay = 0 ORDER BY priority DESC, live_attack ASC, planet_owned_date ASC LIMIT 0, 1';
 					$primary_target = $this->db->queryrow($sql);
 					if( (!isset($primary_target['planet_id'])) || (empty($primary_target['planet_id'])) )
 					{
 						$this->sdl->log('DEBUG: No primary target available, will check secondary', TICK_LOG_FILE_NPC );
 						$primary_target['planet_id'] = 0;
-						$sql='SELECT planet_id FROM planets p INNER JOIN borg_npc_target bnt USING (planet_id) WHERE planet_owner = '.INDEPENDENT_USERID.' AND bnt.primary_planet = 0 AND planet_attack_type = 0 ORDER BY bnt.priority DESC, planet_owned_date ASC  LIMIT 0, 1';
+						$sql='SELECT planet_id FROM planets p INNER JOIN borg_npc_target bnt USING (planet_id) WHERE planet_owner = '.INDEPENDENT_USERID.' AND bnt.primary_planet = 0 AND planet_attack_type = 0 AND bnt.delay = 0 ORDER BY bnt.priority DESC, planet_owned_date ASC  LIMIT 0, 1';
 						$secondary_target = $this->db->queryrow($sql);
 						if( (!isset($secondary_target['planet_id'])) || (empty($secondary_target['planet_id'])) )
 						{
@@ -1066,7 +1077,8 @@ class Borg extends NPC
 					{
 						// Borg attacks a primary target
 						$this->sdl->log('DEBUG: Attacking primary target!!!', TICK_LOG_FILE_NPC );
-						if($primary_target['tries'] > 2) $this->AddBorgSpheres($fleet_to_serve['fleet_id']);
+                                                if($primary_target['priority'] > 1) $this->AddBorgCube($fleet_to_serve['fleet_id']);
+						if($primary_target['priority'] > 0) $this->AddBorgSpheres($fleet_to_serve['fleet_id']);
 						$this->SendBorgFleet($ACTUAL_TICK, $fleet_to_serve['fleet_id'], $primary_target['planet_id']);
 						$sql='UPDATE borg_npc_target SET live_attack = live_attack + 1 WHERE planet_id = '.$primary_target['planet_id'];
 						$this->db->query($sql);
@@ -1205,7 +1217,7 @@ class Borg extends NPC
 				{
 					// if($add_tact) $this->AddBorgTact($attack_fleet_data['fleet_id']); not yet implemented
 					if($add_spheres) $this->AddBorgSpheres($attack_fleet_data['fleet_id']);
-					$this->AdaptFleet($attack_fleet_data['fleet_id'], $primary_target['ship_template1'], $primary_target['ship_template2']);
+					// $this->AdaptFleet($attack_fleet_data['fleet_id'], $primary_target['ship_template1'], $primary_target['ship_template2']);
 					$this->SendBorgFleet($ACTUAL_TICK, $attack_fleet_data['fleet_id'], $chosen_target['planet_id']);
 					$live_attack++;
 					$new_attack_count++;
@@ -1304,7 +1316,9 @@ class Borg extends NPC
 
         // Sphere number = Cube * 2
         $sql = 'SELECT count(*) as n_ships FROM ships
-                WHERE template_id = '.$this->bot['ship_template2'].' AND fleet_id = '.$fleet_id;
+                INNER JOIN ship_templates ON template_id = id
+                WHERE ship_torso = 10 AND ship_class = 3 AND owner = '.BORG_USERID.' 
+                AND fleet_id = '.$fleet_id;
         $_n_ships = $this->db->queryrow($sql);
         $num = $_n_ships['n_ships'] * 2;
 
@@ -1337,7 +1351,65 @@ class Borg extends NPC
         }
         $this->sdl->log('Fleet: '.$fleet_id.' - '.$num.' Spheres added', TICK_LOG_FILE_NPC);
     }
+    
+    function AddBorgCube($fleet_id)
+    {
+        $this->sdl->log('Adding Cubes to fleet id='.$fleet_id, TICK_LOG_FILE_NPC);
+        
+        $num = 0;
+        
+        // Check # of Cubes
+        $sql = 'SELECT count(*) as n_ships FROM ships
+                WHERE template_id = '.$this->bot['ship_template2'].' AND fleet_id = '.$fleet_id;
+        $_n_ships = $this->db->queryrow($sql);
+        $cubes = $_n_ships['n_ships'];
+        
+        if($cubes < 1) $cubes = 1; // Safeguard;
+        
+        if($cubes <= 5) {
+            $sql= 'SELECT * FROM `ship_templates` WHERE `id` = '.$this->bot['ship_template2'];
+            if(($stpl = $this->db->queryrow($sql)) === false)
+                $this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql, TICK_LOG_FILE_NPC);
 
+            $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time,
+                                       rof, torp, unit_1, unit_2, unit_3, unit_4)
+                    VALUES ('.$fleet_id.', '.$this->bot['user_id'].', '.$this->bot['ship_template2'].', '.$stpl['value_9'].',
+                            '.$stpl['value_5'].', '.time().', '.$stpl['rof'].', '.$stpl['max_torp'].',
+                            '.$stpl['max_unit_1'].', '.$stpl['max_unit_2'].',
+                            '.$stpl['max_unit_3'].', '.$stpl['max_unit_4'].')';            
+            
+            switch($cubes) {
+                case 0:
+                case 1:
+                    $num = 2;
+                    break;
+                case 2:
+                    $num = 1;
+                    break;
+                case 3:
+                    $num = 1;
+                    break;
+                case 4:
+                    $num = 0;
+                    break;
+                case 5:
+                    $num = 0;
+                    break;
+                default:
+                    break;
+            }
+            
+            for($i = 0; $i < $num; ++$i)
+            {
+                if(!$this->db->query($sql)) {
+                    $this->sdl->log('<b>Error:</b> Could not insert new ships #'.$i.' data', TICK_LOG_FILE_NPC);
+                }
+            }            
+        }
+        
+        $this->sdl->log('Fleet: '.$fleet_id.' - '.$num.' Cubes were added', TICK_LOG_FILE_NPC);
+    }
+    
     function AdaptFleet($fleet_id, $id1, $id2)
     {
         // We switch the template of spheres and cubes attacking.
@@ -1380,6 +1452,59 @@ class Borg extends NPC
             }
         }
     }
+    
+	function RestoreBorgFleet($name,$num)
+	{
+            
+            $query='SELECT * FROM `ship_fleets` WHERE fleet_name="'.$name.'" and user_id='.$this->bot['user_id'].' LIMIT 0, 1';
+            $fleet=$this->db->queryrow($query);
+            if (empty($fleet)) {
+                $this->sdl->log('<u>Warning:</u> Fleet: '.$name.' does not exists! - SKIP', TICK_LOG_FILE_NPC);
+		return;
+            }
+                
+            $query='SELECT COUNT(*) AS counter FROM ships INNER JOIN ship_templates ON template_id = id
+                    WHERE user_id = '.BORG_USERID.' AND fleet_id = '.$fleet['fleet_id'].'
+                    AND ship_torso = 10 AND ship_class = 3';
+            
+            $ships=$this->db->queryrow($query);
+            if (empty($ships)) {
+                $this->sdl->log('<u>Warning:</u> Fleet: '.$name.' does not exists! - SKIP', TICK_LOG_FILE_NPC);
+		return;
+            }
+            
+            if($ships['counter'] < $num)
+            {
+		$this->sdl->log('Fleet "'.$name.'" has only '.$ships['counter'].' cubes - we need restore', TICK_LOG_FILE_NPC);
+		$needed = $num - $ships['counter'];
+
+		$sql = 'UPDATE ship_fleets SET n_ships = n_ships + '.$needed.' WHERE fleet_id = '.$fleet['fleet_id'];
+                if(!$this->db->query($sql))
+		$this->sdl->log('<b>Error:</b> Could not update new fleets data', TICK_LOG_FILE_NPC);
+
+		$sql = 'SELECT * FROM ship_templates WHERE id = '.$this->bot['ship_template2'];
+		if(($stpl = $this->db->queryrow($sql)) === false)
+                    $this->sdl->log('<b>Error:</b> Could not query ship template data - '.$sql, TICK_LOG_FILE_NPC);
+
+                if (empty($stpl))
+                    $this->sdl->log('<b>Error:</b> Could not found template '.$template.'!', TICK_LOG_FILE_NPC);
+                else {
+                    $units_str = $stpl['min_unit_1'].', '.$stpl['min_unit_2'].', '.$stpl['min_unit_3'].', '.$stpl['min_unit_4'];
+                    $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience,
+                                               hitpoints, construction_time, rof, torp, unit_1, unit_2, unit_3, unit_4)
+                            VALUES ('.$fleet['fleet_id'].', '.$this->bot['user_id'].', '.$this->bot['ship_template2'].', '.$stpl['value_9'].',
+                                    '.$stpl['value_5'].', '.time().', '.$stpl['rof'].', '.$stpl['max_torp'].', '.$units_str.')';
+
+                    for($i = 0; $i < $needed; ++$i)
+                    {
+                        if(!$this->db->query($sql)) {
+                            $this->sdl->log('<b>Error:</b> Could not insert new ships #'.$i.' data', TICK_LOG_FILE_NPC);
+                        }
+                    }
+            $this->sdl->log('Fleet: '.$fleet['fleet_id'].' - updated to '.$needed.' cubes', TICK_LOG_FILE_NPC);
+                }
+            }
+	}    
 }
 
 
