@@ -856,9 +856,9 @@ if ($planet['unit_6']<0) $planet['unit_6']=0;
 
         +9 => 'Planet. Verteid.',
 
-        +10 => 'Handelszentrum',
+        +11 => 'Handelszentrum',
 
-        +11 => 'Silos',*/
+        +12 => 'Silos',*/
 
 
 
@@ -874,17 +874,25 @@ $destroy[]=1;
 
 $destroy[]=1;
 
+$destroy[]=10;
+
 $destroy[]=2;
 
 $destroy[]=2;
+
+$destroy[]=10;
 
 $destroy[]=3;
 
 $destroy[]=3;
 
-$destroy[]=11;
+$destroy[]=10;
 
-$destroy[]=11;
+$destroy[]=12;
+
+$destroy[]=12;
+
+$destroy[]=10;
 
 }
 
@@ -898,6 +906,10 @@ $destroy[]=5;
 
 $destroy[]=5;
 
+$destroy[]=5;
+
+$destroy[]=7;
+
 $destroy[]=7;
 
 $destroy[]=7;
@@ -905,6 +917,14 @@ $destroy[]=7;
 $destroy[]=4;
 
 $destroy[]=4;
+
+$destroy[]=4;
+
+$destroy[]=10;
+
+$destroy[]=10;
+
+$destroy[]=10;
 
 }
 
@@ -918,9 +938,21 @@ $destroy[]=0;
 
 $destroy[]=0;
 
+$destroy[]=0;
+
 $destroy[]=8;
 
 $destroy[]=8;
+
+$destroy[]=8;
+
+$destroy[]=11;
+
+$destroy[]=11;
+
+$destroy[]=11;
+
+$destroy[]=10;
 
 $destroy[]=10;
 
