@@ -111,7 +111,7 @@ $sdl->start_job('Extra-Optimal Range Upgrade Planet Step');
 
 $threshold = new DateTime('now');
 
-date_sub($threshold,date_interval_create_from_date_string("90 days"));
+date_sub($threshold,date_interval_create_from_date_string("45 days"));
 
 $uts_threshold = date_format($threshold,'U');
 
