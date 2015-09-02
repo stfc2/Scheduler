@@ -354,13 +354,17 @@ class moves_action_27 extends moves_common {
                                 $this->do_simple_relation($this->move['user_id'], $event_row['planet_id'], LC_REL_PREY, -10);
                                 $newatlevel = $event_row['awayteam_startlevel'] + $event_row['count_ok'] * 2.0 + 15.0;
                                 $sql = 'UPDATE ships SET unit_1 = '.$event_row['unit_1'].', unit_2 = '.$event_row['unit_2'].', unit_3 = '.$event_row['unit_3'].', unit_4 = '.$event_row['unit_4'].',
-                                                         awayteam = '.$newatlevel.', user_id = '.$event_row['user_id'].' WHERE ship_id = '.$ship_details['ship_id'];
+                                                         awayteam = '.$newatlevel.', user_id = '.$event_row['user_id'].', awayteamplanet_id = 0 WHERE ship_id = '.$ship_details['ship_id'];
                                 if(!$this->db->query($sql)) {
                                     return $this->log(MV_M_DATABASE, 'Could not update captured ship data! SKIP!!! '.$sql);
                                 }
                                 $sql = 'UPDATE ship_fleets SET user_id = '.$event_row['user_id'].', fleet_name = "Catturata" WHERE fleet_id = '.$ship_details['fleet_id'];
                                 if(!$this->db->query($sql)) {
                                     return $this->log(MV_M_DATABASE, 'Could not update captured fleet data! SKIP!!! '.$sql);
+                                }
+                                $sql = 'UPDATE ships SET awayteam = 1, awayteamplanet_id = 0 WHERE ship_id = '.$event_row['awayteamship_id'];
+                                if(!$this->db->query($sql)) {
+                                    return $this->log(MV_M_DATABASE, 'Could not update ship AT level!!! '.$sql);
                                 }
                                 $log_data1[5] = $log_data2[5] = 1;
                                 $event_delete = TRUE;
