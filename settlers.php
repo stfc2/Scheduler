@@ -737,7 +737,7 @@ class Settlers extends NPC
                         else
                             $_ress_1 = 0;
                     }
-                    elseif($planet_to_serve['planet_type'] == 's')
+                    elseif($planet_to_serve['planet_type'] == 's'|| $planet_to_serve['planet_type'] == 't')
                     {
                         $_ress_2 = round($_ress_rateo*($planet_to_serve['add_2']*20*24));
                         if($_ress_2 < $planet_to_serve['resource_2'])
@@ -748,7 +748,7 @@ class Settlers extends NPC
                         else
                             $_ress_2 = 0;
                     }
-                    elseif($planet_to_serve['planet_type'] == 'i' || $planet_to_serve['planet_type'] == 't')
+                    elseif($planet_to_serve['planet_type'] == 'i')
                     {
                         $_ress_3 = round($_ress_rateo*($planet_to_serve['add_3']*20*24));
                         if($_ress_3 < $planet_to_serve['resource_3'])
