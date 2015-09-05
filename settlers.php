@@ -387,7 +387,11 @@ class Settlers extends NPC
                 
                 // Let's activate the Academy! Sadly, we have to set ALL the fields for clearing them
                 if($planet_to_serve['unittrain_actual'] == 0 &&
-                  ($planet_to_serve['planet_type'] == 'm' || $planet_to_serve['planet_type'] == 'o' || $planet_to_serve['planet_type'] == 'p'))
+                  ($planet_to_serve['planet_type'] == 'g' || 
+                   $planet_to_serve['planet_type'] == 'h' ||                        
+                   $planet_to_serve['planet_type'] == 'm' ||
+                   $planet_to_serve['planet_type'] == 'o' || 
+                   $planet_to_serve['planet_type'] == 'p'))
                 {
                     if($troops_to_train < 1) $troops_to_train = 0;
                     $sql = 'UPDATE planets SET unittrainid_1 = 5, unittrainid_2 = 6,
