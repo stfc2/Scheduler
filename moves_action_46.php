@@ -26,9 +26,23 @@ class moves_action_46 extends moves_common {
 // #############################################################################
 // Data from the attacker
 
+/*        
 $sql = 'SELECT '.$this->get_combat_query_fleet_columns().', f.resource_4, f.unit_1, f.unit_2, f.unit_3, f.unit_4
         FROM (ship_fleets f)
         INNER JOIN user u ON u.user_id = f.user_id
+        INNER JOIN ships ON ships
+        WHERE f.fleet_id IN ('.$this->fleet_ids_str.')';
+ */
+
+$sql = 'SELECT '.$this->get_combat_query_fleet_columns().',
+		SUM(s.unit_1 - st.min_unit_1) AS unit_1,
+                SUM(s.unit_2 - st.min_unit_2) AS unit_2,
+                SUM(s.unit_3 - st.min_unit_3) AS unit_3,
+                SUM(s.unit_4 - st.min_unit_4) AS unit_4
+        FROM (ship_fleets f)
+        INNER JOIN user u ON u.user_id = f.user_id
+        INNER JOIN ships s USING (fleet_id)
+        INNER JOIN ship_templates st ON s.template_id = st.id
         WHERE f.fleet_id IN ('.$this->fleet_ids_str.')';
 
 if(($atk_fleets = $this->db->queryrowset($sql)) === false) {
@@ -183,11 +197,12 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
         // In order to eliminate the troops of the aggressor, simply reset all transporters
 
         // 21/06/08 - AC: Keep out workers from battle!
-        $sql = 'UPDATE ship_fleets
-                SET unit_1 = 0,
-                    unit_2 = 0,
-                    unit_3 = 0,
-                    unit_4 = 0
+        $sql = 'UPDATE ships
+                INNER JOIN ship_templates ON ships.template_id = ship_templates.id
+                        SET unit_1 = ship_templates.min_unit_1,
+                        unit_2 = ship_templates.min_unit_2,
+                        unit_3 = ship_templates.min_unit_3,
+                        unit_4 = ship_templates.min_unit_4
                 WHERE fleet_id IN ('.$this->fleet_ids_str.')';
 
         if(!$this->db->query($sql)) {
@@ -278,7 +293,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             }
 
             // Borg doesn't have cargo, simply use the Cube
-
+            /*
             $sql = 'UPDATE ship_fleets
                     SET unit_1 = '.$atk_alive[0].',
                         unit_2 = '.$atk_alive[1].',
@@ -289,11 +304,14 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             if(!$this->db->query($sql)) {
                 $this->log(MV_M_DATABASE, 'Could not update fleets units data! CONTINUE');
             }
+             * 
+             */
         } // alive troops doesn't exceed max planet units
         else {
             for($i = 0; $i <= 3; ++$i)
                 $planet_units[$i] += $atk_alive[$i];
 
+            /*
             $sql = 'UPDATE ship_fleets
                     SET unit_1 = 0,
                         unit_2 = 0,
@@ -304,6 +322,8 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             if(!$this->db->query($sql)) {
                 return $this->log(MV_M_DATABASE, 'Could not update ship fleets unit transport data! SKIP');
             }
+             * 
+             */
         }
 
         $sql = 'DELETE FROM scheduler_instbuild
@@ -674,14 +694,14 @@ else {
     
     $adaption_chance_array = array (
         'no_event'  => 90,
-        'adapt_PRI' => 15,
-        'adapt_SEC' => 15,
+        'adapt_PRI' => 14,
+        'adapt_SEC' => 12,
         'adapt_SHI' => 7,
-        'adapt_ARM' => 10,
+        'adapt_ARM' => 9,
         'adapt_REA' => 4,
-        'adapt_RED' => 4,
-        'adapt_AGI' => 4,
-        'adapt_ROF' => 1
+        'adapt_RED' => 5,
+        'adapt_AGI' => 3,
+        'adapt_ROF' => 6
     );
 
     $adaption_array = array();
