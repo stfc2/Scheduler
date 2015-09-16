@@ -694,14 +694,15 @@ else {
     
     $adaption_chance_array = array (
         'no_event'  => 90,
-        'adapt_PRI' => 14,
+        'adapt_PRI' => 13,
         'adapt_SEC' => 12,
         'adapt_SHI' => 7,
         'adapt_ARM' => 9,
         'adapt_REA' => 4,
         'adapt_RED' => 5,
         'adapt_AGI' => 3,
-        'adapt_ROF' => 6
+        'adapt_ROF' => 4,
+        'adapt_ROF2' => 2
     );
 
     $adaption_array = array();
@@ -731,6 +732,7 @@ else {
         $newvalue7 = $borgcube_tp['value_7'];
         $newvalue8 = $borgcube_tp['value_8'];
         $newrof    = $borgcube_tp['rof'];
+        $newrof2   = $borgcube_tp['rof2'];
         
         switch($adaption_event) {
             case 'adapt_PRI':
@@ -763,12 +765,12 @@ else {
                 break;
             case 'adapt_ROF':
                 $newrof = $newrof + 1;
-                $_ratio = $newvalue1 / (int)$borgcube_tp['rof'];
-                $newvalue1 = round(($newrof * $_ratio), 0);
-                $_ratio = $newvalue2 / (int)$borgcube_tp['rof'];
-                $newvalue2 = round(($newrof * $_ratio), 0);
                 $this->log(MV_M_NOTICE, '+++ Borg ROF Value +++.');
                 break;
+            case 'adapt_ROF2':
+                $newrof2 = $newrof2 + 1;
+                $this->log(MV_M_NOTICE, '+++ Borg ROF2 Value +++.');
+                break;            
         }
         
         $oldversion = 0;
@@ -784,17 +786,17 @@ else {
                                                 resource_1, resource_2, resource_3, resource_4, unit_5, unit_6,
                                                 min_unit_1, min_unit_2, min_unit_3, min_unit_4,
                                                 max_unit_1, max_unit_2, max_unit_3, max_unit_4,
-                                                buildtime, rof, max_torp)
-                VALUES ("'.$borgcube_tp['owner'].'","'.time().'","Adapted Cube#'.($oldversion + 1).'","Assimilation ship","'.$borgcube_tp['race'].'",10,3,
+                                                buildtime, rof, rof2, max_torp)
+                VALUES ("'.$borgcube_tp['owner'].'","'.time().'","Adapted Cube#'.($oldversion + 1).'","Assimilation ship","'.$borgcube_tp['race'].'",9,3,
                             -1,-1,-1,-1,-1,
                             -1,-1,-1,-1,-1,
-                            "'.$newvalue1.'","'.$newvalue2.'","400","'.$newvalue4.'","'.$newvalue5.'",
-                            "'.$newvalue6.'","'.$newvalue7.'","'.$newvalue8.'","60","10",
-                            "40","0","2000","2000","0",
-                            "500000","500000","500000","50000","10000","1000",
-                            "10000","2500","2500","500",
-                            "30000","7000","5000","1000",
-                            0, '.$newrof.', 1000)';
+                            "'.$newvalue1.'","'.$newvalue2.'","140","'.$newvalue4.'","'.$newvalue5.'",
+                            "'.$newvalue6.'","'.$newvalue7.'","'.$newvalue8.'","50","10",
+                            "42","0","300","300","0",
+                            "500000","500000","500000","50000","39","16",
+                            "294","0","0","6",
+                            "9294","6000","3000","6",
+                            0, '.$newrof.', '.$newrof2.', 1000)';
         
         $this->db->query($sql);
         
