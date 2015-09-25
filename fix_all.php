@@ -176,10 +176,10 @@ $sdl->log('Unimatrix Zero Tact Cube count is: '.$tactical_counter);
 if($tactical_counter > $borg_tact_num['counter'])
 {
     // We add ONE Tactical Cube
-    $sql = 'SELECT value_5, value_9, max_torp, rof FROM ship_templates WHERE id = '.$borg_tp['tact_cube'];
+    $sql = 'SELECT value_5, value_9, max_torp, rof, rof2 FROM ship_templates WHERE id = '.$borg_tp['tact_cube'];
     $borg_tact_tp = $db->queryrow($sql);
-    $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, last_refit_time)
-            VALUES ('.$borg_fleet['fleet_id'].', '.BORG_USERID.', '.$borg_tp['tact_cube'].', '.$borg_tact_tp['value_9'].', '.$borg_tact_tp['value_5'].', '.time().', '.$borg_tact_tp['max_torp'].', '.$borg_tact_tp['rof'].', '.time().')';
+    $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, rof2, last_refit_time)
+            VALUES ('.$borg_fleet['fleet_id'].', '.BORG_USERID.', '.$borg_tp['tact_cube'].', '.$borg_tact_tp['value_9'].', '.$borg_tact_tp['value_5'].', '.time().', '.$borg_tact_tp['max_torp'].', '.$borg_tact_tp['rof'].', '.$borg_tact_tp['rof2'].', '.time().')';
     if(!$db->query($sql)) {
         $sdl->log('<b>Error:</b>: could not insert new tactical cube in ships! CONTINUE');
     }
@@ -189,7 +189,7 @@ if($tactical_counter > $borg_tact_num['counter'])
 $sql = 'SELECT COUNT(*) AS counter FROM ships
         INNER JOIN ship_templates ON template_id = id
         WHERE user_id = '.BORG_USERID.' AND fleet_id = '.$borg_fleet['fleet_id'].' 
-        AND ship_torso = 10 AND ship_class = 3'; 
+        AND ship_torso = 9 AND ship_class = 3'; 
 $borg_std_num = $db->queryrow($sql);
 $standard_counter = $tactical_counter*6;
 $sdl->log('Unimatrix Zero Standard Cube count is: '.$standard_counter);
@@ -198,12 +198,12 @@ if($standard_counter > $borg_std_num['counter'])
     // We add SIX Cubes for every one TACT
     $to_add_counter = $standard_counter - $borg_std_num['counter'];
     if($to_add_counter > 5) $to_add_counter = 5;
-    $sql = 'SELECT value_5, value_9, max_torp, rof FROM ship_templates WHERE id = '.$borg_tp['standard_cube'];
+    $sql = 'SELECT value_5, value_9, max_torp, rof, rof2 FROM ship_templates WHERE id = '.$borg_tp['standard_cube'];
     $borg_std_tp = $db->queryrow($sql);
     for($i = 0; $i < $to_add_counter; $i++)
     {
-        $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, last_refit_time)
-                VALUES ('.$borg_fleet['fleet_id'].', '.BORG_USERID.', '.$borg_tp['standard_cube'].', '.$borg_std_tp['value_9'].', '.$borg_std_tp['value_5'].', '.time().', '.$borg_std_tp['max_torp'].', '.$borg_std_tp['rof'].', '.time().')';
+        $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, rof2, last_refit_time)
+                VALUES ('.$borg_fleet['fleet_id'].', '.BORG_USERID.', '.$borg_tp['standard_cube'].', '.$borg_std_tp['value_9'].', '.$borg_std_tp['value_5'].', '.time().', '.$borg_std_tp['max_torp'].', '.$borg_std_tp['rof'].', '.$borg_std_tp['rof2'].', '.time().')';
         if(!$db->query($sql)) {
             $sdl->log('<b>Error:</b>: could not insert new cube in ships! CONTINUE');
         }
@@ -220,12 +220,12 @@ if($sphere_counter > $borg_std_num['counter'])
     // We add FOUR spheres for every one CUBE
     $to_add_counter = $sphere_counter - $borg_std_num['counter'];
     if($to_add_counter > 5) $to_add_counter = 5;
-    $sql = 'SELECT value_5, value_9, max_torp, rof FROM ship_templates WHERE id = '.$borg_tp['sphere'];
+    $sql = 'SELECT value_5, value_9, max_torp, rof, rof2 FROM ship_templates WHERE id = '.$borg_tp['sphere'];
     $borg_std_tp = $db->queryrow($sql);
     for($i = 0; $i < $to_add_counter; $i++)
     {
-        $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, last_refit_time)
-                VALUES ('.$borg_fleet['fleet_id'].', '.BORG_USERID.', '.$borg_tp['sphere'].', '.$borg_std_tp['value_9'].', '.$borg_std_tp['value_5'].', '.time().', '.$borg_std_tp['max_torp'].', '.$borg_std_tp['rof'].', '.time().')';
+        $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, rof2, last_refit_time)
+                VALUES ('.$borg_fleet['fleet_id'].', '.BORG_USERID.', '.$borg_tp['sphere'].', '.$borg_std_tp['value_9'].', '.$borg_std_tp['value_5'].', '.time().', '.$borg_std_tp['max_torp'].', '.$borg_std_tp['rof'].', '.$borg_std_tp['rof2'].', '.time().')';
         if(!$db->query($sql)) {
             $sdl->log('<b>Error:</b>: could not insert new sphere in ships! CONTINUE');
         }
