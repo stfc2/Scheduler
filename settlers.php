@@ -254,9 +254,9 @@ class Settlers extends NPC
                     $this->db->query($sql);
                     continue;
                 }
-                if($planet_to_serve['building_5'] < 9)
+                if($planet_to_serve['building_5'] < 6)
                 {
-                    $sql = 'UPDATE planets SET building_5 = 9, npc_last_action = '.$ACTUAL_TICK.' WHERE planet_id = '.$planet_to_serve['planet_id'];
+                    $sql = 'UPDATE planets SET building_5 = 6, npc_last_action = '.$ACTUAL_TICK.' WHERE planet_id = '.$planet_to_serve['planet_id'];
                     $this->sdl->log('SQL 1'.$sql, TICK_LOG_FILE_NPC);
                     $this->db->query($sql);
                     continue;
@@ -298,34 +298,53 @@ class Settlers extends NPC
                 // Now the Spacedock
                 if($planet_to_serve['building_7']< 3)
                 {
+                    $res = $this->StartBuild($ACTUAL_TICK,6,$planet_to_serve);
+                    if($res == BUILD_ERR_ENERGY) {$res = $this->StartBuild($ACTUAL_TICK,4,$planet_to_serve);}
+                    continue;
+                    /*
                     $sql = 'UPDATE planets SET building_7 = 3, npc_last_action = '.$ACTUAL_TICK.', recompute_static = 1 WHERE planet_id = '.$planet_to_serve['planet_id'];
                     $this->sdl->log('SQL 3'.$sql, TICK_LOG_FILE_NPC);
                     $this->db->query($sql);
-                    continue;
+                     * 
+                     */
+
                 }
                 // Now the Spaceyard
                 if($planet_to_serve['building_8'] < 1)
                 {
+                    $res = $this->StartBuild($ACTUAL_TICK,7,$planet_to_serve);
+                    if($res == BUILD_ERR_ENERGY) {$res = $this->StartBuild($ACTUAL_TICK,4,$planet_to_serve);}
+                    continue;                    
+                    /*
                     $sql = 'UPDATE planets SET building_8 = 1, npc_last_action = '.$ACTUAL_TICK.', recompute_static = 1 WHERE planet_id = '.$planet_to_serve['planet_id'];
                     $this->sdl->log('SQL 4'.$sql, TICK_LOG_FILE_NPC);
-                    $this->db->query($sql);
-                    continue;
+                    $this->db->query($sql);                    
+                     * 
+                     */
                 }
                 // Light orbital defense
                 if(($planet_to_serve['building_10'] + $planet_to_serve['research_3']) < (14 + $planet_to_serve['research_3']))
                 {
+                    $res = $this->StartBuild($ACTUAL_TICK,9,$planet_to_serve);
+                    if($res == BUILD_ERR_ENERGY) {$res = $this->StartBuild($ACTUAL_TICK,4,$planet_to_serve);}                    
+                    /*
                     $sql = 'UPDATE planets SET building_10 = '.(14 + $planet_to_serve['research_3']).', npc_last_action = '.($ACTUAL_TICK + 10).', recompute_static = 1 WHERE planet_id = '.$planet_to_serve['planet_id'];
                     $this->sdl->log('SQL 5'.$sql, TICK_LOG_FILE_NPC);
                     $this->db->query($sql);
                     continue;
+                     */
                 }
                 // Heavy orbital defense
                 if(($planet_to_serve['building_13'] + $planet_to_serve['research_3']) < (14 + $planet_to_serve['research_3']))
                 {
+                    $res = $this->StartBuild($ACTUAL_TICK,12,$planet_to_serve);
+                    if($res == BUILD_ERR_ENERGY) {$res = $this->StartBuild($ACTUAL_TICK,4,$planet_to_serve);}                    
+                    /*
                     $sql = 'UPDATE planets SET building_13 = '.(14 + $planet_to_serve['research_3']).', npc_last_action = '.($ACTUAL_TICK + 30).', recompute_static = 1 WHERE planet_id = '.$planet_to_serve['planet_id'];
                     $this->sdl->log('SQL 6'.$sql, TICK_LOG_FILE_NPC);
                     $this->db->query($sql);
                     continue;
+                     */
                 }
                 // Are there enough workers in the mines?
                 if($planet_to_serve['workermine_1'] < 1000 || $planet_to_serve['workermine_2'] < 1000 || $planet_to_serve['workermine_3'] < 1000)
@@ -879,7 +898,7 @@ class Settlers extends NPC
                     if($s_q['ship_queue'] == 0)
                     {
                         $_buildtime = 1440; // Yep, no access to the DB, let's avoid it...
-                        $sql = 'INSERT INTO scheduler_shipbuild SET ship_type = '.$cfg_data['settler_tmp_2'].', planet_id = '.$planet_to_serve['planet_id'].', start_build = '.$ACTUAL_TICK.', finish_build = '.($ACTUAL_TICK + $_buildtime).', unit_1 = 90, unit_2 = 30, unit_3 = 10, unit_4 = 1';
+                        $sql = 'INSERT INTO scheduler_shipbuild SET ship_type = '.$cfg_data['settler_tmp_2'].', planet_id = '.$planet_to_serve['planet_id'].', start_build = '.$ACTUAL_TICK.', finish_build = '.($ACTUAL_TICK + $_buildtime).', unit_1 = 100, unit_2 = 0, unit_3 = 0, unit_4 = 2';
                         $this->sdl->log('SQL A - 3.1 '.$sql, TICK_LOG_FILE_NPC);
                         $this->db->query($sql);
                         $sql = 'UPDATE planets SET npc_last_action = '.($ACTUAL_TICK + 20).' WHERE planet_id = '.$planet_to_serve['planet_id'];
@@ -897,7 +916,7 @@ class Settlers extends NPC
                     if($s_q['ship_queue'] == 0)
                     {
                         $_buildtime = 2880; // Yep, no access to the DB, let's avoid it...
-                        $sql = 'INSERT INTO scheduler_shipbuild SET ship_type = '.$cfg_data['settler_tmp_3'].', planet_id = '.$planet_to_serve['planet_id'].', start_build = '.$ACTUAL_TICK.', finish_build = '.($ACTUAL_TICK + $_buildtime).', unit_1 = 200, unit_2 = 95, unit_3 = 65, unit_4 = 6';
+                        $sql = 'INSERT INTO scheduler_shipbuild SET ship_type = '.$cfg_data['settler_tmp_3'].', planet_id = '.$planet_to_serve['planet_id'].', start_build = '.$ACTUAL_TICK.', finish_build = '.($ACTUAL_TICK + $_buildtime).', unit_1 = 150, unit_2 = 0, unit_3 = 0, unit_4 = 3';
                         $this->sdl->log('SQL A - 3.3 '.$sql, TICK_LOG_FILE_NPC);
                         $this->db->query($sql);
                         $sql = 'UPDATE planets SET npc_last_action = '.($ACTUAL_TICK + 20).' WHERE planet_id = '.$planet_to_serve['planet_id'];
