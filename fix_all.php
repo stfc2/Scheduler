@@ -191,11 +191,11 @@ $sql = 'SELECT COUNT(*) AS counter FROM ships
         WHERE user_id = '.BORG_USERID.' AND fleet_id = '.$borg_fleet['fleet_id'].' 
         AND ship_torso = 9 AND ship_class = 3'; 
 $borg_std_num = $db->queryrow($sql);
-$standard_counter = $tactical_counter*6;
+$standard_counter = $tactical_counter*4;
 $sdl->log('Unimatrix Zero Standard Cube count is: '.$standard_counter);
 if($standard_counter > $borg_std_num['counter'])
 {
-    // We add SIX Cubes for every one TACT
+    // We add FOUR Cubes for every one TACT
     $to_add_counter = $standard_counter - $borg_std_num['counter'];
     if($to_add_counter > 5) $to_add_counter = 5;
     $sql = 'SELECT value_5, value_9, max_torp, rof, rof2 FROM ship_templates WHERE id = '.$borg_tp['standard_cube'];
@@ -211,13 +211,17 @@ if($standard_counter > $borg_std_num['counter'])
 }
 
 //Spheres Check
-$sql = 'SELECT COUNT(*) AS counter FROM ships WHERE user_id = '.BORG_USERID.' AND fleet_id = '.$borg_fleet['fleet_id'].' AND template_id = '.$borg_tp['sphere']; 
+$sql = 'SELECT COUNT(*) AS counter FROM ships 
+        INNER JOIN ship_templates ON template_id = id 
+        WHERE ships.user_id = '.BORG_USERID.' AND 
+              ships.fleet_id = '.$borg_fleet['fleet_id'].' AND 
+              ship_torso = 6 AND ship_class = 2'; 
 $borg_std_num = $db->queryrow($sql);
-$sphere_counter = $standard_counter*4;
+$sphere_counter = $standard_counter*3;
 $sdl->log('Unimatrix Zero Sphere count is: '.$sphere_counter);
 if($sphere_counter > $borg_std_num['counter'])
 {
-    // We add FOUR spheres for every one CUBE
+    // We add THREE spheres for every one CUBE
     $to_add_counter = $sphere_counter - $borg_std_num['counter'];
     if($to_add_counter > 5) $to_add_counter = 5;
     $sql = 'SELECT value_5, value_9, max_torp, rof, rof2 FROM ship_templates WHERE id = '.$borg_tp['sphere'];
@@ -236,7 +240,9 @@ $sdl->finish_job('Unimatrix Zero Maintenance');
 
 $sdl->start_job('borg_npc_target Maintenance');
 
-$db->query('UPDATE borg_npc_target SET timeout = '.$ACTUAL_TICK.' + 1440, delay = 1 WHERE tries > 4 AND delay = 0');
+$db->query('DELETE FROM borg_npc_target WHERE primary_planet = 2 AND priority > 1');
+
+$db->query('UPDATE borg_npc_target SET timeout = '.$ACTUAL_TICK.' + 1440, delay = 1 WHERE tries > 2 AND delay = 0');
 
 $db->query('UPDATE borg_npc_target SET timeout = 0, tries = 0, delay = 0, priority = priority + 1 WHERE delay = 1 AND timeout < '.$ACTUAL_TICK);
 
@@ -398,6 +404,13 @@ while($surrender = $db->fetchrow($query_s_p)) {
     if(!$db->query($sql)) {
         $sdl->log('<b>Error:</b> Could not remove settlers_relations entry for <b>'.$surrender['planet_id'].'</b>! CONTINUED');
     }
+    
+    $sql = 'INSERT INTO settlers_relations (planet_id, race_id, user_id, timestamp, log_code, mood_modifier)
+                                    VALUES ('.$surrender['planet_id'].', 13, '.INDEPENDENT_USERID.', '.time().', 30, 80)';
+    
+    if(!$db->query($sql)) {
+        $sdl->log('<b>Error:</b> Could not create Settlers Founder data for <b>'.$surrender['planet_id'].'</b>! CONTINUED');
+    } 
 }
 
 $sdl->finish_job('Rioters planets take over by the settlers');
