@@ -103,7 +103,103 @@ $sdl->finish_job('Mine Job'); // terminates the timer
 
 */
 
+// #######################################################################################
+// #######################################################################################
 
+$sdl->start_job('Unimatrix Zero Maintenance');
+
+$bot = $db->queryrow('SELECT * FROM borg_bot LIMIT 0,1');
+
+if($bot['shutdown'] == 0) {
+
+    $sql = 'SELECT COUNT(*) AS counter FROM planets WHERE planet_owner = '.BORG_USERID;
+    $borg_planets = $db->queryrow($sql);
+
+    $sql = 'SELECT ship_template3 AS tact_cube, ship_template2 AS standard_cube, ship_template1 As sphere from borg_bot WHERE user_id = '.BORG_USERID;
+    $borg_tp = $db->queryrow($sql);
+
+    $sql = 'SELECT fleet_id FROM ship_fleets WHERE fleet_name LIKE "Unimatrix Zero" AND user_id = '.BORG_USERID;
+    $borg_fleet = $db->queryrow($sql);
+
+    // Tactical Cubes Check
+    $sql = 'SELECT COUNT(*) AS counter FROM ships
+            INNER JOIN ship_templates ON template_id = id
+            WHERE user_id = '.BORG_USERID.' AND fleet_id = '.$borg_fleet['fleet_id'].'
+            AND ship_torso = 11 AND ship_class = 3';            
+    $borg_tact_num = $db->queryrow($sql);
+    $tactical_counter = round((($borg_planets['counter'] - 1) / 5), 0) + 3;
+    $sdl->log('Unimatrix Zero Tact Cube count is: '.$tactical_counter);
+    if($tactical_counter > $borg_tact_num['counter'])
+    {
+        // We add ONE Tactical Cube
+        $sql = 'SELECT value_4, value_9, max_torp, rof, rof2, max_unit_1, max_unit_2, max_unit_3, max_unit_4 FROM ship_templates WHERE id = '.$borg_tp['tact_cube'];
+        $borg_tact_tp = $db->queryrow($sql);
+        $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, rof2, last_refit_time, unit_1, unit_2, unit_3, unit_4)
+                VALUES ('.$borg_fleet['fleet_id'].', '.BORG_USERID.', '.$borg_tp['tact_cube'].', '.$borg_tact_tp['value_9'].', '.$borg_tact_tp['value_4'].', '.time().', '.$borg_tact_tp['max_torp'].', '.$borg_tact_tp['rof'].', '.$borg_tact_tp['rof2'].', '.time().', 
+                        '.$borg_tact_tp['max_unit_1'].', '.$borg_tact_tp['max_unit_2'].', '.$borg_tact_tp['max_unit_3'].', '.$borg_tact_tp['max_unit_4'].')';
+        if(!$db->query($sql)) {
+            $sdl->log('<b>Error:</b>: could not insert new tactical cube in ships! CONTINUE');
+        }
+    }
+
+    //Standard Cubes Check
+    $sql = 'SELECT COUNT(*) AS counter FROM ships
+            INNER JOIN ship_templates ON template_id = id
+            WHERE user_id = '.BORG_USERID.' AND fleet_id = '.$borg_fleet['fleet_id'].' 
+            AND ship_torso = 9 AND ship_class = 3'; 
+    $borg_std_num = $db->queryrow($sql);
+    $standard_counter = $tactical_counter*4;
+    $sdl->log('Unimatrix Zero Standard Cube count is: '.$standard_counter);
+    if($standard_counter > $borg_std_num['counter'])
+    {
+        // We add FOUR Cubes for every one TACT
+        $to_add_counter = $standard_counter - $borg_std_num['counter'];
+        if($to_add_counter > 5) $to_add_counter = 5;
+        $sql = 'SELECT value_4, value_9, max_torp, rof, rof2, max_unit_1, max_unit_2, max_unit_3, max_unit_4 FROM ship_templates WHERE id = '.$borg_tp['standard_cube'];
+        $borg_std_tp = $db->queryrow($sql);
+        for($i = 0; $i < $to_add_counter; $i++)
+        {
+            $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, rof2, last_refit_time, unit_1, unit_2, unit_3, unit_4)
+                    VALUES ('.$borg_fleet['fleet_id'].', '.BORG_USERID.', '.$borg_tp['standard_cube'].', '.$borg_std_tp['value_9'].', '.$borg_std_tp['value_4'].', '.time().', '.$borg_std_tp['max_torp'].', '.$borg_std_tp['rof'].', '.$borg_std_tp['rof2'].', '.time().',
+                    '.$borg_std_tp['max_unit_1'].', '.$borg_std_tp['max_unit_2'].', '.$borg_std_tp['max_unit_3'].', '.$borg_std_tp['max_unit_4'].')';
+            if(!$db->query($sql)) {
+                $sdl->log('<b>Error:</b>: could not insert new cube in ships! CONTINUE');
+            }
+        }
+    }
+
+    //Spheres Check
+    $sql = 'SELECT COUNT(*) AS counter FROM ships 
+            INNER JOIN ship_templates ON template_id = id 
+            WHERE ships.user_id = '.BORG_USERID.' AND 
+                  ships.fleet_id = '.$borg_fleet['fleet_id'].' AND 
+                  ship_torso = 6 AND ship_class = 2'; 
+    $borg_std_num = $db->queryrow($sql);
+    $sphere_counter = $standard_counter*3;
+    $sdl->log('Unimatrix Zero Sphere count is: '.$sphere_counter);
+    if($sphere_counter > $borg_std_num['counter'])
+    {
+        // We add THREE spheres for every one CUBE
+        $to_add_counter = $sphere_counter - $borg_std_num['counter'];
+        if($to_add_counter > 5) $to_add_counter = 5;
+        $sql = 'SELECT value_4, value_9, max_torp, rof, rof2, max_unit_1, max_unit_2, max_unit_3, max_unit_4 FROM ship_templates WHERE id = '.$borg_tp['sphere'];
+        $borg_std_tp = $db->queryrow($sql);
+        for($i = 0; $i < $to_add_counter; $i++)
+        {
+            $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, rof2, last_refit_time)
+                    VALUES ('.$borg_fleet['fleet_id'].', '.BORG_USERID.', '.$borg_tp['sphere'].', '.$borg_std_tp['value_9'].', '.$borg_std_tp['value_4'].', '.time().', '.$borg_std_tp['max_torp'].', '.$borg_std_tp['rof'].', '.$borg_std_tp['rof2'].', '.time().'
+                    '.$borg_std_tp['max_unit_1'].', '.$borg_std_tp['max_unit_2'].', '.$borg_std_tp['max_unit_3'].', '.$borg_std_tp['max_unit_4'].')';
+            if(!$db->query($sql)) {
+                $sdl->log('<b>Error:</b>: could not insert new sphere in ships! CONTINUE');
+            }
+        }
+    }
+}
+else {
+    $sdl->log('<b>Notice:</b>: Bot is shutdown');
+}
+
+$sdl->finish_job('Unimatrix Zero Maintenance');
 
 // #######################################################################################
 // #######################################################################################
@@ -139,96 +235,224 @@ elseif($players['num_users'] > 30) {
 }
 $sdl->finish_job('Recalculate colony ship limits');
 
-// #######################################################################################
-// #######################################################################################
-// Check of miners available on Borg planets
-$sdl->start_job('Check miners on Borg planets');
-$mines_upgraded = 0;
-$miners = array();
-$mines_level = array();
-$borg = new NPC($db,$sdl);
-$borg -> LoadNPCUserData(BORG_USERID);
+$sdl->start_job('Settlers Events');
 
-// We need many infos here, for StartBuild() function
-$sql = 'SELECT planet_id, planet_type,
-               building_1, building_2, building_3, building_4, building_5,
-               building_6, building_7, building_8, building_9, building_10,
-               building_11, building_12, building_13,
-               resource_1, resource_2, resource_3, resource_4
-               research_3, research_4,
-               workermine_1, workermine_2, workermine_3
-        FROM planets WHERE planet_owner = '.BORG_USERID;
-$borg_planets = $db->query($sql);
-while($planet=$db->fetchrow($borg_planets)) {
-    // If we have at least a workers slot
-    if($planet['resource_4'] > 100) {
-        $mine = 0;
-        $max_reached = 0;
-        $miners_updated = false;
-        $miners[0] = $planet['workermine_1'];
-        $miners[1] = $planet['workermine_2'];
-        $miners[2] = $planet['workermine_3'];
-        $workers = $planet['resource_4'];
-        $mines_level[0] = $planet['building_2'];
-        $mines_level[1] = $planet['building_3'];
-        $mines_level[2] = $planet['building_4'];
-
-        while($workers > 100 && $max_reached < 3) {
-            // If there is space for new workers
-            if($miners[$mine] < (($mines_level[$mine]*100)+100)) {
-                $miners[$mine]+=100;
-                $workers-=100;
-                $miners_updated = true;
-            }
-            // There is no space available, perhaps we can increase the mine level?
-            else {
-                $max_reached++;
-            }
-            $mine++;
-            if($mine > 2)
-                $mine = 0;
-        }
-
-        // If we exit from the while because there isn't space available on the mines
-        if($max_reached) {
-            // Search the mine with lowest level
-            $min = $mines_level[0];
-            $mine = 1;
-            for($i = 1;$i < 3;$i++)
-                if($mines_level[$i] < $min)
-                {
-                    $min = $mines_level[$i];
-                    $mine = $i + 1;
+// Prima fase, muoviamo il mood Founder
+$sql = 'SELECT se.planet_id, event_code, mood_modifier FROM settlers_events se INNER JOIN settlers_relations sr USING (planet_id) WHERE event_status = 1 AND log_code = 30 ORDER BY planet_id, event_code';
+$events_query = $db->query($sql);
+$counter = $db->num_rows($events_query);
+if($counter > 0)
+{
+    $events_list = $db->fetchrowset($events_query);
+    $pre_item['planet_id'] = $events_list[0]['planet_id'];
+    $pre_item['mood_modifier'] = $events_list[0]['mood_modifier'];
+    $cache_mood = 0;
+    foreach($events_list as $events_item)
+    {
+        if($pre_item['planet_id'] != $events_item['planet_id'])
+        {
+            $new_mood = $pre_item['mood_modifier'] + $cache_mood;
+            $new_mood = max( 0, $new_mood);
+            $new_mood = min(80, $new_mood);
+            if($new_mood != $pre_item['mood_modifier'])
+            {
+                $sql = 'UPDATE settlers_relations SET mood_modifier = '.$new_mood.' WHERE planet_id = '.$pre_item['planet_id'].' AND log_code = 30';
+                if(!$db->query($sql)) {
+                    $sdl->log('<b>Error:</b> could not update settlers relations!!! E0: '.$sql);
                 }
-
-            // Start to build a new mine level
-            $res = $borg->StartBuild($ACTUAL_TICK,$mine,$planet);
-            if($res == BUILD_ERR_ENERGY)
-                $res = $borg->StartBuild($ACTUAL_TICK,4,$planet);
-        }
-
-        if($miners_updated) {
-            $sql='UPDATE planets SET
-                         workermine_1 = '.$miners[0].',
-                         workermine_2 = '.$miners[1].',
-                         workermine_3 = '.$miners[2].',
-                         resource_4 = '.$workers.'
-                  WHERE planet_id = '.$planet['planet_id'];
-
-            $sdl->log('Mines workers increased to: '.$miners[0].'/'.$miners[1].'/'.$miners[2].' on Borg planet: <b>#'.$planet['planet_id'].'</b>');
-
-            $mines_upgraded++;
-
-            if(!$db->query($sql)) {
-                $sdl->log('<b>Error:</b> could not update mines workers!');
+                $sdl->log('DEBUG: sql E0:'.$sql);
             }
+            $cache_mood = 0;            
         }
+        switch($events_item['event_code'])
+        {
+            case '100':
+            case '101':
+            case '102':
+            case '103':
+            case '104':
+            case '105':
+                $cache_mood -= 15;
+            break;
+            case '120':
+            case '121':
+            case '122':
+            case '123':
+            case '124':
+                $cache_mood += 10;
+            break;
+            case '130':
+            case '131':
+            case '132':
+            case '133':
+            case '134':
+                $cache_mood -= 10;
+            break;
+        }
+        $pre_item['planet_id'] = $events_item['planet_id'];
+        $pre_item['mood_modifier'] = $events_item['mood_modifier'];
     }
+    $new_mood = $pre_item['mood_modifier'] + $cache_mood;
+    $new_mood = max( 0, $new_mood);
+    $new_mood = min(80, $new_mood);
+    $sql = 'UPDATE settlers_relations SET mood_modifier = '.$new_mood.' WHERE planet_id = '.$pre_item['planet_id'].' AND log_code = 30';
+    if(!$db->query($sql)) {
+        $sdl->log('<b>Error:</b> could not update settlers relations!!! E1: '.$sql);
+    }
+    $sdl->log('DEBUG: sql E1:'.$sql);
 }
-if($mines_upgraded != 0) $sdl->log('Upgraded <b>'.$mines_upgraded.'</b> mines on Borg planets');
-$sdl->finish_job('Check miners on Borg planets');
 
+// Seconda fase, muoviamo i vari mood negativi! IMPORTANTE. Mantenete gli event code di mosse anti controllore sotto il 120
+$sql = 'SELECT se.planet_id, p.best_mood_user AS controller, event_code FROM settlers_events se INNER JOIN planets p USING (planet_id) WHERE event_status = 1 AND se.user_id <> p.best_mood_user AND event_code < 120 ORDER BY se.planet_id, event_code';
+$events_query = $db->query($sql);
+$counter = $db->num_rows($events_query);
+if($counter > 0)
+{
+    $events_list = $db->fetchrowset($events_query);
+    $pre_item['planet_id'] = $events_list[0]['planet_id'];
+    $pre_item['controller'] = $events_list[0]['controller'];
+    $pre_item['event_code'] = $events_list[0]['event_code'];
+    $cache_mood = array(28 => 0, 29 => 0, 35 => 0);
+    foreach($events_list as $events_item)
+    {
+        if($pre_item['planet_id'] != $events_item['planet_id'])
+        {
+            foreach($cache_mood as $key => $mood_item)
+            {
+                if($mood_item == 0) continue;
+                $sql = 'SELECT mood_modifier FROM settlers_relations WHERE planet_id = '.$pre_item['planet_id'].' AND log_code = '.$key;
+                $lq_query = $db->queryrow($sql);
+                if(isset($lq_query['mood_modifier']))
+                {
+                    $new_mood = $lq_query['mood_modifier'] + $mood_item;
+                    $new_mood = max(-85, $new_mood);
+                    $sql = 'UPDATE settlers_relations SET mood_modifier = '.$new_mood.' WHERE planet_id = '.$pre_item['planet_id'].' AND log_code = '.$key;
+                    if(!$db->query($sql)) {
+                        $sdl->log('<b>Error:</b> could not update settlers relations!!! E2: '.$sql);
+                    }                    
+                }
+                else
+                {
+                    $new_mood = max(-85, $mood_item);
+                    $sql = 'INSERT INTO settlers_relations (planet_id, user_id, timestamp, log_code, mood_modifier) VALUES ('.$pre_item['planet_id'].', '.$pre_item['controller'].', '.time().', '.$key.', '.$new_mood.')';
+                    if(!$db->query($sql)) {
+                        $sdl->log('<b>Error:</b> could not update settlers relations!!! E3: '.$sql);
+                    }                    
+                }
+            }
+            $cache_mood[28] = 0;
+            $cache_mood[29] = 0;
+            $cache_mood[35] = 0;            
+        }
+        switch($events_item['event_code'])
+        {
+            case '100':
+            case '101':
+            case '102':
+            case '103':
+                $cache_mood[28] -= 20;
+            break;
+            case '104':
+            case '105':
+                $cache_mood[29] -= 20;
+            break;
+            case '107':
+                $cache_mood[35] -= 10;
+            break;
+        }
+        $pre_item['planet_id'] = $events_item['planet_id'];
+        $pre_item['controller'] = $events_item['controller'];
+        $pre_item['event_code'] = $events_item['event_code'];
+    }
+    foreach($cache_mood as $key => $mood_item)
+    {
+        if($mood_item == 0) continue;
+        $sql = 'SELECT mood_modifier FROM settlers_relations WHERE planet_id = '.$pre_item['planet_id'].' AND log_code = '.$key;
+        $lq_query = $db->queryrow($sql);
+        if(isset($lq_query['mood_modifier']))
+        {
+            $new_mood = $lq_query['mood_modifier'] + $mood_item;
+            $new_mood = max(-85, $new_mood);
+            $sql = 'UPDATE settlers_relations SET mood_modifier = '.$new_mood.' WHERE planet_id = '.$pre_item['planet_id'].' AND log_code = '.$key;
+            if(!$db->query($sql)) {
+                $sdl->log('<b>Error:</b> could not update settlers relations!!! E4: '.$sql);
+            }                    
+        }
+        else
+        {
+            $new_mood = max(-85, $mood_item);
+            $sql = 'INSERT INTO settlers_relations (planet_id, user_id, timestamp, log_code, mood_modifier) VALUES ('.$pre_item['planet_id'].', '.$pre_item['controller'].', '.time().', '.$key.', '.$new_mood.')';
+            if(!$db->query($sql)) {
+                $sdl->log('<b>Error:</b> could not update settlers relations!!! E5: '.$sql);
+            }                    
+        }        
+    }    
+}
 
+// Terza parte, easy
+
+    $sql = 'UPDATE settlers_relations SET mood_modifier = mood_modifier + 5 WHERE log_code IN (28, 29, 35)';
+
+    if(!$db->query($sql)) {
+        $sdl->log('<b>Error:</b> could not update settlers relations!!! E3: '.$sql);
+    }                        
+
+    $sql = 'DELETE FROM settlers_relations WHERE log_code IN (28, 29, 35) AND mood_modifier = 0';
+
+    $db->query($sql);
+
+    $sql = 'UPDATE settlers_events SET count_ok = count_ok +1, event_result = 1 WHERE event_code = 150 AND event_status = 1 AND count_crit_ok = 0 AND ('.$ACTUAL_TICK.' - tick) > 80';
+
+    $db->query($sql);
+
+    $sql = 'UPDATE settlers_events SET count_ok = 0, count_crit_ok = 1 WHERE event_code = 150 AND event_status = 1 AND count_crit_ok = 0 AND count_ok = 4 AND ('.$ACTUAL_TICK.' - tick) > 80';
+
+    $db->query($sql);
+    
+    $sql = 'UPDATE settlers_events SET count_ok = count_ok +1 WHERE awayteam_alive = 1 AND event_status = 1 AND event_code IN (100, 101, 102, 103) AND planet_id IN (SELECT planet_id FROM settlers_relations WHERE log_code = 28 AND mood_modifier = -80)';
+    
+    $db->query($sql);
+    
+    $sql = 'SELECT settlers_events.user_id, settlers_events.planet_id
+            FROM settlers_events
+            INNER JOIN settlers_relations USING (planet_id)
+            WHERE settlers_relations.log_code = 28 AND
+                  settlers_relations.mood_modifier = -80 AND
+                  settlers_events.event_code IN (100, 101, 102, 103) AND
+                  settlers_events.awayteam_alive = 1 AND
+                  settlers_events.event_status = 1';
+    
+    $predator_list = $db->queryrowset($sql);
+    
+    foreach ($predator_list as $predator_item) {
+        $sql = 'INSERT INTO settlers_relations (planet_id, user_id, timestamp, log_code, mood_modifier) VALUES ('.$predator_item['planet_id'].', '.$predator_item['user_id'].', '.time().', 23, 5) ON DUPLICATE KEY UPDATE mood_modifier = mood_modifier + 5';
+        $db->query($sql);
+    }
+    
+    $db->query('UPDATE settlers_relations SET mood_modifier = 80 WHERE log_code = 23 AND mood_modifier > 80');
+    
+// Quarta fase: Borg Fighters Reward
+    
+    $db->query('UPDATE settlers_relations SET mood_modifier = 10 WHERE log_code = 22');
+    
+    $fighter_list = $db->queryrowset('SELECT user_id, threat_level FROM borg_target');
+    
+    foreach ($fighter_list AS $fighter) {
+        $value = 0;
+        if($fighter['threat_level'] > 1400.0)
+            $value = 80;
+        elseif($fighter['threat_level'] > 950.0)
+            $value = 50;
+        elseif($fighter['threat_level'] > 450.0)
+            $value = 30;
+        elseif($fighter['threat_level'] > 200.0)
+            $value = 20;
+        
+        $db->query('UPDATE settlers_relations SET mood_modifier = mood_modifier + '.$value.' WHERE user_id = '.$fighter['user_id'].' AND log_code = 22');
+        
+    }
+     
+$sdl->finish_job('Settlers Events'); 
 
 // #######################################################################################
 // #######################################################################################
