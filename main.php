@@ -111,11 +111,11 @@ $sdl->start_job('Extra-Optimal Range Upgrade Planet Step');
 
 $threshold = new DateTime('now');
 
-date_sub($threshold,date_interval_create_from_date_string("45 days"));
+date_sub($threshold,date_interval_create_from_date_string("25 days"));
 
 $uts_threshold = date_format($threshold,'U');
 
-$sql= 'UPDATE planets SET planet_available_points = 677 WHERE planet_available_points = 320 AND planet_owner > 10 AND planet_owned_date < '.$uts_threshold;
+$sql= 'UPDATE planets SET planet_available_points = 677 WHERE planet_available_points < 677 AND planet_owner > 10 AND planet_owned_date < '.$uts_threshold;
 
 $db->query($sql);
 
@@ -142,7 +142,7 @@ if(($q_inst = $db->query($sql)) === false) {
 else if($db->num_rows() > 0)
 {
     while($build = $db->fetchrow($q_inst)) {
-        $recompute_static = (in_array($build['installation_type'], array(1, 2, 3, 11))) ? 1 : 0;
+        $recompute_static = (in_array($build['installation_type'], array(1, 2, 3, 8, 11))) ? 1 : 0;
 
         $sql = 'UPDATE planets
                 SET building_'.($build['installation_type'] + 1).' = building_'.($build['installation_type'] + 1).' + 1,
@@ -484,7 +484,7 @@ $sql = 'SELECT s.ship_id,
                t.resource_3,
                t.unit_5,
                t.unit_6
-        FROM (ships s) LEFT JOIN (ship_templates t) ON s.template_id=t.id
+        FROM (ships s) INNER JOIN (ship_templates t) ON s.template_id=t.id
         WHERE s.ship_scrap>0 AND s.ship_scrap<= '.$ACTUAL_TICK;
 
 
@@ -493,7 +493,8 @@ if(($q_ship = $db->query($sql)) === false) {
 }
 else
 {
-    while($ship = $db->fetchrow($q_ship)) {
+    $ship_list = $db->fetchrowset($q_ship);
+    foreach($ship_list AS $ship) {
 
         $res[0]=round(0.7*($ship['resource_1']-$ship['resource_1']/$ship['value_5']*($ship['value_5']-$ship['hitpoints'])),0);
         $res[1]=round(0.7*($ship['resource_2']-$ship['resource_2']/$ship['value_5']*($ship['value_5']-$ship['hitpoints'])),0);
@@ -544,7 +545,8 @@ $sdl->finish_job('Shipscrap Scheduler');
 $sdl->start_job('Shipyard Scheduler');
 
 $sql = 'SELECT ssb.*,
-               st.id AS template_id, st.value_5 AS template_value_5, st.value_9 AS template_value_9, st.rof AS template_rof, st.max_torp AS template_max_torp,
+               st.id AS template_id, st.ccn_root AS template_ncc_root, st.ccn_counter AS template_ncc_counter, st.race AS template_race, st.value_5 AS template_value_5, st.value_9 AS template_value_9, 
+               st.rof AS template_rof, st.rof2 AS template_rof2, st.max_torp AS template_max_torp,
                p.planet_owner as user_id, p.building_7
         FROM (scheduler_shipbuild ssb)
         INNER JOIN (planets p) ON p.planet_id = ssb.planet_id
@@ -606,11 +608,23 @@ else {
                 continue;
             }
 
-            $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4, rof, torp)
-                    VALUES (-'.$shipbuild['planet_id'].', '.$shipbuild['user_id'].', '.$shipbuild['ship_type'].', '.$shipbuild['template_value_9'].', '.$shipbuild['template_value_5'].', '.$game->TIME.', '.$shipbuild['unit_1'].', '.$shipbuild['unit_2'].', '.$shipbuild['unit_3'].', '.$shipbuild['unit_4'].', '.$shipbuild['template_rof'].', '.$shipbuild['template_max_torp'].')';
+            if(!empty($shipbuild['template_ncc_root'])) {
+                $ncc_text = $shipbuild['template_ncc_root'].'-'.GetNccCounter($shipbuild['template_id']);
+            }
+            else
+            {
+                $ncc_text = '';
+            }
+            
+            $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, ship_ncc, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4, rof, rof2, torp, rating_1a, rating_1b, rating_2a, rating_2b)
+                    VALUES (-'.$shipbuild['planet_id'].', '.$shipbuild['user_id'].', '.$shipbuild['ship_type'].', "'.$ncc_text.'", '.$shipbuild['template_value_9'].', '.$shipbuild['template_value_5'].', 
+                             '.$game->TIME.', '.$shipbuild['unit_1'].', '.$shipbuild['unit_2'].', '.$shipbuild['unit_3'].', '.$shipbuild['unit_4'].', '.$shipbuild['template_rof'].', 
+                             '.$shipbuild['template_rof2'].', '.$shipbuild['template_max_torp'].', 
+                             '.$RACE_DATA[$shipbuild['template_race']][32].', '.$RACE_DATA[$shipbuild['template_race']][33].', '.$RACE_DATA[$shipbuild['template_race']][34].', '.$RACE_DATA[$shipbuild['template_race']][35].')';
 
             if(!$db->query($sql)) {
                 $sdl->log(' - <b>Warning:</b> Could not insert new ship data! - CONTINUED AND JUMP TO NEXT');
+                $sdl->log(' Offending query: '.$sql);
                 continue;
             }
             $sdl->log('<b>Added Ship from Yard to Dock:</b> Planet #'.$shipbuild['planet_id'].' for User #'.$shipbuild['user_id'].' with Template #'.$shipbuild['ship_type'].' - <b>SUCCESS!</b>');
@@ -734,7 +748,7 @@ if(($fh_stream = $db->query($sql)) === false) {
 }
 else if($db->num_rows() > 0) {
     // Load Future human ship's template
-    $sql = 'SELECT id, value_9, value_5, min_unit_1, min_unit_2, min_unit_3, min_unit_4, rof, max_torp
+    $sql = 'SELECT id, value_9, value_5, min_unit_1, min_unit_2, min_unit_3, min_unit_4, rof, rof2, max_torp
             FROM ship_templates
             WHERE id = '.$FUTURE_SHIP;
 
@@ -757,7 +771,7 @@ else if($db->num_rows() > 0) {
 
         for($i = 0; $i < $player_to_serve['n_ships']; $i++)
         {
-            $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4, rof, torp, last_refit_time)
+            $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, unit_1, unit_2, unit_3, unit_4, rof, rof2, torp, last_refit_time)
                     VALUES ('.$new_fleet_id.',
                             '.$player_to_serve['user_id'].',
                             '.$template['id'].',
@@ -769,6 +783,7 @@ else if($db->num_rows() > 0) {
                             '.$template['min_unit_3'].',
                             '.$template['min_unit_4'].',
                             '.$template['rof'].',
+                            '.$template['rof2'].',                                
                             '.$template['max_torp'].',
                             '.$game->TIME.')';
 
@@ -797,6 +812,7 @@ include('NPC_BOT.php');
 include('ferengi.php');
 include('borg.php');
 include('settlers.php');
+include('orion.php');
 $sdl->start_job('Ramona comes over - oh women are so wonderful');
 $quark = new Ferengi($db,$sdl);
 $quark->Execute(1,"Normal operation in the test round",0,"#DEEB24");
@@ -809,6 +825,10 @@ $sdl->start_job('Mayflower is coming - settlers are the real workforce');
 $settlers = new Settlers($db,$sdl);
 $settlers->Execute(1);
 $sdl->finish_job('Mayflower is coming - settlers are the real workforce');
+$sdl->start_job('Orion Syndicate is out there!');
+$orion = new Orion($db,$sdl);
+$orion->Execute(1);
+$sdl->finish_job('Orion Syndicate is out there!'); 
 
 // ########################################################################################
 // ########################################################################################
@@ -1055,6 +1075,13 @@ while($planet = $db->fetchrow($q_planets)) {
         if(!$db->query($sql)) {
             $sdl->log('<b>Error:</b> Could not update planet details <b>'.$planet['planet_id'].'</b>! - CONTINUED');
         }
+        
+        $sql = 'INSERT INTO settlers_relations (planet_id, race_id, user_id, timestamp, log_code, mood_modifier)
+                                        VALUES ('.$planet['planet_id'].', 13, '.INDEPENDENT_USERID.', '.time().', 30, 80)';
+
+        if(!$db->query($sql)) {
+            $sdl->log('<b>Error:</b> Could not create Settlers Founder data for <b>'.$surrender['planet_id'].'</b>! CONTINUED');
+        }        
 // DC ----
 
         $log_data=array(
@@ -1132,12 +1159,14 @@ else {
                  +($planet['research_1']*$RACE_DATA[$planet['user_race']][20])*0.1
                  +($planet['research_2']*$RACE_DATA[$planet['user_race']][20])*0.2);
 
+        $add_t = TechpointsPerTick($planet);
 
         if($ACTUAL_TICK >= $planet['user_vacation_start'] && $ACTUAL_TICK <= $planet['user_vacation_end']) {
             $add_1 *= 0.2;
             $add_2 *= 0.2;
             $add_3 *= 0.2;
             $add_4 *= 0.2;
+            $add_t *= 0.2;
         }
 
         $sql = 'UPDATE planets
@@ -1145,6 +1174,7 @@ else {
                     add_2 = '.$add_2.',
                     add_3 = '.$add_3.',
                     add_4 = '.$add_4.',
+                    add_t = '.$add_t.',
                     recompute_static = 0,
                     max_resources = '.($PLANETS_DATA[$planet['planet_type']][6]+($planet['building_12']*20000*$RACE_DATA[$planet['user_race']][20])).',
                     max_worker = '.($PLANETS_DATA[$planet['planet_type']][7]+($planet['research_1']*$RACE_DATA[$planet['user_race']][20]*500)).',
@@ -1171,7 +1201,7 @@ $sdl->start_job('Update Planet Security Troops');
 //                planets, since usually they have more then 1/200 planets
 //                More details here: https://github.com/stfc2/Scheduler/issues/2.
 $sql='UPDATE IGNORE planets SET min_security_troops=POW(planet_owner_enum*'.MIN_TROOPS_PLANET.',1+planet_owner_enum*0.01)
-      WHERE planet_owner <> '.INDEPENDENT_USERID.' AND planet_owner <> '.BORG_USERID;
+      WHERE planet_owner > 9';
 if(!$db->query($sql)) {$sdl->log(' - <b>Warning:</b> Could not execute query '.$sql);}
 foreach ($PLANETS_DATA as $key => $planet) {
 $sql='UPDATE planets SET min_security_troops='.$planet[7].' WHERE planet_type="'.$key.'" AND min_security_troops>'.$planet[7];
@@ -1210,7 +1240,8 @@ $sql = 'UPDATE planets
             resource_1 = resource_1 + add_1,
             resource_2 = resource_2 + add_2,
             resource_3 = resource_3 + add_3,
-            resource_4 = resource_4 + add_4
+            resource_4 = resource_4 + add_4,
+            techpoints = techpoints + add_t
         WHERE planet_owner <> 0';
 
 if(!$db->query($sql)) {
@@ -1238,7 +1269,7 @@ if(!$db->query($sql)) {
 //                while unit_x could be resulting in resources assuming
 //                negative values.
 // Another great optimization by Daywalker ^^
-$sql = 'UPDATE planets
+$sql = 'UPDATE IGNORE planets
         SET resource_1 = resource_1 - add_1 + add_1 * (1 / min_security_troops * (unit_1*2+unit_2*3+unit_3*4+unit_4*4)),
             resource_2 = resource_2 - add_2 + add_2 * (1 / min_security_troops * (unit_1*2+unit_2*3+unit_3*4+unit_4*4)),
             resource_3 = resource_3 - add_3 + add_3 * (1 / min_security_troops * (unit_1*2+unit_2*3+unit_3*4+unit_4*4))
@@ -1288,6 +1319,14 @@ if(!$db->query($sql)) {
     $sdl->log(' - Warning: Could not update planet max resources 4! - CONTINUED');
 }
 
+$sql = 'UPDATE planets
+        SET techpoints = '.(20*24*60).'
+        WHERE planet_owner <> 0 AND
+              techpoints > '.(20*24*60);
+
+if(!$db->query($sql)) {
+    $sdl->log(' - Warning: Could not update planet max techpoints! - CONTINUED');
+}
 
 //
 // Concept:
@@ -1384,10 +1423,70 @@ if(!$db->query($sql)) {
 
 $sdl->finish_job('Update Planets');
 
+// ########################################################################################
+// ########################################################################################
+// Update systems
 
+$sdl->start_job('Update Systems');
 
+IF(CLAIM_SYSTEM_PERMITTED){
+    $sql = 'SELECT scs.*, u.user_name, ss.system_name FROM (scheduler_claim_system scs) INNER JOIN (starsystems ss) USING (system_id) INNER JOIN (user u) USING (user_id) WHERE scs.exec_tick <= '.$ACTUAL_TICK;
 
+    $claimlist = $db->queryrowset($sql);
 
+    if($db->num_rows() > 0) {
+        $sql = 'SELECT user_id, language FROM user WHERE user_id > 10 AND user_active = 1 AND user_auth_level = 1 AND user_vacation_end = 0';
+        $warn_list = $db->queryrowset($sql);
+    }
+
+    foreach ($claimlist as $claim) {
+        if(($res = $db->queryrow('SELECT system_closed FROM starsystems WHERE system_id = '.$claim['near_system_id'].' AND system_owner = '.$claim['user_id'])) === FALSE) {
+            $sdl->log('Error - User '.$claim['user_id'].' ha presentato errate credenziali sul claim del sistema '.$claim['near_system_id']);
+            continue;
+        }
+        elseif($res['system_closed'] == 0) {
+            $sdl->log('Error - User '.$claim['user_id'].' ha presentato errate credenziali sul claim del sistema '.$claim['near_system_id']);
+            continue;
+        }
+
+        if(($res = $db->queryrow('SELECT system_closed, system_owner FROM starsystems WHERE system_id = '.$claim['system_id'])) === FALSE) {
+            $sdl->log('Error - User '.$claim['user_id'].' ha richiesto un errato claim su un sistema '.$claim['system_id']);
+            continue;
+        }
+        elseif($res['system_closed'] != 0) {
+            $sdl->log('Error - User '.$claim['user_id'].' ha richiesto un claim sul sistema '.$claim['system_id'].' che risulta privato.');
+            continue;        
+        }
+        elseif($res['system_owner'] != 0) {
+            $sdl->log('Error - User '.$claim['user_id'].' ha richiesto un claim sul sistema '.$claim['system_id'].' che risulta assegnato ad altro giocatore.');
+            continue;        
+        }    
+
+        $db->query('UPDATE starsystems SET system_closed = 2, system_owner = '.$claim['user_id'].' WHERE system_id = '.$claim['system_id']);
+        $sdl->log('Info - User '.$claim['user_id'].' ha reclamato come privato il sistema '.$claim['system_id']);
+        foreach ($warn_list AS $warn_item){
+            switch ($warn_item['language']) {
+                case 'ITA':
+                    $header = 'Nuovo Sistema Privato';
+                    $message = 'Si comunica che, in data odierna, il sistema '.$claim['system_name'].' &eacute; stato dichiarato privato da '.$claim['user_name'];
+                    break;
+                default :
+                    $header = 'New System Lock Created';
+                    $message = 'We inform you that the system '.$claim['system_name'].' has been declared private by '.$claim['user_name'];                            
+                    break;
+            }
+            SystemMessage($warn_item['user_id'], $header, $message);                    
+        }    
+    }
+
+    $db->query('DELETE FROM scheduler_claim_system WHERE exec_tick <= '.$ACTUAL_TICK);
+}
+else
+{
+    $sdl->log('Debug: Claim System is switched off.');
+}
+
+$sdl->finish_job('Update Systems');
 // ########################################################################################
 // ########################################################################################
 // Update Planet Attacked Data
@@ -1822,7 +1921,7 @@ $sdl->finish_job('Alliance Taxes');
 // ########################################################################################
 // ########################################################################################
 // Ferengi Taxes
-
+/*
 $sdl->start_job('Ferengi Taxes');
 
 if (time()-$cfg_data['last_paytime']>3600*24)
@@ -1858,7 +1957,7 @@ if (time()-$cfg_data['last_paytime']>3600*24)
             );
             $sdl->log('2');
 
-            /* 16/05/08 - AC: Add logbook title translation */
+            // 16/05/08 - AC: Add logbook title translation
             $log_title = 'Ferengi Taxes';
             switch($user['language'])
             {
@@ -1869,7 +1968,6 @@ if (time()-$cfg_data['last_paytime']>3600*24)
                     $log_title = 'Tasse Ferengi';
                 break;
             }
-            /* */
 
             add_logbook_entry($user['user_id'], LOGBOOK_FERENGITAX, $log_title, $log_data);
             $sdl->log('3');
@@ -1894,7 +1992,7 @@ if (time()-$cfg_data['last_paytime']>3600*24)
     }
 }
 $sdl->finish_job('Ferengi Taxes');
-
+*/
 
 
 // ########################################################################################
@@ -1909,7 +2007,16 @@ $sdl->log('Affected '.$db->affected_rows().' resourcetrades');
 $sdl->finish_job('Remove old Resourcetrade');
 
 
-
+// ########################################################################################
+// ########################################################################################
+// Deleting decayed Orion Syndicate flags
+$sdl->start_job('decayed Orion Syndicate flags');
+$sql = 'DELETE FROM starsystems_details WHERE log_code = 1 AND log_code_tick > 0 AND log_code_tick < '.$ACTUAL_TICK;
+if(($d_oldflag = $db->query($sql)) === false) {
+    $sdl->log('<b>Error:</b> Could not remove decayed Orion Syndicate flags! CONTINUED');
+}
+$sdl->log('Affected '.$db->affected_rows().' flags');
+$sdl->finish_job('decayed Orion Syndicate flags');
 
 // ########################################################################################
 // ########################################################################################
@@ -2106,6 +2213,11 @@ else {
 
         $db->query($sql);
 
+        $sql = 'DELETE FROM user_felony
+                WHERE user1_id = '.$user['user_id'].' OR
+                      user2_id = '.$user['user_id'];
+
+        $db->query($sql);
 
         $sql = 'DELETE FROM tc_coords_memo
                 WHERE user_id = '.$user['user_id'];
@@ -2172,9 +2284,10 @@ else {
         $db->query($sql);
 
         if(HOME_SYSTEM_PRIVATE) {
-            /* Too many user create and delete their accounts, leave star system closed...
-            $sql = 'UPDATE starsystems SET system_closed = 0, system_owner = 0 WHERE system_owner = '.$user['user_id'];
-            $db->query($sql);*/
+            $sql = 'UPDATE starsystems SET system_closed = 1, system_owner = 10 WHERE system_owner = '.$user['user_id'].' AND system_closed = 1';
+            $db->query($sql);
+            $sql = 'UPDATE starsystems SET system_closed = 0, system_owner = 0 WHERE system_owner = '.$user['user_id'].' AND system_closed > 1';
+            $db->query($sql);            
         }
 
 //DC ---- Settlers Maintenance: clean up all the settlers mood data of the deleted player
@@ -2183,6 +2296,11 @@ else {
 
         $db->query($sql);
 
+        $sql = 'DELETE FROM settlers_events
+                WHERE user_id = '.$user['user_id'];
+
+        $db->query($sql);
+        
         $sql = 'UPDATE planets SET best_mood = 0, best_mood_user = 0
                 WHERE best_mood_user = '.$user['user_id'];
 
@@ -2197,6 +2315,7 @@ else {
                         resource_2 = 10000,
                         resource_3 = 10000,
                         resource_4 = 0,
+                        techpoints = 0,
                         recompute_static = 1, 
                         building_1 = '.mt_rand(0, 9).',
                         building_2 = '.mt_rand(0, 9).',
@@ -2248,10 +2367,10 @@ else {
             $sdl->log('<b>Error:</b> Could not set logbook message to read! CONTIUED');
         }
 
-        /* 07/05/14 - AC: Too many users create and delete their accounts leave the entries in the DB
+
         $sql = 'DELETE FROM user
-                WHERE user_id = '.$user['user_id'];*/
-        $sql = 'UPDATE user SET user_active = 5 WHERE user_id = '.$user['user_id'];
+                WHERE user_id = '.$user['user_id'];
+        // $sql = 'UPDATE user SET user_active = 5 WHERE user_id = '.$user['user_id'];
 
         if(!$db->query($sql)) {
             $sdl->log('<b>Error:</b> Could not delete final user data! CONTIUED');
