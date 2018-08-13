@@ -175,7 +175,7 @@ class moves_action_34 extends moves_common {
         if($this->move['dest'] == $this->tr_data[2]) $this->actions = &$this->tr_data[4];
         else $this->actions = &$this->tr_data[3];
 
-        $this->log(MV_M_NOTICE, 'Buondi! Sono quello della flotta <b>'.$this->fleet_ids[0].'</b> del Boss <b>'.$this->move['user_id'].'</b>, in arrivo sul pianeta <b>'.$this->dest['planet_id'].'</b> che appartiene a <b>'.$this->dest['user_id'].'</b> per un trasporto.');
+        //$this->log(MV_M_NOTICE, 'Buondi! Sono quello della flotta <b>'.$this->fleet_ids[0].'</b> del Boss <b>'.$this->move['user_id'].'</b>, in arrivo sul pianeta <b>'.$this->dest['planet_id'].'</b> che appartiene a <b>'.$this->dest['user_id'].'</b> per un trasporto.');
 
         $sql = 'SELECT resource_1, resource_2, resource_3, resource_4, unit_1, unit_2, unit_3, unit_4, unit_5, unit_6
                 FROM ship_fleets
@@ -284,6 +284,32 @@ class moves_action_34 extends moves_common {
         }
         /* END OF RULE TO AVOID ROUTES WITH SETTLERS */
 
+        $sql = 'SELECT uf_id FROM user_felony WHERE user1_id = '.$this->dest['user_id'].' AND user2_id = '.$this->move['user_id'];
+        
+        if(($res = $this->db->queryrow($sql)) === false) {
+            return $this->log(MV_M_DATABASE, 'Could not query sitters data of the move owner');
+        }
+        
+        if(isset($res['uf_id'])) {
+            $route_blocked = true;
+
+            switch($this->move['language'])
+            {
+                case 'GER':
+                    $message='Hallo '.$this->move['user_name'].',<br>Handelswege mit Siedler sind verboten.<br>Diese Nachricht wurde automatisch generiert, Beschwerden beim STFC2-Team bringen nichts.<br>~ Siedler-Abuse-Automatik';
+                    $title='Routesperre';
+                break;
+                case 'ITA':
+                    $message='Ciao '.$this->move['user_name'].',<br>le rotte commerciali con chi ti ha dichiarato criminale non sono ammesse.<br>Questo messaggio &egrave; stato generato automaticamente, lamentele al team di STFC2 sono inutili.<br>~ Sistema anti abuso Coloni';
+                    $title='Rotta bloccata';
+                break;
+                default:
+                    $message='Hello '.$this->move['user_name'].',<br>trade routes with Felons are forbidden.<br>This message is automatically generated complaints to the team STFC2 are useless.<br>~Settlers Abuse Prevention System';
+                    $title='Route blocked';
+                break;            
+            }
+        }
+        
         // Route not allowed: log it, inform the admin and deactivate
         if($route_blocked) {
             $this->log(MV_M_NOTICE, $log_message);
