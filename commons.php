@@ -351,6 +351,12 @@ function ResourcesPerTickLatinum(&$planet) {
 	return round($result, $round);
 }
 
+function TechpointsPerTick(&$planet) {
+    global $RACE_DATA;
+    $result = ($planet['building_9'] > 0 ? 1 + round((($planet['building_9']/3)*$RACE_DATA[$planet['user_race']][20])/10,2) : 0);
+    return $result;
+}
+
 function UnitPrice($unit,$resource, $race)
 {
 	global $db;
