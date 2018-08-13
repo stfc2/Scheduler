@@ -176,7 +176,7 @@ class moves_action_24 extends moves_common {
                 $check_clear = false;
             }
             elseif($_check['planet_owner'] != 0) $check_clear = false;
-            elseif($_check['planet_type'] != 'a' && $_check['planet_type'] != 'b' && $_check['planet_type'] != 'c' && $_check['planet_type'] != 'd')$check_clear = false;
+            elseif($_check['planet_type'] != 'a' && $_check['planet_type'] != 'b' && $_check['planet_type'] != 'c' && $_check['planet_type'] != 'd' && $_check['planet_type'] != 'h' && $_check['planet_type'] != 'n')$check_clear = false;
 
             if(!$check_clear) {
                 $log_data[8] = -4;
@@ -192,39 +192,44 @@ class moves_action_24 extends moves_common {
                 case 1:
                     $type_probabilities = array(
                         'k' => 35,
-                        'e' => 13,
-                        'f' => 13,
-                        'g' => 13,
-                        'n' => 10,
-                        'l' => 8,
+                        'e' => 15,
+                        'f' => 15,
+                        'g' => 14,
+                        'n' => 3,
+                        'l' => 10,
                         'x' => 5,
                         'y' => 3
                     );
                 break;
                 case 2:
-                case 3:
+                case 3:                    
                     $type_probabilities = array(
-                        'l' => 8,
-                        'e' => 20,
-                        'f' => 20,
-                        'g' => 20,
-                        'n' >= 15,
+                        'l' => 12,
+                        'e' => 23,
+                        'f' => 23,
+                        'g' => 23,
+                        'n' >= 2,
                         'm' => 6,
                         'o' => 5,
                         'x' => 4,
                         'y' => 2
                     );
                 break;
-                case 4:
+                case 4:            
                 case 5:
                 case 6:
                 case 7:
                     $type_probabilities = array(
-                        'h' => 25,
-                        'j' => 31,
-                        'k' => 15,
-                        'n' => 15,
-                        'p' => 10,
+                        'e' => 14,
+                        'f' => 13,
+                        'g' => 13,
+                        'i' => 3,
+                        'j' => 3,
+                        'k' => 18,
+                        'l' => 18,
+                        'o' => 3,
+                        'p' => 8,
+                        's' => 3,
                         'x' => 3,
                         'y' => 1
                     );
@@ -250,7 +255,7 @@ class moves_action_24 extends moves_common {
             if($rateo_2 < 0.1) $rateo_2 = 0.1;
             $rateo_3 = round(($PLANETS_DATA[$planet_type][2] + ((200 - mt_rand(0, 350))*0.001)), 2);
             if($rateo_3 < 0.1) $rateo_3 = 0.1;
-            $rateo_4 = $PLANETS_DATA[$planet_type][3] + 0.05;
+            $rateo_4 = $PLANETS_DATA[$planet_type][3] + 0.15;
 
             $sql = 'UPDATE planets SET
                            planet_type = "'.$planet_type.'",
@@ -348,6 +353,7 @@ class moves_action_24 extends moves_common {
                     planet_owned_date = '.time().',
                     planet_owner_enum = '.(($n_planets - 1) > 0 ? ($n_planets - 1) : 0).',
                     planet_name = "Colony'.$this->move['dest'].'",
+                    planet_available_points = 250,
                     npc_last_action = 0,
                     research_1 = 0,
                     research_2 = 0,
@@ -452,7 +458,13 @@ class moves_action_24 extends moves_common {
             if(!$this->db->query($sql)) {
                 return $this->log(MV_M_DATABASE, 'Could not update fleets data! SKIP');
             }
-
+            
+            $sql = 'UPDATE user SET user_n_settlers_left = user_n_settlers_left - 1 WHERE user_id = '.$this->move['user_id'];
+            
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update user data after colonizing! SKIP');
+            }
+            
             $log_data[8] = 1;
             $log_data[9] = $cship['name'];
             $log_data[10] = $cship['race'];
