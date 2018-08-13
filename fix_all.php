@@ -152,91 +152,88 @@ $sdl->log($count.' of '.$count2.' planets now have adjusted values');
 
 $sdl->finish_job('Recalculate security forces');
 
+$sdl->start_job('Sentry Borg Fleet Management');
+
+    $bot = $db->queryrow('SELECT * FROM borg_bot LIMIT 0,1');
+    
+    if($bot['shutdown'] == 0) {
+     
+        $sql = 'SELECT fleet_id FROM ship_fleets WHERE fleet_name LIKE "Unimatrix Zero" AND user_id = '.BORG_USERID;
+        $borg_fleet = $db->queryrow($sql);
+
+        $sql = 'SELECT planet_id FROM ship_fleets WHERE fleet_id = '.$borg_fleet['fleet_id'];
+        $q_planet = $db->queryrow($sql);    
+
+        /*
+        $sql = 'SELECT DISTINCT ship_fleets.fleet_id
+                FROM ship_fleets
+                INNER JOIN ships ON ships.fleet_id = ship_fleets.fleet_id
+                INNER JOIN planets ON planets.planet_id = ship_fleets.planet_id
+                WHERE fleet_name LIKE "Fleet Node#%S" AND
+                      planets.system_id = '.$bot['system_id'].' LIMIT 0,1';    
+        */
 
 
+        $sql = 'SELECT DISTINCT ship_fleets.fleet_id
+                FROM ship_fleets
+                INNER JOIN ships ON ships.fleet_id = ship_fleets.fleet_id
+                LEFT JOIN planets ON planets.planet_id = ship_fleets.planet_id
+                LEFT JOIN scheduler_shipmovement ON ship_fleets.move_id = scheduler_shipmovement.move_id
+                LEFT JOIN planets p2 ON scheduler_shipmovement.start = p2.planet_id
+                WHERE fleet_name LIKE "Fleet Node#%S" AND
+                      (planets.system_id = '.$bot['system_id'].' OR
+                       p2.system_id = '.$bot['system_id'].')
+                LIMIT 0,1';
 
+        $res = $db->queryrow($sql);
 
+        if(!isset($res['fleet_id']) || empty($res['fleet_id'])) {
+            $sdl->log('Creating a new Sentry Fleet from UM0');
 
-$sdl->start_job('Unimatrix Zero Maintenance');
+            $sql = 'INSERT INTO ship_fleets (fleet_name, user_id, planet_id, move_id, n_ships, alert_phase, homebase)
+                    VALUES ("Fleet Node#'.(rand(0,3999)).'S", '.BORG_USERID.', '.$q_planet['planet_id'].', 0, 1, 2, 0)';
 
-$sql = 'SELECT COUNT(*) AS counter FROM planets WHERE planet_owner = '.BORG_USERID;
-$borg_planets = $db->queryrow($sql);
+            if(!$db->query($sql)) {$sdl->log('Could not insert new fleet data');}
 
-$sql = 'SELECT ship_template3 AS tact_cube, ship_template2 AS standard_cube, ship_template1 As sphere from borg_bot WHERE user_id = '.BORG_USERID;
-$borg_tp = $db->queryrow($sql);
+            $fleet_id = $db->insert_id();
 
-$sql = 'SELECT fleet_id FROM ship_fleets WHERE fleet_name LIKE "Unimatrix Zero" AND user_id = '.BORG_USERID;
-$borg_fleet = $db->queryrow($sql);
+            // We move one Tact Cube from UM0 Fleet to the new sentry fleet
+            $sql = 'SELECT ship_id FROM ships INNER JOIN ship_templates ON ships.template_id = ship_templates.id
+                    WHERE ship_torso = 11 AND ship_class = 3 AND fleet_id = '.$borg_fleet['fleet_id'].' LIMIT 1,1';
 
-// Tactical Cubes Check
-$sql = 'SELECT COUNT(*) AS counter FROM ships WHERE user_id = '.BORG_USERID.' AND template_id = '.$borg_tp['tact_cube']; // Tactical Cubes are only in Unimatrix Zero Fleet
-$borg_tact_num = $db->queryrow($sql);
-$tactical_counter = round((($borg_planets['counter'] - 1) / 5), 0) + 1;
-$sdl->log('Unimatrix Zero Tact Cube count is: '.$tactical_counter);
-if($tactical_counter > $borg_tact_num['counter'])
-{
-    // We add ONE Tactical Cube
-    $sql = 'SELECT value_5, value_9, max_torp, rof, rof2 FROM ship_templates WHERE id = '.$borg_tp['tact_cube'];
-    $borg_tact_tp = $db->queryrow($sql);
-    $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, rof2, last_refit_time)
-            VALUES ('.$borg_fleet['fleet_id'].', '.BORG_USERID.', '.$borg_tp['tact_cube'].', '.$borg_tact_tp['value_9'].', '.$borg_tact_tp['value_5'].', '.time().', '.$borg_tact_tp['max_torp'].', '.$borg_tact_tp['rof'].', '.$borg_tact_tp['rof2'].', '.time().')';
-    if(!$db->query($sql)) {
-        $sdl->log('<b>Error:</b>: could not insert new tactical cube in ships! CONTINUE');
-    }
-}
+            $res = $db->queryrow($sql);
 
-//Standard Cubes Check
-$sql = 'SELECT COUNT(*) AS counter FROM ships
-        INNER JOIN ship_templates ON template_id = id
-        WHERE user_id = '.BORG_USERID.' AND fleet_id = '.$borg_fleet['fleet_id'].' 
-        AND ship_torso = 9 AND ship_class = 3'; 
-$borg_std_num = $db->queryrow($sql);
-$standard_counter = $tactical_counter*4;
-$sdl->log('Unimatrix Zero Standard Cube count is: '.$standard_counter);
-if($standard_counter > $borg_std_num['counter'])
-{
-    // We add FOUR Cubes for every one TACT
-    $to_add_counter = $standard_counter - $borg_std_num['counter'];
-    if($to_add_counter > 5) $to_add_counter = 5;
-    $sql = 'SELECT value_5, value_9, max_torp, rof, rof2 FROM ship_templates WHERE id = '.$borg_tp['standard_cube'];
-    $borg_std_tp = $db->queryrow($sql);
-    for($i = 0; $i < $to_add_counter; $i++)
-    {
-        $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, rof2, last_refit_time)
-                VALUES ('.$borg_fleet['fleet_id'].', '.BORG_USERID.', '.$borg_tp['standard_cube'].', '.$borg_std_tp['value_9'].', '.$borg_std_tp['value_5'].', '.time().', '.$borg_std_tp['max_torp'].', '.$borg_std_tp['rof'].', '.$borg_std_tp['rof2'].', '.time().')';
-        if(!$db->query($sql)) {
-            $sdl->log('<b>Error:</b>: could not insert new cube in ships! CONTINUE');
-        }
-    }
-}
+            $sql = 'UPDATE ships SET fleet_id = '.$fleet_id.' WHERE ship_id = '.$res['ship_id'];
 
-//Spheres Check
-$sql = 'SELECT COUNT(*) AS counter FROM ships 
-        INNER JOIN ship_templates ON template_id = id 
-        WHERE ships.user_id = '.BORG_USERID.' AND 
-              ships.fleet_id = '.$borg_fleet['fleet_id'].' AND 
-              ship_torso = 6 AND ship_class = 2'; 
-$borg_std_num = $db->queryrow($sql);
-$sphere_counter = $standard_counter*3;
-$sdl->log('Unimatrix Zero Sphere count is: '.$sphere_counter);
-if($sphere_counter > $borg_std_num['counter'])
-{
-    // We add THREE spheres for every one CUBE
-    $to_add_counter = $sphere_counter - $borg_std_num['counter'];
-    if($to_add_counter > 5) $to_add_counter = 5;
-    $sql = 'SELECT value_5, value_9, max_torp, rof, rof2 FROM ship_templates WHERE id = '.$borg_tp['sphere'];
-    $borg_std_tp = $db->queryrow($sql);
-    for($i = 0; $i < $to_add_counter; $i++)
-    {
-        $sql = 'INSERT INTO ships (fleet_id, user_id, template_id, experience, hitpoints, construction_time, torp, rof, rof2, last_refit_time)
-                VALUES ('.$borg_fleet['fleet_id'].', '.BORG_USERID.', '.$borg_tp['sphere'].', '.$borg_std_tp['value_9'].', '.$borg_std_tp['value_5'].', '.time().', '.$borg_std_tp['max_torp'].', '.$borg_std_tp['rof'].', '.$borg_std_tp['rof2'].', '.time().')';
-        if(!$db->query($sql)) {
-            $sdl->log('<b>Error:</b>: could not insert new sphere in ships! CONTINUE');
-        }
-    }
-}
-$sdl->finish_job('Unimatrix Zero Maintenance');
+            if(!$db->query($sql)) {$sdl->log('Could not move Tact Cube into new Sentry Fleet '.$sql);}
 
+            // We move four Cubes from UM0 Fleet to the new sentry fleet
+            $sql = 'SELECT ship_id FROM ships INNER JOIN ship_templates ON ships.template_id = ship_templates.id
+                    WHERE ship_torso = 9 AND ship_class = 3 AND fleet_id = '.$borg_fleet['fleet_id'].' LIMIT 12,4';        
+
+            $res = $db->queryrowset($sql);
+
+            foreach ($res AS $res_item) {
+                $sql = 'UPDATE ships SET fleet_id = '.$fleet_id.' WHERE ship_id = '.$res_item['ship_id'];
+
+                if(!$db->query($sql)) {$sdl->log('Could not move Cube into new Sentry Fleet '.$sql);}            
+            }
+
+            // We move fourteen Spheres from UM0 Fleet to the new sentry fleet
+            $sql = 'SELECT ship_id FROM ships INNER JOIN ship_templates ON ships.template_id = ship_templates.id
+                    WHERE ship_torso = 6 AND ship_class = 2 AND fleet_id = '.$borg_fleet['fleet_id'].' LIMIT 24,14';        
+
+            $res = $db->queryrowset($sql);
+
+            foreach ($res AS $res_item) {
+                $sql = 'UPDATE ships SET fleet_id = '.$fleet_id.' WHERE ship_id = '.$res_item['ship_id'];
+
+                if(!$db->query($sql)) {$sdl->log('Could not move Sphere into new Sentry Fleet '.$sql);}            
+            }        
+        }            
+    }   
+    
+$sdl->finish_job('Sentry Borg Fleet Management');
 
 $sdl->start_job('borg_npc_target Maintenance');
 
@@ -255,7 +252,7 @@ $sql = 'SELECT user_id FROM user WHERE user_active = 1 AND user_auth_level = 1';
 $user_set = $db->queryrowset($sql);
 
 foreach($user_set as $s_user){
-    $charted=$db->queryrow('SELECT COUNT(*) AS num FROM starsystems_details sd INNER JOIN starsystems ss USING (system_id) WHERE ss.system_closed = 0 AND sd.user_id = '.$s_user['user_id']);
+    $charted=$db->queryrow('SELECT COUNT(*) AS num FROM starsystems_details sd INNER JOIN starsystems ss USING (system_id) WHERE log_code = 0 AND alliance_id is null AND user_id = '.$s_user['user_id']);
     $first_contact=$db->queryrow('SELECT COUNT(*) AS num FROM settlers_relations WHERE user_id = '.$s_user['user_id'].' AND log_code = 1');
     $settler_made=$db->queryrow('SELECT COUNT(*) AS num FROM settlers_relations WHERE user_id = '.$s_user['user_id'].' AND log_code = 30');
     $settler_best=$db->queryrow('SELECT COUNT(*) AS num FROM planets WHERE planet_owner = '.INDEPENDENT_USERID.' AND best_mood_user = '.$s_user['user_id']);
@@ -324,7 +321,10 @@ $sdl->finish_job('Buildings / Research level fix');
 
 $sdl->start_job('Rioters planets take over by the settlers');
 
-$sql = 'SELECT planet_id,planet_owner FROM planets
+$sql = 'SELECT p.planet_id, p.system_id, p.planet_owner, u.user_capital, ss.system_owner, ss.system_n_planets
+        FROM (planets p)
+        INNER JOIN (starsystems ss) USING (system_id)
+        INNER JOIN (user u) ON (p.planet_owner = u.user_id)
         WHERE ( planet_surrender < '.$ACTUAL_TICK.' AND planet_surrender > 0 )';
 
 if(($query_s_p = $db->query($sql)) === false) {
@@ -333,88 +333,244 @@ if(($query_s_p = $db->query($sql)) === false) {
   
 while($surrender = $db->fetchrow($query_s_p)) {
 
-    $sql = 'UPDATE planets
-            SET planet_owner='.INDEPENDENT_USERID.',
-                planet_name = "Colony'.$surrender['planet_id'].'",
-                best_mood = 0,
-                best_mood_user = 0,
-                planet_owned_date = '.time().',
-                resource_1 = 10000,
-                resource_2 = 10000,
-                resource_3 = 10000,
-                resource_4 = '.mt_rand(0, 5000).',
-                recompute_static = 1,
-                building_1 = '.mt_rand(0, 9).',
-                building_2 = '.mt_rand(0, 9).',
-                building_3 = '.mt_rand(0, 9).',
-                building_4 = '.mt_rand(0, 9).',
-                building_5 = '.mt_rand(0, 9).',
-                building_6 = '.mt_rand(0, 9).',
-                building_7 = '.mt_rand(0, 9).',
-                building_8 = '.mt_rand(0, 9).',
-                building_10 = '.mt_rand(5, 15).',
-                building_11 = '.mt_rand(0, 9).',
-                building_13 = '.mt_rand(0, 10).',
-                unit_1 = '.mt_rand(500, 1500).',
-                unit_2 = '.mt_rand(500, 1000).',
-                unit_3 = '.mt_rand(0, 500).',
-                unit_4 = 0,
-                unit_5 = 0,
-                unit_6 = 0,
-                workermine_1 = 100,
-                workermine_2 = 100,
-                workermine_3 = 100,
-                catresearch_1 = 0,
-                catresearch_2 = 0,
-                catresearch_3 = 0,
-                catresearch_4 = 0,
-                catresearch_5 = 0,
-                catresearch_6 = 0,
-                catresearch_7 = 0,
-                catresearch_8 = 0,
-                catresearch_9 = 0,
-                catresearch_10 = 0,
-                unittrain_actual = 0,
-                unittrainid_nexttime=0,
-                planet_surrender=0
-             WHERE planet_id = '.$surrender['planet_id'];
+    if (mt_rand(0,1000) > 251 ) {
+        // Planet go desert
+        $sql = 'UPDATE planets
+                SET planet_owner= 0,
+                    planet_owner_enum = 0,
+                    planet_name = "Lost World",
+                    best_mood = 0,
+                    best_mood_user = 0,
+                    best_mood_planet = 0,
+                    best_mood_alert = 0,
+                    npc_last_action = 0,
+                    planet_owned_date = 0,
+                    resource_1 = '.mt_rand(10000, 30000).',
+                    resource_2 = '.mt_rand(10000, 30000).',
+                    resource_3 = '.mt_rand(10000, 30000).',
+                    resource_4 = 0,
+                    recompute_static = 1,
+                    building_1 = '.mt_rand(3, 9).',
+                    building_2 = '.mt_rand(1, 6).',
+                    building_3 = '.mt_rand(1, 6).',
+                    building_4 = '.mt_rand(1, 6).',
+                    building_5 = '.mt_rand(1, 3).',
+                    building_6 = 0,
+                    building_7 = 0,
+                    building_8 = 0,
+                    building_9 = '.mt_rand(1, 3).',
+                    building_10 = '.mt_rand(5, 10).',
+                    building_11 = '.mt_rand(1, 4).',
+                    building_12 = '.mt_rand(1, 4).',                        
+                    building_13 = '.mt_rand(9, 15).',
+                    unit_1 = 0,
+                    unit_2 = 0,
+                    unit_3 = 0,
+                    unit_4 = 0,
+                    unit_5 = 0,
+                    unit_6 = 0,
+                    workermine_1 = 100,
+                    workermine_2 = 100,
+                    workermine_3 = 100,
+                    catresearch_1 = 0,
+                    catresearch_2 = 0,
+                    catresearch_3 = 0,
+                    catresearch_4 = 0,
+                    catresearch_5 = 0,
+                    catresearch_6 = 0,
+                    catresearch_7 = 0,
+                    catresearch_8 = 0,
+                    catresearch_9 = 0,
+                    catresearch_10 = 0,
+                    unittrain_actual = 0,
+                    unittrainid_nexttime=0,
+                    planet_surrender=0
+                 WHERE planet_id = '.$surrender['planet_id'];
 
-    if(!$db->query($sql)) {
-        $sdl->log('<b>Error:</b> Could not delete switch user');
-    }
+        if(!$db->query($sql)) {
+            $sdl->log('<b>Error:</b> Could not desertificate planet');
+        }
+        
+        // DC ---- History record in planet_details, with label '33'
+        $sql = 'SELECT user_race, user_alliance FROM user WHERE user_id = '.$surrender['planet_owner'];
 
-    // DC ---- History record in planet_details, with label '30'
-    $sql = 'SELECT user_race, user_alliance FROM user WHERE user_id = '.$surrender['planet_owner'];
+        $_temp = $db->queryrow($sql);
 
-    $_temp = $db->queryrow($sql);
+        $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
+                VALUES ('.$surrender['planet_id'].',
+                        '.$surrender['planet_owner'].',
+                        '.$_temp['user_alliance'].',
+                        '.$surrender['planet_owner'].',
+                        '.$_temp['user_alliance'].', '.time().', 33)';
 
-    $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
-            VALUES ('.$surrender['planet_id'].',
-                    '.$surrender['planet_owner'].',
-                    '.$_temp['user_alliance'].',
-                    '.$surrender['planet_owner'].',
-                    '.$_temp['user_alliance'].', '.time().', 30)';
+        if(!$db->query($sql)) {
+            $sdl->log('<b>Error:</b> Could not insert new planet details 33 for <b>'.$surrender['planet_id'].'</b>! CONTINUED');
+        }
 
-    if(!$db->query($sql)) {
-        $sdl->log('<b>Error:</b> Could not insert new planet details 30 for <b>'.$surrender['planet_id'].'</b>! CONTINUED');
-    }
+        $sql = 'DELETE FROM settlers_relations WHERE planet_id = '.$surrender['planet_id'];
 
-    $sql = 'DELETE FROM settlers_relations WHERE planet_id = '.$surrender['planet_id'];
-
-    if(!$db->query($sql)) {
-        $sdl->log('<b>Error:</b> Could not remove settlers_relations entry for <b>'.$surrender['planet_id'].'</b>! CONTINUED');
-    }
+        if(!$db->query($sql)) {
+            $sdl->log('<b>Error:</b> Could not remove settlers_relations entry for <b>'.$surrender['planet_id'].'</b>! CONTINUED');
+        }        
     
-    $sql = 'INSERT INTO settlers_relations (planet_id, race_id, user_id, timestamp, log_code, mood_modifier)
-                                    VALUES ('.$surrender['planet_id'].', 13, '.INDEPENDENT_USERID.', '.time().', 30, 80)';
+    }
+    else {
+        
+        $riot_race_id = (mt_rand(0, 100) > 21 ? INDEPENDENT_USERID : ORION_USERID);
+        $sql = 'UPDATE planets
+                SET planet_owner='.$riot_race_id.',
+                    planet_name = "'.($riot_race_id == INDEPENDENT_USERID ? 'Colony' : 'Orion Cove #').$surrender['planet_id'].'",
+                    best_mood = 0,
+                    best_mood_user = 0,
+                    best_mood_planet = 0,
+                    best_mood_alert = 0,
+                    npc_last_action = 0,
+                    planet_owned_date = '.time().',
+                    resource_4 = '.mt_rand(0, 5000).',
+                    recompute_static = 1,
+                    building_1 = '.mt_rand(5, 9).',
+                    building_2 = '.mt_rand(5, 9).',
+                    building_3 = '.mt_rand(5, 9).',
+                    building_4 = '.mt_rand(5, 9).',
+                    building_6 = '.mt_rand(5, 9).',
+                    building_7 = '.mt_rand(3, 9).',
+                    building_8 = '.mt_rand(3, 9).',
+                    building_9 = 3,    
+                    building_10 = '.mt_rand(3, 10).',
+                    building_11 = '.mt_rand(3, 9).',
+                    building_11 = '.mt_rand(5, 9).',                        
+                    building_13 = '.mt_rand(8, 15).',
+                    research_3 = '.($riot_race_id == INDEPENDENT_USERID ? 3 : 7).',
+                    unit_1 = '.mt_rand(500, 1500).',
+                    unit_2 = '.mt_rand(500, 1000).',
+                    unit_3 = '.mt_rand(0, 500).',
+                    unit_4 = 0,
+                    unit_5 = 0,
+                    unit_6 = 0,
+                    workermine_1 = 500,
+                    workermine_2 = 500,
+                    workermine_3 = 500,
+                    catresearch_1 = 0,
+                    catresearch_2 = 0,
+                    catresearch_3 = 0,
+                    catresearch_4 = 0,
+                    catresearch_5 = 0,
+                    catresearch_6 = 0,
+                    catresearch_7 = 0,
+                    catresearch_8 = 0,
+                    catresearch_9 = 0,
+                    catresearch_10 = 0,
+                    unittrain_actual = 0,
+                    unittrainid_nexttime=0,
+                    planet_surrender=0
+                 WHERE planet_id = '.$surrender['planet_id'];
+
+        if(!$db->query($sql)) {
+            $sdl->log('<b>Error:</b> Could not delete switch user');
+        }
+
+        // DC ---- History record in planet_details, with label '30' for Settlers, 34 for Orion's pirates
+        $sql = 'SELECT user_race, user_alliance FROM user WHERE user_id = '.$surrender['planet_owner'];
+
+        $_temp = $db->queryrow($sql);
+
+        $sql = 'INSERT INTO planet_details (planet_id, user_id, alliance_id, source_uid, source_aid, timestamp, log_code)
+                VALUES ('.$surrender['planet_id'].',
+                        '.$surrender['planet_owner'].',
+                        '.$_temp['user_alliance'].',
+                        '.$surrender['planet_owner'].',
+                        '.$_temp['user_alliance'].', '.time().', '.($riot_race_id == INDEPENDENT_USERID ? 30 : 34).')';
+
+        if(!$db->query($sql)) {
+            $sdl->log('<b>Error:</b> Could not insert new planet details 30/34 for <b>'.$surrender['planet_id'].'</b>! CONTINUED');
+        }
+
+        $sql = 'DELETE FROM settlers_relations WHERE planet_id = '.$surrender['planet_id'];
+
+        if(!$db->query($sql)) {
+            $sdl->log('<b>Error:</b> Could not remove settlers_relations entry for <b>'.$surrender['planet_id'].'</b>! CONTINUED');
+        }
+
+        if($riot_race_id == INDEPENDENT_USERID) {
+            $sql = 'INSERT INTO settlers_relations (planet_id, race_id, user_id, timestamp, log_code, mood_modifier)
+                                            VALUES ('.$surrender['planet_id'].', 13, '.INDEPENDENT_USERID.', '.time().', 30, 80)';
+
+            if(!$db->query($sql)) {
+                $sdl->log('<b>Error:</b> Could not create Settlers Founder data for <b>'.$surrender['planet_id'].'</b>! CONTINUED');
+            }
+        }
+    }
+
+    if($surrender['planet_id'] == $surrender['u.user_capital']) {
+        $sql = 'UPDATE user SET user_capital = 0, pending_capital_choice = 1 WHERE user_id = '.$surrender['planet_owner'];
+
+        $db->query($sql);
+    }
+
+    if($surrender['system_n_planets'] >= 3 && $surrender['system_owner'] != 0) {
+        // Surrending a planet could lead to losing a lock on a system
+        $sql = 'SELECT planet_points FROM planets WHERE planet_owner = '.$surrender['system_owner'].' AND system_id = '.$surrender['system_id'];
+        
+        if(($p_info =  $db->queryrowset($sql)) === FALSE) {
+            $sdl->log('error reading planets info. Offending query: '.$sql);
+        }        
+        
+        $planet_owned_cnt = $planet_owned_pts = 0;
     
-    if(!$db->query($sql)) {
-        $sdl->log('<b>Error:</b> Could not create Settlers Founder data for <b>'.$surrender['planet_id'].'</b>! CONTINUED');
-    } 
+        foreach ($p_info as $planet) {
+            $planet_owned_cnt++;
+            $planet_owned_pts += $planet['planet_points'];
+        }        
+        
+        if(($planet_owned_pts < 3*320) || ($planet_owned_cnt < round($ss_info['system_n_planets']/2))) {
+            
+            $sql = 'UPDATE starsystems SET system_owner = 0, system_closed = 0 WHERE system_id = '.$surrender['system_id'];
+            
+            $db->query($sql);
+            
+            $sql = 'DELETE FROM starsystems_details WHERE system_id = '.$surrender['system_id'].' AND log_code = 100';
+            
+            $db->query($sql);
+            
+        }        
+    }
 }
 
 $sdl->finish_job('Rioters planets take over by the settlers');
 
+$sdl->start_job('Claim Verify');
+
+$sql = 'SELECT user_id, language FROM user WHERE user_active = 1 AND user_id > 10';
+
+$user_list = $db->queryrowset($sql);
+
+foreach ($user_list AS $user) {
+
+    $sql = 'SELECT system_id, system_global_x, system_global_y FROM starsystems_details INNER JOIN starsystems USING (system_id) WHERE user_id = '.$user['user_id'].' AND log_code = 100';
+
+    $res = $db->queryrowset($sql);
+
+    $sdl->log('user '.$user['user_id'].' still have #'.count($res).' claim(s)');
+
+    if(count($res)> 0) {
+        $sql = 'SELECT system_global_x, system_global_y FROM starsystems WHERE system_closed > 0 AND system_owner = '.$user['user_id'];
+        $list = $db->queryrowset($sql);
+        $sdl->log('user '.$user['user_id'].' still have #'.count($list).' private system(s)');
+        foreach ($res AS $claim) {
+            $min_range = 100000;
+            for($i = 0; $i < count($list); $i++) {
+                $range = get_distance(array($claim['system_global_x'], $claim['system_global_y']), array($list[$i]['system_global_x'], $list[$i]['system_global_y']));
+                $min_range = ($range < $min_range ? $range : $min_range);
+            }
+            if(count($list) == 0 || $min_range > 4500.0) {
+                $db->query('DELETE FROM starsystems_details WHERE system_id = '.$claim['system_id'].' AND user_id = '.$user['user_id'].' AND log_code = 100');
+                $sdl->log('<b>claim</b> of user '.$user['user_id'].' over system '.$claim['system_id'].' has been revoked!!!');
+            }
+        }
+    }    
+}
+
+$sdl->finish_job('Claim Verify');
 
 $sdl->start_job('Logbook cleaning');
 
@@ -428,7 +584,6 @@ $sql = 'DELETE FROM logbook WHERE log_type='.LOGBOOK_GOVERNMENT.' AND log_date<'
 if(!$db->query($sql)) {
     $sdl->log('<b>Error:</b> could not delete 1-day old government logs');
 }
-
 
 // Update unread logbook entries
 $sql = 'SELECT u.user_id, COUNT(l.log_id) AS n_logs  FROM (user u)
@@ -449,11 +604,29 @@ else {
     }
 }
 
-
-
-
 $sdl->finish_job('Logbook cleaning');
 
+$sdl->start_job('Various messages cleaning');
+
+$sql = 'UPDATE message SET rread = 1 WHERE sender = 0 AND time < '.(time()-3600*24*7);
+
+if(!$db->query($sql)) {
+    $sdl->log('<b>Error:</b> could not set as read system messages older than 7 days');
+}
+
+$sql = 'DELETE FROM message WHERE sender = 0 AND rread = 1 AND time < '.(time()-3600*24*10);
+
+if(!$db->query($sql)) {
+    $sdl->log('<b>Error:</b> could not delete system messages older than 10 days');
+}
+
+$sql = 'DELETE FROM shoutbox WHERE timestamp < '.(time()-3600*24*7);
+
+if(!$db->query($sql)) {
+    $sdl->log('<b>Error:</b> could not delete shoutbox messages older than 7 days');
+}
+
+$sdl->finish_job('Various messages cleaning');
 
 $sdl->start_job('Clearing invalid war declarations');
 
@@ -478,6 +651,21 @@ else {
 
 $sdl->finish_job('Clearing invalid war declarations');
 
+$sdl->start_job('scheduler_shipmovement table maintenance');
+
+$sql = 'DELETE FROM scheduler_shipmovement WHERE move_status IN (2, 11)';
+
+$db->query($sql);
+
+$sql = 'DELETE FROM scheduler_shipmovement WHERE move_status = 4 AND move_finish < '.$ACTUAL_TICK;
+
+$db->query($sql);
+        
+$sql = 'OPTIMIZE TABLE `scheduler_shipmovement` ';
+
+$db->query($sql);
+
+$sdl->finish_job('scheduler_shipmovement table maintenance');
 // ########################################################################################
 // ########################################################################################
 // Quit and close log
