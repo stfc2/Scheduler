@@ -32,6 +32,7 @@ global $NUM_BUILDING, $RACE_DATA;
 
 $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
 		FROM (ship_fleets f)
+                LEFT JOIN officers o ON o.fleet_id = f.fleet_id
 		INNER JOIN user u ON u.user_id = f.user_id
 		WHERE f.fleet_id IN ('.$this->fleet_ids_str.')';
 
@@ -113,6 +114,7 @@ $n_st_user = count($st_user);
 if($n_st_user > 0) {
     $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
              FROM (ship_fleets f)
+             LEFT JOIN officers o ON o.fleet_id = f.fleet_id
              INNER JOIN user u ON u.user_id = f.user_id
              WHERE f.planet_id = '.$this->move['dest'].' AND
                    (
@@ -129,6 +131,7 @@ if($n_st_user > 0) {
 else {
     $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
              FROM (ship_fleets f)
+             LEFT JOIN officers o ON o.fleet_id = f.fleet_id
              INNER JOIN user u ON u.user_id = f.user_id
              WHERE f.planet_id = '.$this->move['dest'].' AND
                    f.user_id = '.$user_id;
@@ -186,7 +189,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
     // 080408 DC: the oracle says....
     $this->log(MV_M_NOTICE, 'I read building_lvls = '.$n_building_lvls.' and bomb_i = '.$bomb_i);
 
-
+    /*
     //Special "Antiborg" ship
     $queryadd='';
     if ($this->dest['user_id']==BORG_USERID)
@@ -211,9 +214,10 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                         unit_4=unit_4-'.$unitkill[3].', ';
         }
     }
+    */
 
-
-    if($n_building_lvls == 1 && $queryadd=='') {
+    //if($n_building_lvls == 1 && $queryadd=='') {
+    if($n_building_lvls == 1) {        
         // Enough Bombed...
 
         $sql = 'UPDATE ship_fleets
@@ -266,15 +270,17 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
         }
     }
     else {
+
         $sql = 'SELECT SUM(st.value_3) AS sum_planetary_weapons
                 FROM (ships s)
                 INNER JOIN ship_templates st ON st.id = s.template_id
-                WHERE s.fleet_id IN ('.$this->fleet_ids_str.') AND s.torp >= 5';
+                WHERE s.fleet_id IN ('.$this->fleet_ids_str.') AND st.value_2 > 0 AND s.torp >= 5';
 
         if(($plweapons = $this->db->queryrow($sql)) === false) {
             return $this->log(MV_M_DATABASE, 'Could not query fleets planetary weapons data! SKIP');
         }
 
+        /*
         // 190815 DC Yeah! We need moooar querieeees!!!
         $sql = 'SELECT COUNT(*) as c3 FROM (ships s) INNER JOIN (ship_templates st) ON st.id =s.template_id
                  WHERE s.fleet_id IN ('.$this->fleet_ids_str.') AND s.torp >= 5 AND s.experience >= 70 AND st.ship_class = 3';
@@ -289,8 +295,23 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
         if(($c2bonus = $this->db->queryrow($sql)) === false) {
             return $this->log(MV_M_DATABASE, 'Could not query fleets planetary weapons data! SKIP');
         }
+        */
         
-        $planetary_weapons = (int)$plweapons['sum_planetary_weapons'] + (int)($c2bonus['c2']*10) + (int)($c3bonus['c3']*50);
+        $sql = 'SELECT COUNT(*) as class2 FROM (ships s) INNER JOIN (ship_templates st) ON st.id = s.template_id
+                WHERE s.fleet_id IN ('.$this->fleet_ids_str.') AND st.value_2 > 0 AND s.torp >= 5 AND st.ship_class = 2 AND s.experience >= 100';
+        
+        if(($c2bonus = $this->db->queryrow($sql)) === false) {
+            return $this->log(MV_M_DATABASE, 'Could not query fleets planetary weapons data! SKIP');
+        }
+        
+        $sql = 'SELECT COUNT(*) as class3 FROM (ships s) INNER JOIN (ship_templates st) ON st.id = s.template_id
+                WHERE s.fleet_id IN ('.$this->fleet_ids_str.') AND st.value_2 > 0 AND s.torp >= 5 AND st.ship_class = 3 AND s.experience >= 70';
+        
+        if(($c3bonus = $this->db->queryrow($sql)) === false) {
+            return $this->log(MV_M_DATABASE, 'Could not query fleets planetary weapons data! SKIP');
+        }
+        
+        $planetary_weapons = (int)$plweapons['sum_planetary_weapons'] + (int)($c2bonus['class2']*10) + (int)($c3bonus['class3']*50);
 
         if($planetary_weapons == 0) {
             $sql = 'UPDATE ship_fleets
@@ -332,7 +353,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                 return $this->log(MV_M_DATABASE, 'Could not update torpedo data after attack! SKIP');
             }
 
-            $focus = (int)$this->move['action_data'][0];
+            $focus = (int)$this->action_data[0];
 
             if($focus < 0) $focus = 0;
             if($focus > 3) $focus = 3;
@@ -340,6 +361,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
 
             $new_dest = PlanetaryAttack($this->mid,$planetary_weapons, $this->dest, $focus, $RACE_DATA[$this->dest['user_race']][17]);
+
 
             $sql = 'UPDATE planets
                     SET resource_4 = '.$new_dest['resource_4'].',
@@ -352,10 +374,10 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                         building_7 = '.$new_dest['building_7'].',
                         building_8 = '.$new_dest['building_8'].',
                         building_9 = '.$new_dest['building_9'].',
-                        building_10 = 0,
+                        building_10 = '.$new_dest['building_10'].',
                         building_11 = '.$new_dest['building_11'].',
                         building_12 = '.$new_dest['building_12'].',
-                        building_13 = 0,
+                        building_13 = '.$new_dest['building_13'].',                            
                         unit_1 = '.$new_dest['unit_1'].',
                         unit_2 = '.$new_dest['unit_2'].',
                         unit_3 = '.$new_dest['unit_3'].',
@@ -365,17 +387,43 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                         workermine_1 = '.(($new_dest['building_2'] + 1) * 100).',
                         workermine_2 = '.(($new_dest['building_3'] + 1) * 100).',
                         workermine_3 = '.(($new_dest['building_4'] + 1) * 100).',
-                        '.$queryadd.'
                         recompute_static=1
                     WHERE planet_id = '.$this->move['dest'];
-
+            // '.$queryadd.'   Antiborgship 
+            
             if(!$this->db->query($sql)) {
                 return $this->log(MV_M_DATABASE, 'Could not update planets data after attack! SKIP');
             }
 
+            $sql = 'UPDATE planets
+                    SET planet_points = 10 +
+                            POW(building_1, 1.5) +
+                            POW(building_2, 1.5) +
+                            POW(building_3, 1.5) +
+                            POW(building_4, 1.5) +
+                            POW(building_5, 1.5) +
+                            POW(building_6, 1.5) +
+                            POW(building_7, 1.5) +
+                            POW(building_8, 1.5) +
+                            POW(building_9, 1.5) +
+                            POW(building_10, 1.5) +
+                            POW(building_11, 1.5) +
+                            POW(building_12, 1.5) +
+                            POW(building_13, 1.5) +
+                            POW(research_1, 1.5) +
+                            POW(research_2, 1.5) +
+                            POW(research_3, 1.5) +
+                            POW(research_4, 1.5) +
+                            POW(research_5, 1.5)
+                    WHERE planet_id = '.$this->move['dest'];
+             
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update planets data after attack! SKIP');
+            }
+            
             $sql = 'UPDATE scheduler_shipmovement
                     SET move_begin = '.$this->CURRENT_TICK.',
-                        move_finish = '.($this->CURRENT_TICK + 8).',
+                        move_finish = '.($this->CURRENT_TICK + 4).',
                         action_data = "'.serialize(array($focus, ($bomb_i + 1))).'"
                     WHERE move_id = '.$this->mid;
 
@@ -388,6 +436,10 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             $this->check_shipyard_status(); // Gonna check the shipyard status after bombing
 
             $this->check_spacedock_status(); // Gonna check the ships in spacedock after bombing
+            
+            $this->check_rc_status(); // Gonna check research centre status
+            
+            $this->check_sytem_ownership($this->dest['system_id']);
 
             $status_code = ($bomb_i > 0) ? 2 : 1;
 
@@ -424,16 +476,16 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                                 alliance_id = '.$this->move['user_alliance'].',
                                 race_id = '.$this->move['user_race'].',
                                 timestamp = '.time().',
-                                log_code = 11,
-                                mood_modifier = - 50';
+                                log_code = 33,
+                                mood_modifier = - 40';
                 else
                     $sql = 'INSERT INTO settlers_relations
                             SET planet_id = '.$this->move['dest'].',
                                 user_id = '.$this->move['user_id'].',
                                 race_id = '.$this->move['user_race'].',
                                 timestamp = '.time().',
-                                log_code = 11,
-                                mood_modifier = - 50';
+                                log_code = 33,
+                                mood_modifier = - 40';
 
                 if(!$this->db->query($sql)) {
                     $this->log(MV_M_DATABASE, 'Could not update settlers moods! CONTINUE!');
@@ -443,6 +495,22 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
             }
 
+            // Bombing a Borg planet is not a really good idea...
+            
+            if($this->dest['user_id'] == BORG_USERID) {
+                $bt = $this->db->queryrow('SELECT COUNT(*) AS cnt FROM borg_target WHERE user_id = '.$this->move['user_id']);
+                if(!isset($bt['cnt']) || $bt['cnt'] == 0) {
+                    $this->db->query('INSERT INTO borg_target (user_id, battle_win, last_check) VALUES ("'.$this->move['user_id'].'", 1, 0)');
+                    $diplospeech = $this->db->queryrowset('SELECT planet_id FROM settlers_relations WHERE user_id = '.$this->move['user_id'].' AND log_code = 2');
+                    foreach ($diplospeech AS $diploitem) {
+                        $this->db->query('INSERT INTO settlers_relations (planet_id, user_id, timestamp, log_code, mood_modifier) VALUES ('.$diploitem['planet_id'].', '.$this->move['user_id'].', '.time().', 22, 10)');
+                    }   
+                }
+                else {
+                    $this->db->query('UPDATE borg_target SET battle_win = battle_win + 1 WHERE user_id = '.$this->move['user_id']);
+                }
+            }
+            
             $this->flags['keep_move_alive'] = true;
         }
     }
@@ -520,9 +588,10 @@ if(!empty($new_dest)) {
         $this->dest['building_7'] - $new_dest['building_7'],
         $this->dest['building_8'] - $new_dest['building_8'],
         $this->dest['building_9'] - $new_dest['building_9'],
-        0,
+        $this->dest['building_10'] - $new_dest['building_10'],
         $this->dest['building_11'] - $new_dest['building_11'],
         $this->dest['building_12'] - $new_dest['building_12'],
+        $this->dest['building_12'] - $new_dest['building_13'],
         $this->dest['unit_1'] - $new_dest['unit_1'],
         $this->dest['unit_2'] - $new_dest['unit_2'],
         $this->dest['unit_3'] - $new_dest['unit_3'],
@@ -532,12 +601,87 @@ if(!empty($new_dest)) {
         0
     );
 }
-    $log1_data[19] = $log2_data[19] = $this->dest['user_race'];
 
+$log1_data[19] = $log2_data[19] = $this->dest['user_race'];
 
+/*
 if(isset($unitkill)) {
     $log1_data[20] = $log2_data[20] = $unitkill;
 
+}
+*/
+
+//##############################################################################
+// KP earned by bombing                                                        #
+// 5 kp for each structure level
+// +20%  for each Headquarter structure hit
+// +12%  for each Spacedock structure hit
+// +20%  for each Academy structure hit
+// +16%  for each Shipyard structure hit
+// +4%   for each Mines structure hit
+// +8%   for each Silo structure hit
+// +4%   for each component line level above 4 in Research Center, max 40%
+//##############################################################################
+
+$kp_base = $kp_sum = 0;
+$kp_bonus = array();
+
+for($i = 1; $i <= ($NUM_BUILDING); ++$i)
+{
+    $kp_base = $log1_data[18][$i] * 5;
+    
+    switch($i) {
+        case 1:
+            $kp_bonus['hq'] += (int)round(($kp_base/100)*20);
+            break;
+        case 2:
+        case 3:
+        case 4: // Mines hit
+            $kp_bonus['mines'] += (int)round(($kp_base/100)*4);
+            break;
+        case 5:
+            break;
+        case 6: // Academy hit
+            $kp_bonus['academy'] = (int)round(($kp_base/100)*20);
+            break;
+        case 7: // Spacedock hit
+            $kp_bonus['spacedock'] = (int)round(($kp_base/100)*12);
+            break;
+        case 8: // Shipyard hit
+            $kp_bonus['shipyard'] = (int)round(($kp_base/100)*16);
+            break;
+        case 9: // Research Centre hit
+            $kp_multiplier = 0;
+            for($ii = 1; $ii <= 10; ++$ii) {
+                if($this->dest['catresearch_'.$ii] > 4) $kp_multiplier += 4;
+            }
+            $kp_bonus['research'] = (int)round(($kp_base/100)*$kp_multiplier);
+            break;
+        case 10:
+        case 11:
+            break;
+        case 12: // Silo hit
+            $kp_bonus['silo'] = (int)round(($kp_base/100)*8);
+            break;
+        case 13:
+            break;
+    }
+    $kp_sum += $kp_base;
+}
+
+$log1_data[20]['sum'] = $log2_data[20]['sum'] = $kp_sum;
+if($kp_bonus['mines']     > 0) {$log1_data[20]['mines'] = $log2_data[20]['mines'] = $kp_bonus['mines'];}
+if($kp_bonus['academy']   > 0) {$log1_data[20]['academy'] = $log2_data[20]['academy'] = $kp_bonus['academy'];}
+if($kp_bonus['spacedock'] > 0) {$log1_data[20]['spacedock'] = $log2_data[20]['spacedock'] = $kp_bonus['spacedock'];}
+if($kp_bonus['shipyard']  > 0) {$log1_data[20]['shipyard'] = $log2_data[20]['shipyard'] = $kp_bonus['shipyard'];}
+if($kp_bonus['research']  > 0) {$log1_data[20]['research'] = $log2_data[20]['research'] = $kp_bonus['research'];}
+if($kp_bonus['silo']      > 0) {$log1_data[20]['silo'] = $log2_data[20]['silo'] = $kp_bonus['silo'];}
+
+// Update player
+$kp_update = $kp_sum + array_sum($kp_bonus);
+$sql = 'UPDATE user SET user_honor = user_honor + '.$kp_update.', '.($this->dest['user_id'] >= 11 ? 'user_honor_pvp' : 'user_honor_png').' = '.($this->dest['user_id'] >= 11 ? 'user_honor_pvp' : 'user_honor_png').' + '.$kp_update.' WHERE user_id = '.$this->move['user_id'];
+if(!$this->db->query($sql)) {
+    $this->log(MV_M_DATABASE, 'Could not update user '.$this->move['user_id'].' honor!!!');
 }
 
 add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $atk_title, $log1_data);
