@@ -22,6 +22,16 @@
 
 class moves_action_27 extends moves_common {
 
+    function best_tech(&$high_lvl, $tech_lvls)
+    {
+        foreach ($tech_lvls AS $key => $tech) {
+            if($tech > $high_lvl['level']) {
+                $high_lvl['id'] = $key;
+                $high_lvl['level'] = $tech;                        
+            }
+        }        
+    }
+    
     function do_simple_relation($user_id, $planet_id, $log_code, $mood_modifier)
     {
     
@@ -43,6 +53,15 @@ class moves_action_27 extends moves_common {
             
         $this->db->query($sql);
     }
+    
+    function do_tech_relation($user_id, $planet_id, $log_code, $mood_modifier)
+    {
+        // All tech's mood are written separatly for easy management
+        
+        $sql='INSERT INTO settlers_relations SET planet_id = '.$planet_id.', user_id = '.$user_id.',timestamp = '.time().',log_code = '.$log_code.', mood_modifier = '.$mood_modifier;
+        
+        $this->db->query($sql);
+    }
 
     function fetch_founder_mood($planet_id)
     {
@@ -55,7 +74,92 @@ class moves_action_27 extends moves_common {
             return(array(-1, -1));
         }
     }
+    
+    function tech_codes($tech_id, $language) 
+    {
+        switch($tech_id)
+        {
+            case 0:
+                $code = LC_SUP_TECH;
+                switch($language)
+                {
+                    case 'GER':
+                        $text = '<b>Environmental modification</b>';
+                    break;
+                    case 'ITA':
+                        $text = '<b>Modifica ambientale</b>';
+                    break;
+                    default:
+                        $text = '<b>Environmental modification</b>';
+                    break;
+                }
+            break;
+            case 1:
+                $code = LC_SUP_MEDI;
+                switch($language)
+                {
+                    case 'GER':
+                        $text = '<b>Medical research</b>';
+                    break;
+                    case 'ITA':
+                        $text = '<b>Ricerca medica</b>';
+                    break;
+                    default:
+                        $text = '<b>Medical research</b>';
+                    break;
+                }
+            break;                    
+            case 2:
+                $code = LC_SUP_DFNS;
+                switch($language)
+                {
+                    case 'GER':
+                        $text = '<b>Defenses upgrade</b>';
+                    break;
+                    case 'ITA':
+                        $text = '<b>Aggiornamento difese</b>';
+                    break;
+                    default:
+                        $text = '<b>Defenses upgrade</b>';
+                    break;
+                }
+            break;
+            case 3:
+                $code = LC_SUP_AUTO;
+                switch($language)
+                {
+                    case 'GER':
+                        $text = '<b>Automation</b>';
+                    break;
+                    case 'ITA':
+                        $text = '<b>Automazione</b>';
+                    break;
+                    default:
+                        $text = '<b>Automation</b>';
+                    break;
+                }
+            break;
+            case 4:
+                $code = LC_SUP_MINE;
+                switch($language)
+                {
+                    case 'GER':
+                        $text = '<b>Mining</b>';
+                    break;
+                    case 'ITA':
+                        $text = '<b>Estrazione</b>';
+                    break;
+                    default:
+                        $text = '<b>Mining</b>';
+                    break;
+                }
+            break;
+        }
 
+        return array($code, $text);
+        
+    }
+    
     function update_founder_mood($planet_id, $mood_modifier)
     {
         $sql = 'SELECT mood_modifier, user_id FROM settlers_relations WHERE log_code = '.LC_COLO_FOUNDER.' AND planet_id = '.$planet_id;
@@ -136,8 +240,9 @@ class moves_action_27 extends moves_common {
 
         $is_first_contact = false;
         $is_diplo_speech = false;
-
-        $sql = 'SELECT s.ship_name, s.experience, s.awayteam, s.ship_id,
+        $is_felon = false;
+        
+        $sql = 'SELECT s.ship_name, s.experience, s.awayteam, s.ship_id, s.fleet_id,
                         s.unit_1, s.unit_2, s.unit_3, s.unit_4,
                         t.name, t.min_unit_1, t.min_unit_2, t.min_unit_3, t.min_unit_4,
                         t.max_unit_1, t.max_unit_2, t.max_unit_3, t.max_unit_4
@@ -146,7 +251,7 @@ class moves_action_27 extends moves_common {
                         LEFT JOIN ship_templates t ON t.id = s.template_id
                 WHERE f.fleet_id IN ('.$this->fleet_ids_str.')';
 
-        if(($ship_details = $this->db->queryrow($sql)) == false) {
+        if(($ship_details = $this->db->queryrow($sql)) === false) {
             $this->log(MV_M_DATABASE, 'Could not read ship name! CONTINUE');
             $name_of_ship = '<i>Sconosciuto</i>';
         }
@@ -178,6 +283,20 @@ class moves_action_27 extends moves_common {
             $this->action_data[1] = -1;
         }
         
+        /*
+         * 
+         */
+        $sql = 'SELECT date FROM user_felony WHERE user1_id = '.INDEPENDENT_USERID.' AND user2_id = '.$this->move['user_id'];
+        if(($user_felony = $this->db->queryrow($sql)) === false) {
+            return $this->log(MV_M_DATABASE, 'Could not read planet data! SKIP');
+        }
+        
+        if(isset($user_felony['date'])) {$is_felon = true;}
+        
+        if($is_felon) {
+            $this->db->query('DELETE FROM settlers_relations WHERE planet_id = '.$this->move['dest'].' AND user_id = '.$this->move['user_id']);
+        }        
+
         /**
          * Check planet's mood.
          */
@@ -211,12 +330,13 @@ class moves_action_27 extends moves_common {
             return $this->log(MV_M_DATABASE, 'Could not read planet data! SKIP');
         }
 
-        $mood['user'] = $mood_user['mood_user'];
+        $mood['user'] = $mood_user['mood_user'] + ($is_felon ? -5000 : 0);
 
 
         $mood['value'] = (!empty($mood['race']) ? $mood['race'] : 0) +
                          (!empty($mood['alliance']) ? $mood['alliance'] : 0) +
                          (!empty($mood['user']) ? $mood['user'] : 0);
+                         
 
         // Event check section
         // EVENT TABLE FORMAT
@@ -277,7 +397,7 @@ class moves_action_27 extends moves_common {
                         }
                     case '101': // Terreno di Caccia - Può bloccare la missione - NON usa l'array cache_mood e scrive direttamente
                         if($event_row['user_id'] == $this->move['user_id']) break;
-                        if($this->action_data[0] == 5) break;
+                        if($this->action_data[0] == 1 || $this->action_data[0] == 5) break;
                         $critical_test = rand(0, 10000);
                         $test_value = $ship_details['awayteam'] - $event_row['awayteam_startlevel'];
                         $log_data1 = array($this->move['dest'],$this->dest['planet_name'], $event_row['awayteamship_id'], 'N/A', 107, 0);
@@ -305,7 +425,7 @@ class moves_action_27 extends moves_common {
                                 $log_title2 = 'La tua missione su '.$this->dest['planet_name'].' &egrave; fallita!';                                
                                 $this->do_simple_relation($event_row['user_id'], $event_row['planet_id'], LC_REL_PREDAT, 5);
                                 $this->do_simple_relation($this->move['user_id'], $event_row['planet_id'], LC_REL_PREY, -5);
-                                $new_count_ok += 1;
+                                $new_count_crit_ok += 1;
                                 $halt_mission = TRUE;
                             }
                         }
@@ -329,7 +449,6 @@ class moves_action_27 extends moves_common {
                         break;
                     case '102': // Razziatori in attesa NASCOSTO
                         if($event_row['user_id'] == $this->move['user_id']) break;
-                        if($this->action_data[0] != 3) break; // Rimane nascosto finché non arriva una missione di supporto
                         $new_event_code = '103';
                         $sql = 'UPDATE settlers_events SET event_code = '.$new_event_code.' WHERE planet_id = '.$this->move['dest'].' AND event_code = '.$event_row['event_code'].' AND user_id = '.$event_row['user_id'];
                         if(!$this->db->query($sql)) {
@@ -338,7 +457,7 @@ class moves_action_27 extends moves_common {
                     case '103': // Razziatori in attesa. Può bloccare la missione - NON usa l'array cache_mood e scrive direttamente
                                 // Attende lo sbarco a terra di altre squadre nel tentativo di sottrarre la nave al proprietario
                         if($event_row['user_id'] == $this->move['user_id']) break;
-                        if($this->action_data[0] == 5) break;
+                        if($this->action_data[0] == 1 || $this->action_data[0] == 5) break;
                         $check = rand(0, 1000);
                         $log_data1 = array($this->move['dest'],$this->dest['planet_name'], $event_row['awayteamship_id'], 'N/A', 109, 0);
                         $log_title1 = 'Rapporto della squadra su '.$this->dest['planet_name'];
@@ -346,38 +465,37 @@ class moves_action_27 extends moves_common {
                         $test_value =  $event_row['awayteam_startlevel'] - $ship_details['awayteam'];
                         if($test_value > 0) 
                         {
+                            $changed = TRUE;
+                            $new_event_result = 1;                            
+                            $halt_mission = TRUE;                            
                             $success_test = $test_value * 1.334 * 10;
                             if($success_test > $check) {
                                 // Successo CRITICO! La nave avversaria viene CATTURATA
                                 $log_title2 = 'La tua missione su '.$this->dest['planet_name'].' &egrave; fallita!';
                                 $this->do_simple_relation($event_row['user_id'], $event_row['planet_id'], LC_REL_PREDAT, 10);
                                 $this->do_simple_relation($this->move['user_id'], $event_row['planet_id'], LC_REL_PREY, -10);
-                                $newatlevel = $event_row['awayteam_startlevel'] + $event_row['count_ok'] * 2.0 + 15.0;
-                                $sql = 'UPDATE ships SET unit_1 = '.$event_row['unit_1'].', unit_2 = '.$event_row['unit_2'].', unit_3 = '.$event_row['unit_3'].', unit_4 = '.$event_row['unit_4'].',
-                                                         awayteam = '.$newatlevel.', user_id = '.$event_row['user_id'].', awayteamplanet_id = 0 WHERE ship_id = '.$ship_details['ship_id'];
+                                $sql = 'UPDATE ships SET unit_1 = '.$ship_details['min_unit_1'].',
+                                                         unit_2 = '.$ship_details['min_unit_2'].', 
+                                                         unit_3 = '.$ship_details['min_unit_3'].', 
+                                                         unit_4 = '.$ship_details['min_unit_4'].',
+                                                         awayteam = 1, user_id = '.$event_row['user_id'].', awayteamplanet_id = 0 WHERE ship_id = '.$ship_details['ship_id'];
                                 if(!$this->db->query($sql)) {
                                     return $this->log(MV_M_DATABASE, 'Could not update captured ship data! SKIP!!! '.$sql);
                                 }
-                                $sql = 'UPDATE ship_fleets SET user_id = '.$event_row['user_id'].', fleet_name = "Catturata" WHERE fleet_id = '.$ship_details['fleet_id'];
+                                $sql = 'UPDATE ship_fleets SET user_id = '.$event_row['user_id'].', fleet_name = "Captured" WHERE fleet_id = '.$ship_details['fleet_id'];
                                 if(!$this->db->query($sql)) {
                                     return $this->log(MV_M_DATABASE, 'Could not update captured fleet data! SKIP!!! '.$sql);
                                 }
-                                $sql = 'UPDATE ships SET awayteam = 1, awayteamplanet_id = 0 WHERE ship_id = '.$event_row['awayteamship_id'];
-                                if(!$this->db->query($sql)) {
-                                    return $this->log(MV_M_DATABASE, 'Could not update ship AT level!!! '.$sql);
-                                }
                                 $log_data1[5] = $log_data2[5] = 1;
-                                $event_delete = TRUE;
-                                $halt_mission = TRUE;                                
+                                $new_count_crit_ok += 1;                                
+                                $new_event_status = 0;
                             }
                             else {
                                 // Successo! La squadra avversaria è battuta e viene respinta
                                 $log_title2 = 'La tua missione su '.$this->dest['planet_name'].' &egrave; fallita!';                                
                                 $this->do_simple_relation($event_row['user_id'], $event_row['planet_id'], LC_REL_PREDAT, 5);
                                 $this->do_simple_relation($this->move['user_id'], $event_row['planet_id'], LC_REL_PREY, -5);                                
-                                $changed = TRUE;
-                                $new_count_ok += 1;
-                                $halt_mission = TRUE;
+                                $new_count_crit_ok += 1;
                             }
                         }
                         else
@@ -401,10 +519,22 @@ class moves_action_27 extends moves_common {
                                 $new_count_ko += 1;
                             }
                         }
+                        add_logbook_entry($event_row['user_id'], LOGBOOK_SETTLERS, $log_title1, $log_data1);
+                        add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title2, $log_data2);                        
+                        break;
+                    case '104': // Acquisizione Ferengi - NASCOSTO. Si aggiorna il codice evento sul db e si esegue il codice 105
+                        if($event_row['user_id'] == $this->move['user_id']) break;
+                        $new_event_code = '105';
+                        $sql = 'UPDATE settlers_events SET event_code = '.$new_event_code.' WHERE planet_id = '.$this->move['dest'].' AND event_code = '.$event_row['event_code'].' AND user_id = '.$event_row['user_id'];
+                        if(!$this->db->query($sql)) {
+                            return $this->log(MV_M_DATABASE, 'Could not update ship AT level!!! '.$sql);
+                        }                        
+                    case '105': // Acquisizione Ferengi - Il sub-nagus e il suo seguito tenteranno di portare il governo della colonia ad entrare nella Confederazione Ferengi e, allo stesso tempo,
+                                // bloccheranno ogni tentativo di scalata aliena al controllo della stessa.
                         break;
                     case '120':
                         // Presidio Federale.
-                        if($this->action_data[0] != 3 && $this->action_data[0] != 4) break;
+                        if($this->action_data[0] < 3 || $this->action_data[0] > 4) break;
                         $new_count_ok += 1;
                         $new_event_result = 1;
                         $changed = TRUE;
@@ -423,7 +553,7 @@ class moves_action_27 extends moves_common {
                     break;
                     case '122':
                         // Presidio Klingon.
-                        if($this->action_data[0] != 3 && $this->action_data[0] != 4) break;
+                        if($this->action_data[0] < 3 || $this->action_data[0] > 4) break;
                         if($res[1] == $this->move['user_id'])
                         {
                             switch($this->action_data[0])
@@ -431,9 +561,12 @@ class moves_action_27 extends moves_common {
                                 case 3:
                                     $cache_mood[LC_REL_CHAMPN] += 4;
                                 break;
+                                /*
                                 case 4:
                                     $cache_mood[LC_REL_DEFNDR] += 8;
                                 break;
+                                 * 
+                                 */
                             }
                             $new_count_ok += 1;
                             $new_event_result = 1;
@@ -449,7 +582,7 @@ class moves_action_27 extends moves_common {
                     break;
                     case '123':
                         // Presidio Cardassiano
-                        if($this->action_data[0] != 3 && $this->action_data[0] != 4) break;
+                        if($this->action_data[0] < 3 || $this->action_data[0] > 4) break;
                         if($res[1] == $this->move['user_id'])
                         {
                             switch($this->action_data[0])
@@ -482,6 +615,7 @@ class moves_action_27 extends moves_common {
                     break;
                     case '124':
                         // Presidio Dominion
+                        /*
                         if($this->action_data[0] != 3 && $this->action_data[0] != 4) break;
                         if($res[1] == $this->move['user_id'])
                         {
@@ -499,6 +633,25 @@ class moves_action_27 extends moves_common {
                             $changed = TRUE;                                                           
                         }
                     break;
+                         */
+                    case '124':
+                        // Presidio Ferengi - Difesa del mercato
+                        if($this->action_data[0] != 3 && $this->action_data[0] != 4) break;
+                        if($event_row['user_id'] == $this->move['user_id']) break;
+                        if($ship_details['awayteam'] <= $event_row['awayteam_startlevel']) 
+                        {
+                            $cache_mood[LC_REL_UNABLE] -= 10;
+                            $new_count_crit_ok += 1;
+                            $new_event_result = 1;
+                            $changed = TRUE;                            
+                        }
+                        else {
+                            $cache_mood[LC_REL_UNABLE] -= 5;
+                            $new_count_ok += 1;
+                            $new_event_result = 1;
+                            $changed = TRUE;                                  
+                        }                        
+                    break;    
                     case '130':
                         // Pluralismo
                         if($this->action_data[0] != 3) break;
@@ -587,7 +740,7 @@ class moves_action_27 extends moves_common {
                     break;
                     case '133':
                         // Propaganda Sovversiva
-                        if($this->action_data[0] != 3 && $this->action_data[0] != 4) break;
+                        if($this->action_data[0] < 3 && $this->action_data[0] > 4) break;
                         if(($res[1] == $this->move['user_id']) && ($event_row['awayteam_startlevel'] > $ship_details['awayteam']))
                         {
                             $this->do_simple_relation($event_row['user_id'], $event_row['planet_id'], LC_REL_LIBERT, 5);
@@ -607,7 +760,7 @@ class moves_action_27 extends moves_common {
                     break;
                     case '134':
                         // Denunciare Incompetenza
-                        if($this->action_data[0] != 3 && $this->action_data[0] != 4) break;
+                        if($this->action_data[0] < 3 && $this->action_data[0] > 4) break;
                         if(($res[1] == $this->move['user_id']) && ($event_row['awayteam_startlevel'] > $ship_details['awayteam']))
                         {
                             $this->do_simple_relation($event_row['user_id'], $event_row['planet_id'], LC_REL_CMPTNT, 5);
@@ -625,6 +778,24 @@ class moves_action_27 extends moves_common {
                             $changed = TRUE;
                         }
                     break;
+                    case '135':
+                        // Corrompere i locali
+                        if($this->action_data[0] < 3 && $this->action_data[0] > 4) break;
+                        if($event_row['user_id'] == $this->move['user_id']) break;                        
+                        if($event_row['awayteam_startlevel']+10 > $ship_details['awayteam']) {
+                            $this->do_simple_relation($event_row['user_id'], $event_row['planet_id'], LC_REL_CMPTNT, 12);
+                            $cache_mood[LC_REL_UNABLE] -= 12;
+                            $new_count_crit_ok += 1;
+                            $new_event_result = 1;
+                            $changed = TRUE;                            
+                        }
+                        else{
+                            $cache_mood[LC_REL_UNABLE] -= 6;
+                            $new_count_ok += 1;
+                            $new_event_result = 1;
+                            $changed = TRUE;                            
+                        }
+                    break;
                 }
 
                 if($event_delete)
@@ -635,26 +806,36 @@ class moves_action_27 extends moves_common {
                 }
                 if($changed)
                 {
-                    $cache_event_sql[] = 'UPDATE settlers_events SET event_code = '.$new_event_code.', event_status = '.$new_event_status.', event_result = '.$new_event_result.',
-                                                       count_ok = '.$new_count_ok.', count_ko = '.$new_count_ko.', count_crit_ok = '.$new_count_crit_ok.', count_crit_ko = '.$new_count_crit_ko.'
-                                   WHERE planet_id = '.$this->move['dest'].' AND event_code = '.$event_row['event_code'].' AND user_id = '.$event_row['user_id'];
+                    $sql = 'UPDATE settlers_events 
+                            SET event_code = '.$new_event_code.', 
+                                event_status = '.$new_event_status.', 
+                                event_result = '.$new_event_result.',
+                                count_ok = '.$new_count_ok.', 
+                                count_ko = '.$new_count_ko.', 
+                                count_crit_ok = '.$new_count_crit_ok.', 
+                                count_crit_ko = '.$new_count_crit_ko.'
+                            WHERE planet_id = '.$this->move['dest'].' AND 
+                                event_code = '.$event_row['event_code'].' AND 
+                                user_id = '.$event_row['user_id'];
+                    $this->log(MV_M_NOTICE, 'Query cached: '.$sql);
+                    $cache_event_sql[] = $sql;
                 }
                 if($halt_mission)
-                {
-                    if(count($cache_event_sql) > 0)
-                        foreach($cache_event_sql AS $cached_query) {
-                            if(!$this->db->query($cached_query)) {
-                                return $this->log(MV_M_DATABASE, 'Could not update event data. SKIP!!! '.$cached_query);
-                            }
-                        }
+                {                
                     $this->action_data[0] = 99;
+                    $this->log(MV_M_NOTICE, 'Mission halted.');
                     break;
+                }
+            }
+            $this->log(MV_M_NOTICE, '# of event chached query: '.(count($cache_event_sql)));            
+            foreach($cache_event_sql AS $cached_query) {
+                if(!$this->db->query($cached_query)) {
+                    return $this->log(MV_M_DATABASE, 'Could not update event data. SKIP!!! '.$cached_query);
                 }
             }
             // if($decrease_founder > 0) $this->update_founder_mood($this->move['dest'], $decrease_founder);
         }
 
-        
         // Diplo Section
         // In this section, good things happens
         switch($this->action_data[0]){
@@ -708,33 +889,16 @@ class moves_action_27 extends moves_common {
                     if($mood['value'] >= 0)  {
                         // Mission successfully
                         // Insert First Contact record, log_code = 1
-                        // If the player is President or Diplomatic, add alliance mood value
-                        if(isset($this->move['user_alliance']) && !empty($this->move['user_alliance']) && $this->move['user_alliance_status'] > 2) {
-                            $sql = 'INSERT INTO settlers_relations
-                                    SET planet_id = '.$this->move['dest'].',
-                                        race_id = '.$this->move['user_race'].',
-                                        user_id = '.$this->move['user_id'].',
-                                        alliance_id = '.$this->move['user_alliance'].',
-                                        timestamp = '.time().',
-                                        log_code = '.LC_FIRST_CONTACT.',
-                                        mood_modifier = 20';
-                            
-                            if(!$this->db->query($sql)) {
-                                return $this->log(MV_M_DATABASE, 'Could not create new settlers relations! SKIP!!!');
-                            }
-                        }
-                        else {
-                            $sql = 'INSERT INTO settlers_relations
-                                    SET planet_id = '.$this->move['dest'].',
-                                        race_id = '.$this->move['user_race'].',
-                                        user_id = '.$this->move['user_id'].',
-                                        timestamp = '.time().',
-                                        log_code = '.LC_FIRST_CONTACT.',
-                                        mood_modifier = 10';
+                        $sql = 'INSERT INTO settlers_relations
+                                SET planet_id = '.$this->move['dest'].',
+                                    race_id = '.$this->move['user_race'].',
+                                    user_id = '.$this->move['user_id'].',
+                                    timestamp = '.time().',
+                                    log_code = '.LC_FIRST_CONTACT.',
+                                    mood_modifier = 10';
 
-                            if(!$this->db->query($sql)) {
-                                return $this->log(MV_M_DATABASE, 'Could not create new settlers relations! SKIP!!!');
-                            }
+                        if(!$this->db->query($sql)) {
+                            return $this->log(MV_M_DATABASE, 'Could not create new settlers relations! SKIP!!!');
                         }
 
                         // Calculate Exp of the mission
@@ -990,6 +1154,7 @@ class moves_action_27 extends moves_common {
                     {
                         $speech_value = 40;
                         
+
                         $sql = 'SELECT threat_level FROM borg_target WHERE user_id = '.$this->move['user_id'];
                         $bot_target_data = $this->db->query($sql);
                         $already_acquired = $this->db->num_rows($bot_target_data);
@@ -997,17 +1162,28 @@ class moves_action_27 extends moves_common {
                             $honor_bonus_data = $this->db->fetchrow($bot_target_data);
                             // REMEMBER to keep this aligned with those present in borg.php!!
                             if($honor_bonus_data['threat_level'] > 1400.0)
-                                $speech_value += 50;
+                                $value = 80;
                             elseif($honor_bonus_data['threat_level'] > 950.0)
-                                $speech_value += 35;
+                                $value = 50;
                             elseif($honor_bonus_data['threat_level'] > 450.0)
-                                $speech_value += 25;
+                                $value = 30;
                             elseif($honor_bonus_data['threat_level'] > 200.0)
-                                $speech_value += 15;
+                                $value = 20;
                             else
-                                $speech_value += 10;
-                        }
+                                $value = 10;
+                            
+                            $sql = 'INSERT INTO settlers_relations
+                                    SET planet_id = '.$this->move['dest'].',
+                                        user_id = '.$this->move['user_id'].',
+                                        timestamp = '.time().',
+                                        log_code = '.LC_REL_WORSHP.',
+                                        mood_modifier = '.$value;
 
+                            if(!$this->db->query($sql)) {
+                                return $this->log(MV_M_DATABASE, 'Could not create new settlers relations! SKIP!!!');
+                            }                            
+                        }
+                        
                         $sql = 'INSERT INTO settlers_relations
                                 SET planet_id = '.$this->move['dest'].',
                                     race_id = '.$this->move['user_race'].',
@@ -1095,6 +1271,11 @@ class moves_action_27 extends moves_common {
                     add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title, $log_data);
                 }                
 
+                $tech_info = $this->tech_codes($tech_data, $this->move['language']);
+                $_log_code = $tech_info[0];
+                $log_data[7] = $tech_info[1];
+                
+                /*
                 switch($tech_data)
                 {
                     case 0:
@@ -1173,7 +1354,7 @@ class moves_action_27 extends moves_common {
                         }
                     break;
                 }
-                
+                */
                 // Let's check if planet reached maximum research
 
                 if($this->dest['research_'.($tech_data+1)] >= 9) {
@@ -1258,7 +1439,8 @@ class moves_action_27 extends moves_common {
                     }                        
                     $log_title = $f_c_title.$this->dest['planet_name'].$f_c_success;
                     $log_data[6] = $tech_value;
-                    $this->do_simple_relation($this->move['user_id'], $this->move['dest'], $_log_code, $tech_value);
+                    // $this->do_simple_relation($this->move['user_id'], $this->move['dest'], $_log_code, $tech_value);
+                    $this->do_tech_relation($this->move['user_id'], $this->move['dest'], $_log_code, $tech_value);
                     // if($decrease_founder != 0) $this->update_founder_mood($this->move['dest'], $decrease_founder);
                     if(count($cache_event_sql)) foreach($cache_event_sql as $cached_query) $this->db->query($cached_query);
                     foreach($cache_mood as $key => $cache_mood_modifier)
@@ -1295,9 +1477,14 @@ class moves_action_27 extends moves_common {
                         $f_c_success = ' done';
                     break;
                 }
-
+                
                 $log_data = array($this->move['dest'],$this->dest['planet_name'], $ship_details['ship_id'], $name_of_ship, 4, 0);
-
+                $orbital_counter = 0;
+                $orbital_to_made = 0;
+                $tally = 0;
+                $res = $this->db->queryrow('SELECT SUM(mood_modifier) as orbital_by_player FROM settlers_relations WHERE planet_id = '.$this->move['dest'].' AND log_code = '.LC_MIL_ORBITAL);
+                $orbital_by_player = $res['orbital_by_player'];
+                $max_orbital_by_player = 80;                
 
                 $sql = 'SELECT COUNT(*) as conto FROM settlers_relations WHERE planet_id = '.$this->move['dest'].' AND user_id = '.$this->move['user_id'].' AND log_code = '.LC_DIPLO_SPEECH;
 
@@ -1309,7 +1496,7 @@ class moves_action_27 extends moves_common {
                     add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title, $log_data);                    
                 }
 
-                $sql='SELECT fleet_id FROM ship_fleets WHERE fleet_name = "Orbital'.$this->move['dest'].'"';
+                $sql='SELECT fleet_id FROM ship_fleets WHERE fleet_name LIKE "Orbital'.$this->move['dest'].'" LIMIT 0,1';
                 $od_q = $this->db->queryrow($sql);
                 if(isset($od_q['fleet_id']) && !empty($od_q['fleet_id']))
                 {
@@ -1331,17 +1518,17 @@ class moves_action_27 extends moves_common {
 
                 if($log_data[5] == 0)
                 {
-                    $sql = 'SELECT value_5, value_9, rof, max_torp FROM `ship_templates`
+                    $sql = 'SELECT value_5, value_9, rof, rof2, max_torp FROM `ship_templates`
                             WHERE `id` = '.$cfg_data['settler_tmp_4'];
                     if(($stpl = $this->db->queryrow($sql)) === false)
                         return $this->log(MV_M_DATABASE, '<b>Error:</b> Could not query settlers ship template data');
 
-                    if($orbital_counter > 1 && $orbital_counter < STL_MAX_ORBITAL)
+                    if($orbital_counter > 0 && $orbital_by_player < $max_orbital_by_player)
                     {
                         $fleet_id = $od_q['fleet_id'];
-                        $orbital_to_made = min((STL_MAX_ORBITAL - $orbital_counter), 10);
+                        $orbital_to_made = min(($max_orbital_by_player - $orbital_by_player), 10);
                     }
-                    else
+                    elseif($orbital_counter == 0)
                     {
                         // Orbital defence fleet not exists. Let's create this.
                         $sql = 'INSERT INTO ship_fleets (fleet_name, user_id, planet_id,
@@ -1353,20 +1540,21 @@ class moves_action_27 extends moves_common {
                         $orbital_to_made = 10;
                     }
 
-                    $sql = 'INSERT INTO ships (fleet_id, user_id, template_id,
-                                               experience, hitpoints, construction_time,
-                                               torp, rof, last_refit_time)
-                            VALUES ('.$fleet_id.', '.INDEPENDENT_USERID.', '.$cfg_data['settler_tmp_4'].',
-                                    '.$stpl['value_9'].', '.$stpl['value_5'].', '.time().',
-                                    '.$stpl['max_torp'].', '.$stpl['rof'].', '.time().')';
-                    $tally = 0;
-                    while($tally < $orbital_to_made)
-                    {
-                        if(!$this->db->query($sql)) 
+                    if($orbital_to_made > 0) {
+                        $sql = 'INSERT INTO ships (fleet_id, user_id, template_id,
+                                                   experience, hitpoints, construction_time,
+                                                   torp, rof, rof2, last_refit_time)
+                                VALUES ('.$fleet_id.', '.INDEPENDENT_USERID.', '.$cfg_data['settler_tmp_4'].',
+                                        '.$stpl['value_9'].', '.$stpl['value_5'].', '.time().',
+                                        '.$stpl['max_torp'].', '.$stpl['rof'].', '.$stpl['rof2'].', '.time().')';
+                        while($tally < $orbital_to_made)
                         {
-                            return $this->log(MV_M_DATABASE, 'Error while adding an orbital cannon for Settlers ---> '.$sql);
+                            if(!$this->db->query($sql)) 
+                            {
+                                return $this->log(MV_M_DATABASE, 'Error while adding an orbital cannon for Settlers ---> '.$sql);
+                            }
+                            $tally++;
                         }
-                        $tally++;
                     }
 
                     $log_title = $f_c_title.$this->dest['planet_name'].$f_c_success;
@@ -1379,6 +1567,7 @@ class moves_action_27 extends moves_common {
                             $log_data[7][] = $this->get_mood_text_string($key, $cache_mood_modifier);
                         }
                     }
+                    $this->do_simple_relation($this->move['user_id'], $this->move['dest'], LC_MIL_ORBITAL, $tally);
                     $log_data[6] = $tally;
                     add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title, $log_data);
 
@@ -1407,9 +1596,9 @@ class moves_action_27 extends moves_common {
              */            
             case 5:
 
-                $mission_exp = array(100 => 0, 101 => 80.0, 120 => 50.0, 121 => 50.0, 122 => 50.0, 123 => 50.0, 124 => 50.0,
-                                     130 => 70.0, 131 =>70.0, 132 => 70.0, 133 => 70.0, 134 => 70.0, 150 => 50.0);
-                                  
+                $mission_exp = array(100 => 0, 101 => 80.0, 102 => 0, 103 => 80.0, 120 => 50.0, 121 => 50.0, 122 => 50.0, 123 => 50.0, 124 => 50.0,
+                                     130 => 70.0, 131 =>70.0, 132 => 70.0, 133 => 70.0, 134 => 70.0, 135 => 70.0, 150 => 50.0);
+                
                 switch($this->move['language'])
                 {
                     case 'GER':
@@ -1435,51 +1624,73 @@ class moves_action_27 extends moves_common {
                 $sql = 'SELECT * from settlers_events WHERE planet_id = '.$this->move['dest'].' AND user_id = '.$this->move['user_id'];
                 $rescue_data = $this->db->queryrow($sql);
                 
-                $crew_check = ($ship_details['unit_1'] - $ship_details['min_unit_1']) +
-                              ($ship_details['unit_1'] - $ship_details['min_unit_1']) +
-                              ($ship_details['unit_1'] - $ship_details['min_unit_1']) +
-                              ($ship_details['unit_1'] - $ship_details['min_unit_1']);
-                if($crew_check > 0)
-                {
-                    $log_title = $f_c_title.$this->dest['planet_name'].$f_c_fail;
-                    $log_data[5] = -4;
-                    add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title, $log_data);
-                }
-                elseif(!isset($rescue_data['event_code']))
-                {
+                if(!isset($rescue_data['event_code'])) {
                     $log_title = $f_c_title.$this->dest['planet_name'].$f_c_fail;
                     $log_data[5] = -3;
                     add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title, $log_data);
                 }
-                elseif($rescue_data['awayteam_alive'] == 0)
-                {
-                    $log_title = $f_c_title.$this->dest['planet_name'].$f_c_fail;
-                    $log_data[5] = -2;
-                    add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title, $log_data);
-                    $sql = 'UPDATE ships SET awayteam = 1, awayteamplanet_id = 0 WHERE ship_id = '.$ship_details['ship_id'];
-                    $this->db->query($sql);
-                }
-                elseif($rescue_data['event_result'] == 0)
-                {
-                    $log_title = $f_c_title.$this->dest['planet_name'].$f_c_success;
-                    $log_data[5] = -1;
-                    add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title, $log_data);
-                    $new_unit_1 = min(($ship_details['unit_1'] + $rescue_data['unit_1']), $ship_details['max_unit_1']);
-                    $new_unit_2 = min(($ship_details['unit_2'] + $rescue_data['unit_2']), $ship_details['max_unit_2']);
-                    $new_unit_3 = min(($ship_details['unit_3'] + $rescue_data['unit_3']), $ship_details['max_unit_3']);
-                    $new_unit_4 = min(($ship_details['unit_4'] + $rescue_data['unit_4']), $ship_details['max_unit_4']);                    
-                    $sql = 'UPDATE ships SET awayteam = '.$rescue_data['awayteam_startlevel'].', awayteamplanet_id = 0,
-                                   unit_1 = '.$new_unit_1.', unit_2 = '.$new_unit_2.', unit_3 = '.$new_unit_3.' ,unit_4 = '.$new_unit_4.' 
-                            WHERE ship_id = '.$ship_details['ship_id'];
-                    if(!$this->db->query($sql)) {
-                        return $this->log(MV_M_DATABASE, 'Could not update ship data! SQL DUMP 1: '.$sql);
-                    }                    
-                    $sql = 'DELETE FROM settlers_events WHERE planet_id = '.$this->move['dest'].' AND user_id = '.$this->move['user_id'].' AND event_code = '.$rescue_data['event_code'];
-                    if(!$this->db->query($sql)) {
-                        return $this->log(MV_M_DATABASE, 'Could not update settlers event data! SQL DUMP: '.$sql);
-                    }                    
-                }
+                else {
+                    $room_check_1 = (($ship_details['max_unit_1'] - $ship_details['unit_1']) - $rescue_data['unit_1']);
+                    $room_check_2 = (($ship_details['max_unit_2'] - $ship_details['unit_2']) - $rescue_data['unit_2']);
+                    $room_check_3 = (($ship_details['max_unit_3'] - $ship_details['unit_3']) - $rescue_data['unit_3']);
+                    $room_check_4 = (($ship_details['max_unit_4'] - $ship_details['unit_4']) - $rescue_data['unit_4']);
 
+                    $crew_check = ($ship_details['unit_1'] - $ship_details['min_unit_1']) +
+                                  ($ship_details['unit_1'] - $ship_details['min_unit_1']) +
+                                  ($ship_details['unit_1'] - $ship_details['min_unit_1']) +
+                                  ($ship_details['unit_1'] - $ship_details['min_unit_1']);  
+                    
+                    if($room_check_1 < 0 || $room_check_2 < 0 || $room_check_3 < 0 || $room_check_4 < 0) {
+                        $log_title = $f_c_title.$this->dest['planet_name'].$f_c_fail;
+                        $log_data[5] = -5;
+                        add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title, $log_data);                    
+                    }
+                    elseif($crew_check > 0)
+                    {
+                        $log_title = $f_c_title.$this->dest['planet_name'].$f_c_fail;
+                        $log_data[5] = -4;
+                        add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title, $log_data);
+                    }
+                    elseif(!isset($rescue_data['event_code']))
+                    {
+                        $log_title = $f_c_title.$this->dest['planet_name'].$f_c_fail;
+                        $log_data[5] = -3;
+                        add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title, $log_data);
+                    }
+                    elseif($rescue_data['awayteam_alive'] == 0)
+                    {
+                        $log_title = $f_c_title.$this->dest['planet_name'].$f_c_fail;
+                        $log_data[5] = -2;
+                        add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title, $log_data);
+                        $sql = 'UPDATE ships SET awayteam = 1, awayteamplanet_id = 0 WHERE ship_id = '.$ship_details['ship_id'];
+                        $this->db->query($sql);
+                    }
+                    elseif($rescue_data['event_result'] == 0)
+                    {
+                        $log_title = $f_c_title.$this->dest['planet_name'].$f_c_success;
+                        $log_data[5] = -1;
+                        $sql = 'UPDATE ships SET awayteam = 1, awayteamplanet_id = 0 WHERE ship_id = '.$rescue_data['awayteamship_id'];
+                        $this->db->query($sql);
+                        $this->log(MV_M_NOTICE, 'Liberando la nave di partenza dalla sua squadra: '.$sql);                    
+                        add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title, $log_data);
+                        $new_unit_1 = min(($ship_details['unit_1'] + $rescue_data['unit_1']), $ship_details['max_unit_1']);
+                        $new_unit_2 = min(($ship_details['unit_2'] + $rescue_data['unit_2']), $ship_details['max_unit_2']);
+                        $new_unit_3 = min(($ship_details['unit_3'] + $rescue_data['unit_3']), $ship_details['max_unit_3']);
+                        $new_unit_4 = min(($ship_details['unit_4'] + $rescue_data['unit_4']), $ship_details['max_unit_4']);                    
+                        $sql = 'UPDATE ships SET awayteam = '.$rescue_data['awayteam_startlevel'].', awayteamplanet_id = 0,
+                                       unit_1 = '.$new_unit_1.', unit_2 = '.$new_unit_2.', unit_3 = '.$new_unit_3.' ,unit_4 = '.$new_unit_4.' 
+                                WHERE ship_id = '.$ship_details['ship_id'];
+                        if(!$this->db->query($sql)) {
+                            return $this->log(MV_M_DATABASE, 'Could not update ship data! SQL DUMP 1: '.$sql);
+                        }      
+                        $this->log(MV_M_NOTICE, 'Carichiamo la squadra sulla nave in missione di recupero: '.$sql);                    
+                        $sql = 'DELETE FROM settlers_events WHERE planet_id = '.$this->move['dest'].' AND user_id = '.$this->move['user_id'].' AND event_code = '.$rescue_data['event_code'];
+                        if(!$this->db->query($sql)) {
+                            return $this->log(MV_M_DATABASE, 'Could not update settlers event data! SQL DUMP: '.$sql);
+                        }                    
+                    }
+                }
+                
                 // Preparazione Report e calcolo EXP
                 if($log_data[5] == 0)
                 {
@@ -1487,6 +1698,7 @@ class moves_action_27 extends moves_common {
                     $sql = 'UPDATE ships SET awayteam = 1, awayteamplanet_id = 0 WHERE ship_id = '.$rescue_data['awayteamship_id'];
                     $this->db->query($sql);
                     $this->log(MV_M_NOTICE, 'Liberando la nave di partenza dalla sua squadra: '.$sql);
+                    
                     $new_unit_1 = min(($ship_details['unit_1'] + $rescue_data['unit_1']), $ship_details['max_unit_1']);
                     $new_unit_2 = min(($ship_details['unit_2'] + $rescue_data['unit_2']), $ship_details['max_unit_2']);
                     $new_unit_3 = min(($ship_details['unit_3'] + $rescue_data['unit_3']), $ship_details['max_unit_3']);
@@ -1503,23 +1715,121 @@ class moves_action_27 extends moves_common {
                     $awayteamlvl = round($rescue_data['awayteam_startlevel'], 0);
                     $exp_award = round($base_exp / $awayteamlvl, 3);
                     $sql = 'UPDATE ships SET awayteam = '.($rescue_data['awayteam_startlevel'] + $exp_award).', awayteamplanet_id = 0,
-                                   unit_1 = '.$new_unit_1.', unit_2 = '.$new_unit_2.', unit_3 = '.$new_unit_3.' ,unit_4 = '.$new_unit_4.' 
+                                   unit_1 = '.$new_unit_1.', unit_2 = '.$new_unit_2.', unit_3 = '.$new_unit_3.', unit_4 = '.$new_unit_4.' 
                             WHERE ship_id = '.$ship_details['ship_id'];
                     if(!$this->db->query($sql)) {
                         return $this->log(MV_M_DATABASE, 'Could not update ship data! SQL DUMP 3: '.$sql);
-                    }                            
+                    }
+                    $this->log(MV_M_NOTICE, 'Carichiamo la squadra sulla nave in missione di recupero: '.$sql);                    
                     $sql = 'DELETE FROM settlers_events WHERE planet_id = '.$this->move['dest'].' AND user_id = '.$this->move['user_id'].' AND event_code = '.$rescue_data['event_code'];
                     if(!$this->db->query($sql)) {
                         return $this->log(MV_M_DATABASE, 'Could not update settlers event data! SQL DUMP: '.$sql);
-                    }                    
+                    }
+                    $this->log(MV_M_NOTICE, 'Cancelliamo evento dalla tabella: '.$sql);
                     $log_title = $f_c_title.$this->dest['planet_name'].$f_c_success;
                     add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title, $log_data);                    
                 }
             break;
             /**
+             * Sabot Mission
+             */            
+            case 6:
+                switch($this->move['language'])
+                {
+                    case 'GER':
+                        $f_c_title = 'Sabotage on ';
+                        $f_c_fail = ' not done';
+                        $f_c_success = ' done';
+                    break;
+                    case 'ITA':
+                        $f_c_title = 'Sabotaggio su ';
+                        $f_c_fail = ' fallito';
+                        $f_c_success = ' ultimato';
+                    break;
+                    default:
+                        $f_c_title = 'Sabotage on ';
+                        $f_c_fail = ' not done';
+                        $f_c_success = ' done';
+                    break;
+                }
+                
+                $log_data = array($this->move['dest'],$this->dest['planet_name'], $ship_details['ship_id'], $name_of_ship, 6, 0);
+                
+                // Check block
+                // --- Check queue first
+                $high_lvl = ['id' => -1, 'level' => 0];
+                for ($i = 0; $i < 5; $i++) {
+                    $tech_lvls[$i] = $this->dest['research_'.($i+1)];
+                }                
+                $sql = 'SELECT research_id FROM scheduler_research WHERE planet_id = '.$this->move['dest'].' ORDER BY research_start ASC LIMIT 0,1';
+                $res = $this->db->queryrow($sql); 
+                $tech_live = isset($res['research_id']) ? $res['research_id'] : -1;
+                if($tech_live >= 0) {
+                    //Strike against a live research 
+                    // --- Check planet tech
+                    $tech_lvls[$tech_live] = $this->dest['research_'.($tech_live+1)] + 1;
+                    $this->best_tech($high_lvl, $tech_lvls);
+                    $tech_info = $this->tech_codes($high_lvl['id'], $this->move['language']);
+                    $sql = 'SELECT user_id, user_name FROM settlers_relations LEFT JOIN user USING (user_id) WHERE planet_id = '.$this->move['dest'].' AND log_code = '.$tech_info[0].' AND mood_modifier = '.$tech_reward[ $high_lvl['level']].' ORDER BY timestamp DESC LIMIT 0,1';
+                    if($res = $this->db->queryrow($sql)) {
+                        $this->db->query('DELETE FROM settlers_relations WHERE planet_id = '.$this->move['dest'].' AND user_id = '.$res['user_id'].' AND log_code = '.$tech_info[0].' AND mood_modifier = '.$tech_reward[ $high_lvl['level']]);
+                        $this->db->query('DELETE FROM scheduler_research WHERE planet_id = '.$this->move['dest'].' AND research_id = '.$tech_live.' AND player_id = '.INDEPENDENT_USERID);
+                        $log_title = $f_c_title.$this->dest['planet_name'].$f_c_success;
+                        $log_data[5] = 0;
+                        $log_data[6] = isset($res['user_name']) ? $res['user_name'] : -1 ;
+                        $log_data[7] = $tech_info[1];
+                        $log_data[8] = $tech_reward[ $high_lvl['level']];                        
+                    }
+                }
+                elseif ($tech_live == -1 && array_sum($tech_lvls) > 0) {
+                    //Strike against a settled research
+                    // --- Check planet tech
+                    $this->best_tech($high_lvl, $tech_lvls);
+                    $tech_info = $this->tech_codes($high_lvl['id'], $this->move['language']);
+                    $sql = 'SELECT user_id, user_name FROM settlers_relations LEFT JOIN user USING (user_id) WHERE planet_id = '.$this->move['dest'].' AND log_code = '.$tech_info[0].' AND mood_modifier = '.$tech_reward[ $high_lvl['level']].' ORDER BY timestamp DESC LIMIT 0,1';
+                    if($res = $this->db->queryrow($sql)) {
+                        $this->db->query('DELETE FROM settlers_relations WHERE planet_id = '.$this->move['dest'].' AND user_id = '.$res['user_id'].' AND log_code = '.$tech_info[0].' AND mood_modifier = '.$tech_reward[ $high_lvl['level']]);
+                        $this->db->query('UPDATE planets SET research_'.($high_lvl['id']+1).' = research_'.($high_lvl['id']+1).' - 1 WHERE planet_id = '.$this->move['dest']);
+                        $log_title = $f_c_title.$this->dest['planet_name'].$f_c_success;
+                        $log_data[5] = 0;
+                        $log_data[6] = isset($res['user_name']) ? $res['user_name'] : -1 ;
+                        $log_data[7] = $tech_info[1];
+                        $log_data[8] = $tech_reward[ $high_lvl['level']];                        
+                    }                    
+                }              
+                else {
+                    //Nothing to do!!!
+                }
+                if($high_lvl['id'] > -1) {
+                    $tech_info = $this->tech_codes($high_lvl['id'], $this->move['language']);
+                    $sql = 'SELECT user_id, user_name FROM settlers_relations LEFT JOIN user USING (user_id) WHERE planet_id = '.$this->move['dest'].' AND log_code = '.$tech_info[0].' AND mood_modifier = '.$tech_reward[ $high_lvl['level']].' ORDER BY timestamp DESC LIMIT 0,1';
+                    if($res = $this->db->queryrow($sql)) {
+                        $this->db->query('DELETE FROM settlers_relations WHERE planet_id = '.$this->move['dest'].' AND log_code = '.$tech_info[0].' AND mood_modifier = '.$tech_reward[ $high_lvl['level']]);
+                        $log_title = $f_c_title.$this->dest['planet_name'].$f_c_success;
+                        $log_data[6] = isset($res['user_name']) ? $res['user_name'] : -1 ;
+                        $log_data[7] = $tech_info[1];
+                        $log_data[8] = $tech_reward[ $high_lvl['level']];
+                    }
+                    else {
+                        
+                    }
+                }
+
+                break;                        
+            /**
              * Deploy mission
              */            
             case 10:
+                $classes_for_training = ['a', 'b', 'c', 'd', 'm', 'o', 'g', 'h', 'n', 'p'];
+                
+                $codici_presidi = [120, 121, 122, 123, 124];
+                
+                $codici_delegazioni = [130, 131, 132, 133, 134, 135];
+                
+                $codici_missioni_segrete = [100, 102, 104];
+                
+                $codici_missioni_in_chiaro = [120, 121, 122, 123, 124, 130, 131, 132, 133, 134, 135, 150];
+                                                  
                 switch($this->move['language'])
                 {
                     case 'GER':
@@ -1542,6 +1852,7 @@ class moves_action_27 extends moves_common {
                 $event_codes_table = array(
                 '0'  => 100,
                 '1'  => 102,
+                '2'  => 104,    
                 '10'  => 120,
                 '20'  => 121,
                 '30'  => 122,
@@ -1552,7 +1863,8 @@ class moves_action_27 extends moves_common {
                 '120' => 132,
                 '130' => 133,
                 '140' => 134,
-                '150' => 150
+                '150' => 135,    
+                '300' => 150
                 );
                 $log_data = array($this->move['dest'],$this->dest['planet_name'], $ship_details['ship_id'], $name_of_ship, 10, 0);
                 $e_c_i = $this->action_data[1];
@@ -1581,7 +1893,14 @@ class moves_action_27 extends moves_common {
                     $log_data[5] = -5;
                     add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title, $log_data);                    
                 }
-                elseif($event_codes_table[$e_c_i] == 150 && ($this->dest['planet_type'] != 'a' && $this->dest['planet_type'] != 'b' && $this->dest['planet_type'] != 'c' && $this->dest['planet_type'] != 'd' && $this->dest['planet_type'] != 'm' && $this->dest['planet_type'] != 'o' && $this->dest['planet_type'] != 'p'))
+                /*
+                elseif($event_codes_table[$e_c_i] == 150 && ($this->dest['planet_type'] != 'a' && $this->dest['planet_type'] != 'b' && 
+                                                             $this->dest['planet_type'] != 'c' && $this->dest['planet_type'] != 'd' && 
+                                                             $this->dest['planet_type'] != 'm' && $this->dest['planet_type'] != 'o' && 
+                                                             $this->dest['planet_type'] != 'g' && $this->dest['planet_type'] != 'h' && 
+                                                             $this->dest['planet_type'] != 'n' &&$this->dest['planet_type'] != 'p'))
+                */  
+                elseif($event_codes_table[$e_c_i] == 150 && !in_array($this->dest['planet_type'], $classes_for_training))                    
                 {
                     $log_title = $f_c_title.$this->dest['planet_name'].$f_c_fail;
                     $log_data[5] = -6;
@@ -1595,19 +1914,19 @@ class moves_action_27 extends moves_common {
                     $founder_q['user_id'] = 0;
                     $founder_q['mood_modifier'] = -1;
                 }
-                if(($event_codes_table[$e_c_i] >= 120 && $event_codes_table[$e_c_i] <= 124) && ($this->move['user_id'] <> $founder_q['user_id']))
+                if(in_array($event_codes_table[$e_c_i], $codici_presidi) && ($this->move['user_id'] <> $founder_q['user_id']))
                 {
                     $log_title = $f_c_title.$this->dest['planet_name'].$f_c_fail;
                     $log_data[5] = -4;
                     add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title, $log_data);                    
                 }
-                elseif($event_codes_table[$e_c_i] >= 130 && $event_codes_table[$e_c_i] <= 134 && ($this->move['user_id'] == $founder_q['user_id']))
+                elseif(in_array($event_codes_table[$e_c_i], $codici_delegazioni)  && ($this->move['user_id'] == $founder_q['user_id']))
                 {
                     $log_title = $f_c_title.$this->dest['planet_name'].$f_c_fail;
                     $log_data[5] = -3;
                     add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title, $log_data);                    
                 }
-                elseif($founder_q['mood_modifier'] == -1 && ($event_codes_table[$e_c_i] >= 120 && $event_codes_table[$e_c_i] < 150))
+                elseif($founder_q['mood_modifier'] == -1 && in_array($event_codes_table[$e_c_i], $codici_missioni_in_chiaro))
                 {
                     $log_title = $f_c_title.$this->dest['planet_name'].$f_c_fail;
                     $log_data[5] = -2;
@@ -1622,7 +1941,7 @@ class moves_action_27 extends moves_common {
                     $log_data[5] = -1;
                     add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title, $log_data);
                 }
-                if($log_data[5] == 0)
+                if($log_data[5] == 0 && in_array($event_codes_table[$e_c_i], $codici_missioni_in_chiaro))
                 {
                     $sql = 'INSERT INTO settlers_events
                                         (planet_id, user_id, event_code, timestamp, tick, awayteamship_id, awayteam_startlevel, unit_1, unit_2, unit_3, unit_4, awayteam_alive, event_status)
@@ -1635,6 +1954,20 @@ class moves_action_27 extends moves_common {
                     $this->db->query($sql);
                     $log_title = $f_c_title.$this->dest['planet_name'].$f_c_success;
                     add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title, $log_data);
+                }
+                elseif($log_data[5] == 0 && in_array($event_codes_table[$e_c_i], $codici_missioni_segrete))
+                {
+                    $sql = 'INSERT INTO settlers_events
+                                        (planet_id, user_id, event_code, timestamp, tick, awayteamship_id, awayteam_startlevel, unit_1, unit_2, unit_3, unit_4, awayteam_alive, event_status)
+                                VALUES  ('.$this->move['dest'].', '.$this->move['user_id'].', '.$event_codes_table[$e_c_i].', '.time().', '.$ACTUAL_TICK.', 0, '.$ship_details['awayteam'].',
+                                         '.($ship_details['unit_1'] - $ship_details['min_unit_1']).', '.($ship_details['unit_2'] - $ship_details['min_unit_2']).', '.($ship_details['unit_3'] - $ship_details['min_unit_3']).', '.($ship_details['unit_4'] - $ship_details['min_unit_4']).', 1, 1)';
+                    if(!$this->db->query($sql)) {
+                        return $this->log(MV_M_DATABASE, 'Could not insert settlers event data! SKIP '.$sql);
+                    }
+                    $sql = 'UPDATE ships SET awayteam = 1, awayteamplanet_id = 0, unit_1 = '.$ship_details['min_unit_1'].', unit_2 = '.$ship_details['min_unit_2'].', unit_3 = '.$ship_details['min_unit_3'].', unit_4 = '.$ship_details['min_unit_4'].' WHERE ship_id = '.$ship_details['ship_id'];
+                    $this->db->query($sql);                    
+                    $log_title = $f_c_title.$this->dest['planet_name'].$f_c_success;                    
+                    add_logbook_entry($this->move['user_id'], LOGBOOK_SETTLERS, $log_title, $log_data);                    
                 }
             break;
         }
