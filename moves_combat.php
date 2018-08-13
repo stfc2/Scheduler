@@ -685,7 +685,7 @@ return (array($winner,$overview,$victims,$text,$lost_planetary,$lost_splanetary,
 
 
 
-function UnitFight($atk_units, $atk_race, $dfd_units, $dfd_race, $move_id)
+function UnitFight($atk_units, $atk_race, $dfd_units, $dfd_race, $move_id, $heavy_def=0, $light_def=0)
 {
 global $RACE_DATA;
 $atk_alive=$atk_units;
@@ -696,7 +696,13 @@ $total_dmg[0]=$atk_alive[0]*GetAttackUnit(0,$atk_race)+$atk_alive[1]*GetAttackUn
 $total_dmg[1]=$dfd_alive[0]*GetAttackUnit(0,$dfd_race)+$dfd_alive[1]*GetAttackUnit(1,$dfd_race)+$dfd_alive[2]*GetAttackUnit(2,$dfd_race)+$dfd_alive[3]*GetAttackUnit(3,$dfd_race)+$RACE_DATA[$dfd_race][21]*$dfd_alive[4];
 
 $total_dfd[0]=$atk_alive[0]*GetDefenseUnit(0,$atk_race)+$atk_alive[1]*GetDefenseUnit(1,$atk_race)+$atk_alive[2]*GetDefenseUnit(2,$atk_race)+$atk_alive[3]*GetDefenseUnit(3,$atk_race)+$RACE_DATA[$atk_race][21]*$atk_alive[4]*0.25;
-$total_dfd[1]=$dfd_alive[0]*GetDefenseUnit(0,$dfd_race)+$dfd_alive[1]*GetDefenseUnit(1,$dfd_race)+$dfd_alive[2]*GetDefenseUnit(2,$dfd_race)+$dfd_alive[3]*GetDefenseUnit(3,$dfd_race)+$RACE_DATA[$dfd_race][21]*$dfd_alive[4]*1.3;
+//$total_dfd[1]=$dfd_alive[0]*GetDefenseUnit(0,$dfd_race)+$dfd_alive[1]*GetDefenseUnit(1,$dfd_race)+$dfd_alive[2]*GetDefenseUnit(2,$dfd_race)+$dfd_alive[3]*GetDefenseUnit(3,$dfd_race)+$RACE_DATA[$dfd_race][21]*$dfd_alive[4]*1.3;
+
+$heavy_def_bonus = 1 + ($heavy_def * 0.03); // 3% bonus per ogni livello delle difese militari
+$light_def_bonus = 1 + ($light_def * 0.02); // 2% bonus per ogni livello delle difese civili
+
+$total_dfd[1]= ($dfd_alive[0]*GetDefenseUnit(0,$dfd_race)+$dfd_alive[1]*GetDefenseUnit(1,$dfd_race)+$dfd_alive[2]*GetDefenseUnit(2,$dfd_race)+$dfd_alive[3]*GetDefenseUnit(3,$dfd_race))*$heavy_def_bonus;
+$total_dfd[1]+=($RACE_DATA[$dfd_race][21]*$dfd_alive[4])*$light_def_bonus;
 
 // Defenders and attackers should never be zero, but since
 // it happened one time let's add a little check here...
@@ -780,9 +786,9 @@ commonlog('Moves [Combat]', 'Planetary Attack strength: '.$num_planetary.';  mul
 
 if ($num_planetary<=0) return $planet;
 
+$factor=600+($planet['building_10']*32)+($planet['building13']*18);
 
-
-$num_destroy=$num_planetary/100*(1/$destr_multiply);
+$num_destroy=$num_planetary/$factor*(1/$destr_multiply);
 //Das Truppenbomben laut Tap nicht Truppenbomben nennen - sonst meint jeder das man das extra könnte - als das ein Problem 
 //wäre....
 commonlog('Moves [Combat]', 'Planetary Attack num_destroy: '.$num_destroy, $move_id);
@@ -792,17 +798,39 @@ if ($num_destroy<1 && $num_destroy>0) if (rand(0,100)>$num_planetary) return $pl
 if ($num_destroy<=0) $num_destroy=1;
 
 $num_destroy=round($num_destroy);
-$num_pla = $num_planetary;
+$num_pla = $num_planetary-pow(8*$planet['research_3'], 1.5);
+
+$safe_troop = ($planet['research_3']*$planet['building_10']*3); 
+$safe_civ   = ($planet['research_3']*$planet['building_13']*5);
+
+commonlog('Moves [Combat]', 'Safe Troops are: [['.$safe_troop.']]', $move_id);
+commonlog('Moves [Combat]', 'Safe Civilians are: [['.$safe_civ.']]', $move_id);
 
 if ($num_pla > 5000){
- $num_pla = 5000;
+    $num_pla = 5000;
 }
- $dead_lv1=round($num_pla/(10+rand(0,40)));
- $dead_lv2=round($num_pla/(10+rand(0,60)));
- $dead_lv3=round($num_pla/(10+rand(0,100)));
- $dead_lv4=round($num_pla/(10+rand(0,40)));
- $dead_lv5=round($num_pla/(10+rand(0,40)));
- $dead_lv6=round($num_pla/(10+rand(0,40)));
+elseif ($num_pla < 0){
+    $num_pla = 0;
+}
+/*
+ $dead_lv1=round($num_pla/(1*$planet['building_10']+rand(1,40)));
+ $dead_lv2=round($num_pla/(1*$planet['building_10']+rand(1,60)));
+ $dead_lv3=round($num_pla/(1*$planet['building_10']+rand(1,100)));
+ $dead_lv4=round($num_pla/(3*$planet['building_10']+rand(1,80)));
+ $dead_lv5=round($num_pla/(2*$planet['building_10']+rand(1,50)));
+ $dead_lv6=round($num_pla/(2*$planet['building_10']+rand(1,40)));
+ */
+
+ $dead_lv1=round($num_pla/(1*$planet['building_10']+(0.01*rand(80,200)))) - $safe_troop;
+ if($dead_lv1<0) { $dead_lv1 = 0;}  
+ $dead_lv2=round($num_pla/(1*$planet['building_10']+(0.01*rand(90,200)))) - $safe_troop;  
+ if($dead_lv2<0) { $dead_lv2 = 0;}
+ $dead_lv3=round($num_pla/(1*$planet['building_10']+(0.01*rand(100,200)))) - $safe_troop;
+ if($dead_lv3<0) { $dead_lv3 = 0;}
+ $dead_lv4=round($num_pla/(3*$planet['building_10']+(0.01*rand(100,200)))) - $safe_troop;
+ if($dead_lv4<0) { $dead_lv4 = 0;}
+ $dead_lv5=round($num_pla/(2*$planet['building_10']+(0.01*rand(90,100))));
+ $dead_lv6=round($num_pla/(2*$planet['building_10']+(0.01*rand(90,100))));
 
  if($planet['unit_1']>$dead_lv1) { $planet['unit_1']-=$dead_lv1; } else { $planet['unit_1']=0; $dead_lv1=0; }
  if($planet['unit_2']>$dead_lv2) { $planet['unit_2']-=$dead_lv2; } else { $planet['unit_2']=0; $dead_lv2=0; }
@@ -819,7 +847,8 @@ if ($num_pla > 5000){
  commonlog('Moves [Combat]', 'Planetary Attack dead Units: LV6:'.$dead_lv6.'>>'.$planet['unit_6'], $move_id);
 
 
-(int)$dead_worker=round($num_planetary/(10+rand(0,40)));
+(int)$dead_worker=round($num_planetary/(5*$planet['building_13']+rand(0,20)));
+if(($dead_worker-$safe_civ) < 0 ) $dead_worker=0; else $dead_worker-=$safe_civ;
 
 if($planet['resource_4']>$dead_worker) { $planet['resource_4']-=$dead_worker; } else { $dead_worker=0; $planet['resource_4']=0; }
 
@@ -836,7 +865,7 @@ if ($planet['unit_6']<0) $planet['unit_6']=0;
 
 
 
-   /*0 => 'Hauptquartier',
+   /*   0 => 'Hauptquartier',
 
         1 => 'Metallminen',
 
@@ -854,11 +883,15 @@ if ($planet['unit_6']<0) $planet['unit_6']=0;
 
         +8 => 'Forschungszentrum',
 
-        +9 => 'Planet. Verteid.',
+        +9 => 'Heavy Defense',
 
-        +11 => 'Handelszentrum',
+        +10 => 'Handelszentrum',
 
-        +12 => 'Silos',*/
+        +11 => 'Silos',
+
+        +12 => 'Light Defense'
+     
+        */
 
 
 
@@ -868,7 +901,10 @@ if ($focus==1)
 
 {
 
-for ($t=0; $t<12; $t++) {$destroy[]=$t;$destroy[]=$t;}
+commonlog('Moves [Combat]', 'Planetary Attack: Mines'.$focus, $move_id);    
+// Miniere
+    
+for ($t=0; $t<13; $t++) {$destroy[]=$t;}
 
 $destroy[]=1;
 
@@ -880,83 +916,160 @@ $destroy[]=2;
 
 $destroy[]=2;
 
-$destroy[]=10;
+$destroy[]=11;
 
 $destroy[]=3;
 
 $destroy[]=3;
 
-$destroy[]=10;
-
-$destroy[]=12;
-
 $destroy[]=12;
 
 $destroy[]=10;
+
+$destroy[]=11;
+
+$destroy[]=-1;
+
+$destroy[]=1;
+
+$destroy[]=1;
+
+$destroy[]=10;
+
+$destroy[]=2;
+
+$destroy[]=2;
+
+$destroy[]=11;
+
+$destroy[]=3;
+
+$destroy[]=3;
+
+$destroy[]=12;
+
+$destroy[]=10;
+
+$destroy[]=11;
+
+$destroy[]=12;
 
 }
 
 else if ($focus==2)
 
 {
-
-for ($t=0; $t<12; $t++) {$destroy[]=$t;$destroy[]=$t;}
+    
+commonlog('Moves [Combat]', 'Planetary Attack: Prod'.$focus, $move_id);    
+// Produzione (Cantiere, Accademia, Spazioporto)
+    
+for ($t=0; $t<13; $t++) {$destroy[]=$t;}
 
 $destroy[]=5;
 
 $destroy[]=5;
 
+$destroy[]=12;
+
+$destroy[]=7;
+
+$destroy[]=7;
+
+$destroy[]=12;
+
+$destroy[]=6;
+
+$destroy[]=6;
+
+$destroy[]=12;
+
+$destroy[]=9;
+
+$destroy[]=12;
+
+$destroy[]=-1;
+
 $destroy[]=5;
 
-$destroy[]=7;
+$destroy[]=5;
+
+$destroy[]=12;
 
 $destroy[]=7;
 
 $destroy[]=7;
 
-$destroy[]=4;
+$destroy[]=12;
 
-$destroy[]=4;
+$destroy[]=6;
 
-$destroy[]=4;
+$destroy[]=6;
 
-$destroy[]=10;
+$destroy[]=12;
 
-$destroy[]=10;
+$destroy[]=9;
 
-$destroy[]=10;
+$destroy[]=12;
 
+$destroy[]=9;
 }
 
 else if ($focus==3)
 
 {
-
-for ($t=0; $t<12; $t++) {$destroy[]=$t;$destroy[]=$t;}
+    
+commonlog('Moves [Combat]', 'Planetary Attack: Command'.$focus, $move_id);   
+// Comando, Centro Ricerche, Centrale
+ 
+for ($t=0; $t<13; $t++) {$destroy[]=$t;}
 
 $destroy[]=0;
 
 $destroy[]=0;
 
+$destroy[]=9;
+
+$destroy[]=4;
+
+$destroy[]=4;
+
+$destroy[]=9;
+
+$destroy[]=8;
+
+$destroy[]=8;
+
+$destroy[]=9;
+
+$destroy[]=9;
+
+$destroy[]=9;
+
+$destroy[]=-1;
+
 $destroy[]=0;
 
-$destroy[]=8;
+$destroy[]=0;
+
+$destroy[]=9;
+
+$destroy[]=4;
+
+$destroy[]=4;
+
+$destroy[]=9;
 
 $destroy[]=8;
 
 $destroy[]=8;
 
-$destroy[]=11;
+$destroy[]=9;
 
-$destroy[]=11;
+$destroy[]=9;
 
-$destroy[]=11;
+$destroy[]=9;
 
-$destroy[]=10;
-
-$destroy[]=10;
-
-$destroy[]=10;
+$destroy[]=12;
 
 }
 
@@ -964,7 +1077,37 @@ else
 
 {
 
-for ($t=0; $t<12; $t++) {$destroy[]=$t;$destroy[]=$t;$destroy[]=$t;}
+commonlog('Moves [Combat]', 'Planetary Attack: All'.$focus, $move_id);
+
+for ($t=0; $t<13; $t++) {$destroy[]=$t;$destroy[]=$t;}
+
+$destroy[] = -1;
+
+$destroy[] = 9;
+
+$destroy[] = 9;
+
+$destroy[] = 9;
+
+$destroy[] = 4;
+
+$destroy[] = 5;
+
+$destroy[] = -1;
+
+$destroy[] = -1;
+
+$destroy[] = 7;
+
+$destroy[] = 10;
+
+$destroy[] = 12;
+
+$destroy[] = 12;
+
+$destroy[] = 12;
+
+$destroy[] = -1;
 
 }
 
@@ -978,19 +1121,20 @@ for ($t=0; $t<$num_destroy; $t++)
 
 {
 
-$build=rand(0,count($destroy)-1);
+    $build=rand(0,count($destroy)-1);
+    
+    if (($destroy[$build]+1)!=-1) {
+    
+        $planet['building_'.($destroy[$build]+1)]--;
 
-if (($destroy[$build]+1)!=10)
+        if ($planet['building_'.($destroy[$build]+1)]<0) 
+        {
 
-{
+            $planet['building_'.($destroy[$build]+1)]=0;
 
-$planet['building_'.($destroy[$build]+1)]--;
-
-if ($planet['building_'.($destroy[$build]+1)]<0) $planet['building_'.($destroy[$build]+1)]=0;
-
-
-
-}
+        }
+    
+    }
 
 }
 
