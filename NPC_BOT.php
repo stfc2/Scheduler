@@ -311,7 +311,7 @@ class NPC
 		// Retrieve some BOT infos
 		$sql = 'SELECT user_race, user_capital, pending_capital_choice FROM user WHERE user_id='.$this->bot['user_id'];
 		$userdata=$this->db->queryrow($sql);
-		$race = $userdata['user_data'];
+		$race = $userdata['user_race'];
 
 		// Planet selected is capital or not?
 		$capital=(($userdata['user_capital']==$planet['planet_id']) ? 1 : 0);
