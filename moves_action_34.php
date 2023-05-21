@@ -175,7 +175,7 @@ class moves_action_34 extends moves_common {
         if($this->move['dest'] == $this->tr_data[2]) $this->actions = &$this->tr_data[4];
         else $this->actions = &$this->tr_data[3];
 
-        $this->log(MV_M_NOTICE, 'Buondi! Sono quello della flotta <b>'.$this->fleet_ids[0].'</b> del Boss <b>'.$this->move['user_id'].'</b>, in arrivo sul pianeta <b>'.$this->dest['planet_id'].'</b> che appartiene a <b>'.$this->dest['user_id'].'</b> per un trasporto.');
+        //$this->log(MV_M_NOTICE, 'Buondi! Sono quello della flotta <b>'.$this->fleet_ids[0].'</b> del Boss <b>'.$this->move['user_id'].'</b>, in arrivo sul pianeta <b>'.$this->dest['planet_id'].'</b> che appartiene a <b>'.$this->dest['user_id'].'</b> per un trasporto.');
 
         $sql = 'SELECT resource_1, resource_2, resource_3, resource_4, unit_1, unit_2, unit_3, unit_4, unit_5, unit_6
                 FROM ship_fleets
@@ -207,7 +207,7 @@ class moves_action_34 extends moves_common {
         $sql = 'SELECT user_sitting_id1, user_sitting_id2, user_sitting_id3,
                        user_sitting_id4, user_sitting_id5
                 FROM user
-                WHERE user_id = '.$this->move['user_id'];
+                WHERE user_id = '.$this->move['owner_id'];
 
         if(($move_sitters = $this->db->queryrow($sql)) === false) {
             return $this->log(MV_M_DATABASE, 'Could not query sitters data of the move owner');
@@ -228,16 +228,16 @@ class moves_action_34 extends moves_common {
            ($move_sitters['user_sitting_id4'] == $this->dest['user_id']) ||
            ($move_sitters['user_sitting_id5'] == $this->dest['user_id'])) {
             $route_blocked = true;
-            $log_message = 'Trade route between sitter <b>'.$this->dest['user_id'].'</b> and sitted <b>'.$this->move['user_id'].'</b> are forbidden!!!';
+            $log_message = 'Trade route between sitter <b>'.$this->dest['user_id'].'</b> and sitted <b>'.$this->move['owner_id'].'</b> are forbidden!!!';
         }
 
-        if(($dest_sitters['user_sitting_id1'] == $this->move['user_id']) ||
-           ($dest_sitters['user_sitting_id2'] == $this->move['user_id']) ||
-           ($dest_sitters['user_sitting_id3'] == $this->move['user_id']) ||
-           ($dest_sitters['user_sitting_id4'] == $this->move['user_id']) ||
-           ($dest_sitters['user_sitting_id5'] == $this->move['user_id'])) {
+        if(($dest_sitters['user_sitting_id1'] == $this->move['owner_id']) ||
+           ($dest_sitters['user_sitting_id2'] == $this->move['owner_id']) ||
+           ($dest_sitters['user_sitting_id3'] == $this->move['owner_id']) ||
+           ($dest_sitters['user_sitting_id4'] == $this->move['owner_id']) ||
+           ($dest_sitters['user_sitting_id5'] == $this->move['owner_id'])) {
             $route_blocked = true;
-            $log_message = 'Trade route between sitter <b>'.$this->move['user_id'].'</b> and sitted <b>'.$this->dest['user_id'].'</b> are forbidden!!!';
+            $log_message = 'Trade route between sitter <b>'.$this->move['owner_id'].'</b> and sitted <b>'.$this->dest['user_id'].'</b> are forbidden!!!';
         }
 
         if($route_blocked) {
@@ -280,15 +280,41 @@ class moves_action_34 extends moves_common {
                 break;
             }
 
-            $log_message = 'Trade route between user <b>'.$this->move['user_id'].'</b> and Settlers are forbidden!!!';
+            $log_message = 'Trade route between user <b>'.$this->move['owner_id'].'</b> and Settlers are forbidden!!!';
         }
         /* END OF RULE TO AVOID ROUTES WITH SETTLERS */
 
+        $sql = 'SELECT uf_id FROM user_felony WHERE user1_id = '.$this->dest['user_id'].' AND user2_id = '.$this->move['owner_id'];
+        
+        if(($res = $this->db->queryrow($sql)) === false) {
+            return $this->log(MV_M_DATABASE, 'Could not query sitters data of the move owner');
+        }
+        
+        if(isset($res['uf_id'])) {
+            $route_blocked = true;
+
+            switch($this->move['language'])
+            {
+                case 'GER':
+                    $message='Hallo '.$this->move['user_name'].',<br>Handelswege mit Siedler sind verboten.<br>Diese Nachricht wurde automatisch generiert, Beschwerden beim STFC2-Team bringen nichts.<br>~ Siedler-Abuse-Automatik';
+                    $title='Routesperre';
+                break;
+                case 'ITA':
+                    $message='Ciao '.$this->move['user_name'].',<br>le rotte commerciali con chi ti ha dichiarato criminale non sono ammesse.<br>Questo messaggio &egrave; stato generato automaticamente, lamentele al team di STFC2 sono inutili.<br>~ Sistema anti abuso Coloni';
+                    $title='Rotta bloccata';
+                break;
+                default:
+                    $message='Hello '.$this->move['user_name'].',<br>trade routes with Felons are forbidden.<br>This message is automatically generated complaints to the team STFC2 are useless.<br>~Settlers Abuse Prevention System';
+                    $title='Route blocked';
+                break;            
+            }
+        }
+        
         // Route not allowed: log it, inform the admin and deactivate
         if($route_blocked) {
             $this->log(MV_M_NOTICE, $log_message);
 
-            SystemMessage($this->move['user_id'],$title,$message);
+            SystemMessage($this->move['owner_id'],$title,$message);
 
             //Send a copy to the admin
             SystemMessage(10,$title,$message);
@@ -309,10 +335,10 @@ class moves_action_34 extends moves_common {
         $this->do_unloading();
 
 
-        if($this->move['user_id'] != $this->dest['user_id']) {
+        if($this->move['owner_id'] != $this->dest['user_id']) {
             $sql = 'SELECT ud.ud_id, a.alliance_id, ad.ad_id, ad.type, ad.status 
                     FROM (user u)
-                    LEFT JOIN user_diplomacy ud ON ( ( ud.user1_id = '.$this->move['user_id'].' AND ud.user2_id = '.$this->dest['user_id'].' ) OR (ud.user1_id = '.$this->dest['user_id'].' AND ud.user2_id = '.$this->move['user_id'].' ) )
+                    LEFT JOIN user_diplomacy ud ON ( ( ud.user1_id = '.$this->move['owner_id'].' AND ud.user2_id = '.$this->dest['user_id'].' ) OR (ud.user1_id = '.$this->dest['user_id'].' AND ud.user2_id = '.$this->move['owner_id'].' ) )
                     LEFT JOIN alliance a ON a.alliance_id = u.user_alliance
                     LEFT JOIN alliance_diplomacy ad ON ( ( ad.alliance1_id = '.$this->move['user_alliance'].' AND ad.alliance2_id = a.alliance_id ) OR ( ad.alliance1_id = a.alliance_id AND ad.alliance2_id = '.$this->move['user_alliance'].' ) )
                     WHERE u.user_id = '.$this->dest['user_id'];
@@ -403,6 +429,7 @@ class moves_action_34 extends moves_common {
         else {
             $sql = 'UPDATE ship_fleets
                 SET planet_id = '.$this->move['dest'].',
+                    system_id = '.$this->dest['system_id'].',
                 move_id = 0
                 WHERE fleet_id IN ('.$this->fleet_ids_str.')';
 
@@ -463,10 +490,10 @@ class moves_action_34 extends moves_common {
 
         // Add logbook entries only if players had activated them
         if($this->action_data[6])
-            add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $log_title1, $log_data);
+            add_logbook_entry($this->move['owner_id'], LOGBOOK_TACTICAL, $log_title1, $log_data);
 
         // Only one logbook if the owner of the planet is also the owner of the fleets
-        if($this->move['user_id'] != $this->dest['user_id'])
+        if($this->move['owner_id'] != $this->dest['user_id'])
             add_logbook_entry($this->dest['user_id'], LOGBOOK_TACTICAL, $log_title2, $log_data);
 
         return MV_EXEC_OK;

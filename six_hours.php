@@ -102,9 +102,6 @@ best also - before, so it's apart from the other messages, also: $sdl->log('- th
 $sdl->finish_job('Mine Job'); // terminates the timer
 
 */
-
-
-
 // #######################################################################################
 // #######################################################################################
 // Ok, now we try to update the user_max_colo
@@ -141,94 +138,391 @@ $sdl->finish_job('Recalculate colony ship limits');
 
 // #######################################################################################
 // #######################################################################################
-// Check of miners available on Borg planets
-$sdl->start_job('Check miners on Borg planets');
-$mines_upgraded = 0;
-$miners = array();
-$mines_level = array();
-$borg = new NPC($db,$sdl);
-$borg -> LoadNPCUserData(BORG_USERID);
+// Protect point maintenance
+$sdl->start_job('Protect Point System Maintenance');
 
-// We need many infos here, for StartBuild() function
-$sql = 'SELECT planet_id, planet_type,
-               building_1, building_2, building_3, building_4, building_5,
-               building_6, building_7, building_8, building_9, building_10,
-               building_11, building_12, building_13,
-               resource_1, resource_2, resource_3, resource_4
-               research_3, research_4,
-               workermine_1, workermine_2, workermine_3
-        FROM planets WHERE planet_owner = '.BORG_USERID;
-$borg_planets = $db->query($sql);
-while($planet=$db->fetchrow($borg_planets)) {
-    // If we have at least a workers slot
-    if($planet['resource_4'] > 100) {
-        $mine = 0;
-        $max_reached = 0;
-        $miners_updated = false;
-        $miners[0] = $planet['workermine_1'];
-        $miners[1] = $planet['workermine_2'];
-        $miners[2] = $planet['workermine_3'];
-        $workers = $planet['resource_4'];
-        $mines_level[0] = $planet['building_2'];
-        $mines_level[1] = $planet['building_3'];
-        $mines_level[2] = $planet['building_4'];
+$sql = 'SELECT user_id, user_race, user_protect_cap, user_protect_level FROM user WHERE user_active = 1 AND user_auth_level <= '.STGC_DEVELOPER;
 
-        while($workers > 100 && $max_reached < 3) {
-            // If there is space for new workers
-            if($miners[$mine] < (($mines_level[$mine]*100)+100)) {
-                $miners[$mine]+=100;
-                $workers-=100;
-                $miners_updated = true;
-            }
-            // There is no space available, perhaps we can increase the mine level?
-            else {
-                $max_reached++;
-            }
-            $mine++;
-            if($mine > 2)
-                $mine = 0;
-        }
+$user_lst = $db->queryrowset($sql);
 
-        // If we exit from the while because there isn't space available on the mines
-        if($max_reached) {
-            // Search the mine with lowest level
-            $min = $mines_level[0];
-            $mine = 1;
-            for($i = 1;$i < 3;$i++)
-                if($mines_level[$i] < $min)
-                {
-                    $min = $mines_level[$i];
-                    $mine = $i + 1;
-                }
-
-            // Start to build a new mine level
-            $res = $borg->StartBuild($ACTUAL_TICK,$mine,$planet);
-            if($res == BUILD_ERR_ENERGY)
-                $res = $borg->StartBuild($ACTUAL_TICK,4,$planet);
-        }
-
-        if($miners_updated) {
-            $sql='UPDATE planets SET
-                         workermine_1 = '.$miners[0].',
-                         workermine_2 = '.$miners[1].',
-                         workermine_3 = '.$miners[2].',
-                         resource_4 = '.$workers.'
-                  WHERE planet_id = '.$planet['planet_id'];
-
-            $sdl->log('Mines workers increased to: '.$miners[0].'/'.$miners[1].'/'.$miners[2].' on Borg planet: <b>#'.$planet['planet_id'].'</b>');
-
-            $mines_upgraded++;
-
-            if(!$db->query($sql)) {
-                $sdl->log('<b>Error:</b> could not update mines workers!');
-            }
-        }
-    }
+foreach ($user_lst AS $user_to_proc) {
+    $over_flag = 0;
+    
+    $q_res = $db->queryrow('SELECT SUM(building_1) AS value_1 FROM planets WHERE planet_owner = '.$user_to_proc['user_id']);
+    
+    $value_1 = $q_res['value_1'];
+    
+    $q_res = $db->queryrow('SELECT SUM(building_1) AS value_2 FROM planets INNER JOIN starsystems USING (system_id) WHERE system_owner = '.$user_to_proc['user_id'].' AND system_closed = 2 AND planet_owner = '.$user_to_proc['user_id']);
+    
+    $value_2 = $q_res['value_2'];
+    
+    $q_res = $db->queryrow('SELECT SUM(building_1) AS value_3 FROM planets INNER JOIN starsystems USING (system_id) WHERE system_owner = '.$user_to_proc['user_id'].' AND system_closed = 1 AND planet_owner = '.$user_to_proc['user_id']);
+    
+    $value_3 = $q_res['value_3'];
+    
+    $build_ratio = round((($value_2 + $value_3)*100/$value_1) * 0.01, 2);
+    
+    $build_ratio = 1.0 - $build_ratio;
+    
+    if($build_ratio < 0) {$build_ratio = 0;}
+    
+    if($build_ratio > 1.0) {$build_ratio = 1.0;}
+    
+    if($user_to_proc['user_protect_cap'] < $user_to_proc['user_protect_level']) {$over_flag = 1;}
+    
+    $new_ratio = round((((0.25/2) * $build_ratio) + ((0.25/2) * $RACE_DATA[$user_to_proc['user_race']][20]) - (0.5 * $over_flag) ), 2);
+    
+    $db->query('UPDATE user SET user_protect_ratio = '.$new_ratio.', recompute_protect_ratio = 0 WHERE user_id = '.$user_to_proc['user_id']);
 }
-if($mines_upgraded != 0) $sdl->log('Upgraded <b>'.$mines_upgraded.'</b> mines on Borg planets');
-$sdl->finish_job('Check miners on Borg planets');
 
 
+$sdl->finish_job('Protect Point System Maintenance');
+
+// #######################################################################################
+// #######################################################################################
+$sdl->start_job('Orion Cartel Operations');
+
+$sql = 'SELECT p.planet_id, ss.system_orion_alert
+        FROM planets p
+        INNER JOIN starsystems ss USING (system_id)
+        LEFT JOIN settlers_events se ON (p.planet_id = se.planet_id AND se.event_code = 107 AND se.user_id = '.ORION_USERID.')
+        WHERE p.planet_owner = '.INDEPENDENT_USERID.' AND ss.system_orion_alert > 0 AND se.event_code IS NULL';
+
+$op_list = $db->queryrowset($sql);
+
+$tally = 0;
+
+foreach ($op_list AS $op_item) {
+        $tally++;
+        $sql = 'INSERT INTO settlers_events
+                (planet_id, user_id, event_code, timestamp, tick, awayteamship_id, awayteam_startlevel, unit_1, unit_2, unit_3, unit_4, awayteam_alive, event_status)
+                VALUES  ('.$op_item['planet_id'].', '.ORION_USERID.', 107, '.time().', '.$ACTUAL_TICK.', 0, 20, 40, 25, 20, 3, 1, 1)';
+        if(!$db->query($sql)) {
+            $sdl->log(MV_M_DATABASE, 'Could not insert settlers event data!'.$sql);
+            $tally--;
+        }
+        if($op_item['system_orion_alert'] >= 3) {
+            $sql = 'INSERT INTO settlers_relations
+                    (planet_id, user_id, race_id, timestamp, log_code, mood_modifier)
+                    VALUES ('.$op_item['planet_id'].', '.ORION_USERID.', 7, '.time().', 1, 10)';
+            if(!$db->query($sql)) {
+                $sdl->log(MV_M_DATABASE, 'Could not insert Orion First Contact data!'.$sql);
+            }            
+        }
+}
+
+if($tally > 0) {$sdl->log('Operation started: '.$tally);}
+
+$sdl->finish_job('Orion Cartel Operations');
+
+// #######################################################################################
+// #######################################################################################
+$sdl->start_job('Settlers Events');
+
+// Prima fase, muoviamo il mood Founder
+$sql = 'SELECT se.planet_id, event_code, mood_modifier FROM settlers_events se INNER JOIN settlers_relations sr USING (planet_id) WHERE event_status = 1 AND log_code = 30 ORDER BY planet_id, event_code';
+$events_query = $db->query($sql);
+$counter = $db->num_rows($events_query);
+if($counter > 0)
+{
+    $events_list = $db->fetchrowset($events_query);
+    $pre_item['planet_id'] = $events_list[0]['planet_id'];
+    $pre_item['mood_modifier'] = $events_list[0]['mood_modifier'];
+    $cache_mood = 0;
+    foreach($events_list as $events_item)
+    {
+        if($pre_item['planet_id'] != $events_item['planet_id'])
+        {
+            $new_mood = $pre_item['mood_modifier'] + $cache_mood;
+            $new_mood = max( 0, $new_mood);
+            $new_mood = min(80, $new_mood);
+            if($new_mood != $pre_item['mood_modifier'])
+            {
+                $sql = 'UPDATE settlers_relations SET mood_modifier = '.$new_mood.' WHERE planet_id = '.$pre_item['planet_id'].' AND log_code = 30';
+                if(!$db->query($sql)) {
+                    $sdl->log('<b>Error:</b> could not update settlers relations!!! E0: '.$sql);
+                }
+                $sdl->log('DEBUG: sql E0:'.$sql);
+            }
+            $cache_mood = 0;            
+        }
+        switch($events_item['event_code'])
+        {
+            case '100':
+            case '101':
+            case '102':
+            case '103':
+            case '104':
+            case '105':
+                $cache_mood -= 15;
+            break;
+            case '120':
+            case '121':
+            case '122':
+            case '123':
+            case '124':
+                $cache_mood += 10;
+            break;
+        }
+        $pre_item['planet_id'] = $events_item['planet_id'];
+        $pre_item['mood_modifier'] = $events_item['mood_modifier'];
+    }
+    $new_mood = $pre_item['mood_modifier'] + $cache_mood;
+    $new_mood = max( 0, $new_mood);
+    $new_mood = min(80, $new_mood);
+    $sql = 'UPDATE settlers_relations SET mood_modifier = '.$new_mood.' WHERE planet_id = '.$pre_item['planet_id'].' AND log_code = 30';
+    if(!$db->query($sql)) {
+        $sdl->log('<b>Error:</b> could not update settlers relations!!! E1: '.$sql);
+    }
+    $sdl->log('DEBUG: sql E1:'.$sql);
+}
+
+// Prima fase punto cinque, muoviamo il mood Benefactor
+$sql = 'SELECT se.planet_id, event_code, mood_modifier FROM settlers_events se INNER JOIN settlers_relations sr USING (planet_id) WHERE se.user_id = sr.user_id AND event_status = 1 AND log_code = 36 ORDER BY planet_id, event_code';
+$events_query = $db->query($sql);
+$counter = $db->num_rows($events_query);
+if($counter > 0)
+{
+    $events_list = $db->fetchrowset($events_query);
+    $pre_item['planet_id'] = $events_list[0]['planet_id'];
+    $pre_item['mood_modifier'] = $events_list[0]['mood_modifier'];
+    $cache_mood = 0;
+    foreach($events_list as $events_item)
+    {
+        if($pre_item['planet_id'] != $events_item['planet_id'])
+        {
+            $new_mood = $pre_item['mood_modifier'] + $cache_mood;
+            $new_mood = max(10, $new_mood);
+            $new_mood = min(85, $new_mood);
+            if($new_mood != $pre_item['mood_modifier'])
+            {
+                $sql = 'UPDATE settlers_relations SET mood_modifier = '.$new_mood.' WHERE planet_id = '.$pre_item['planet_id'].' AND log_code = 36';
+                if(!$db->query($sql)) {
+                    $sdl->log('<b>Error:</b> could not update settlers relations!!! E2: '.$sql);
+                }
+                $sdl->log('DEBUG: sql E2:'.$sql);
+            }
+            $cache_mood = 0;            
+        }
+        switch($events_item['event_code'])
+        {
+            case '130':
+            case '131':
+            case '132':
+            case '133':
+            case '134':
+            case '135':
+                $cache_mood += 15;
+            break;
+        }
+        $pre_item['planet_id'] = $events_item['planet_id'];
+        $pre_item['mood_modifier'] = $events_item['mood_modifier'];
+    }
+    $new_mood = $pre_item['mood_modifier'] + $cache_mood;
+    $new_mood = max(10, $new_mood);
+    $new_mood = min(85, $new_mood);
+    $sql = 'UPDATE settlers_relations SET mood_modifier = '.$new_mood.' WHERE planet_id = '.$pre_item['planet_id'].' AND log_code = 36';
+    if(!$db->query($sql)) {
+        $sdl->log('<b>Error:</b> could not update settlers relations!!! E3: '.$sql);
+    }
+    $sdl->log('DEBUG: sql E3:'.$sql);
+}
+
+// Seconda fase, muoviamo i vari mood negativi! IMPORTANTE. Mantenete gli event code di mosse anti controllore sotto il 120
+$crime_strenght = [0,10,10,15,20];
+$crime_cap      = [0,-20,-35,-60,-85];
+$sql = 'SELECT se.planet_id, p.best_mood_user AS controller, event_code, ss.system_orion_alert AS orion_alert 
+        FROM settlers_events se 
+        INNER JOIN planets p USING (planet_id) 
+        INNER JOIN starsystems ss USING (system_id) 
+        WHERE event_status = 1 AND se.user_id <> p.best_mood_user AND event_code < 120 
+        ORDER BY se.planet_id, event_code';
+$events_query = $db->query($sql);
+$counter = $db->num_rows($events_query);
+if($counter > 0)
+{
+    $events_list = $db->fetchrowset($events_query);
+    $pre_item['planet_id'] = $events_list[0]['planet_id'];
+    $pre_item['controller'] = $events_list[0]['controller'];
+    $pre_item['event_code'] = $events_list[0]['event_code'];
+    $pre_item['orion_alert'] = $events_list[0]['orion_alert'];
+    $cache_mood = array(28 => 0, 29 => 0, 35 => 0);
+    foreach($events_list as $events_item)
+    {
+        if($pre_item['planet_id'] != $events_item['planet_id'])
+        {
+            foreach($cache_mood as $key => $mood_item)
+            {
+                if($mood_item == 0) continue;
+                $sql = 'SELECT mood_modifier FROM settlers_relations WHERE planet_id = '.$pre_item['planet_id'].' AND user_id = '.$pre_item['controller'].' AND log_code = '.$key;
+                $lq_query = $db->queryrow($sql);
+                if(isset($lq_query['mood_modifier']))
+                {
+                    $new_mood = $lq_query['mood_modifier'] + $mood_item;
+                    //$new_mood = max(-85, $new_mood);
+                    $new_mood = max(($key == 35 ? $crime_cap[$pre_item['orion_alert']] : -85), $new_mood);
+                    $sql = 'UPDATE settlers_relations SET mood_modifier = '.$new_mood.' WHERE planet_id = '.$pre_item['planet_id'].'  AND user_id = '.$pre_item['controller'].' AND log_code = '.$key;
+                    $sdl->log('DEBUG: SQL E4A:'.$sql);
+                    if(!$db->query($sql)) {
+                        $sdl->log('<b>Error:</b> could not update settlers relations!!! E2: '.$sql);
+                    }                    
+                }
+                else
+                {
+                    //$new_mood = max(-85, $mood_item);
+                    $new_mood = max(($key == 35 ? $crime_cap[$pre_item['orion_alert']] : -85), $mood_item);                    
+                    $sql = 'INSERT INTO settlers_relations (planet_id, user_id, timestamp, log_code, mood_modifier) VALUES ("'.$pre_item['planet_id'].'", "'.$pre_item['controller'].'", '.time().', '.$key.', '.$new_mood.')';
+                    $sdl->log('DEBUG: SQL E4B:'.$sql);
+                    if(!$db->query($sql)) {
+                        $sdl->log('<b>Error:</b> could not update settlers relations!!! E3: '.$sql);
+                    }                    
+                }
+            }
+            $cache_mood[28] = 0;
+            $cache_mood[29] = 0;
+            $cache_mood[35] = 0;            
+        }
+        switch($events_item['event_code'])
+        {
+            case '100':
+            case '101':
+            case '102':
+            case '103':
+                $cache_mood[28] -= 20;
+            break;
+            case '104':
+            case '105':
+                $cache_mood[29] -= 20;
+            break;
+            case '107':
+                $cache_mood[35] -= $crime_strenght[$events_item['orion_alert']];
+            break;
+        }
+        $pre_item['planet_id'] = $events_item['planet_id'];
+        $pre_item['controller'] = $events_item['controller'];
+        $pre_item['event_code'] = $events_item['event_code'];
+        $pre_item['orion_alert'] = $events_item['orion_alert'];
+    }
+    foreach($cache_mood as $key => $mood_item)
+    {
+        if($mood_item == 0) continue;
+        $sql = 'SELECT mood_modifier FROM settlers_relations WHERE planet_id = '.$pre_item['planet_id'].' AND user_id = '.$pre_item['controller'].' AND log_code = '.$key;
+        $lq_query = $db->queryrow($sql);
+        if(isset($lq_query['mood_modifier']))
+        {
+            $new_mood = $lq_query['mood_modifier'] + $mood_item;
+            //$new_mood = max(-85, $new_mood);
+            $new_mood = max(($key == 35 ? $crime_cap[$pre_item['orion_alert']] : -85), $new_mood);
+            $sql = 'UPDATE settlers_relations SET mood_modifier = '.$new_mood.' WHERE planet_id = '.$pre_item['planet_id'].'  AND user_id = '.$pre_item['controller'].' AND log_code = '.$key;
+            $sdl->log('DEBUG: SQL E4C:'.$sql);
+            if(!$db->query($sql)) {
+                $sdl->log('<b>Error:</b> could not update settlers relations!!! E4: '.$sql);
+            }                    
+        }
+        else
+        {
+            //$new_mood = max(-85, $mood_item);
+            $new_mood = max(($key == 35 ? $crime_cap[$pre_item['orion_alert']] : -85), $new_mood);            
+            $sql = 'INSERT INTO settlers_relations (planet_id, user_id, timestamp, log_code, mood_modifier) VALUES ('.$pre_item['planet_id'].', '.$pre_item['controller'].', '.time().', '.$key.', '.$new_mood.')';
+            $sdl->log('DEBUG: SQL E4D:'.$sql);
+            if(!$db->query($sql)) {
+                $sdl->log('<b>Error:</b> could not update settlers relations!!! E5: '.$sql);
+            }                    
+        }        
+    }    
+}
+
+// Terza parte, easy
+
+    $sql = 'UPDATE settlers_relations SET mood_modifier = mood_modifier + 5 WHERE log_code IN (28, 29, 35)';
+
+    if(!$db->query($sql)) {
+        $sdl->log('<b>Error:</b> could not update settlers relations!!! E3: '.$sql);
+    }                        
+
+    $sql = 'UPDATE settlers_relations SET mood_modifier = mood_modifier - 5 WHERE log_code = 36 AND mood_modifier > 10';
+    
+    $db->query($sql);    
+    
+    $sql = 'DELETE FROM settlers_relations WHERE log_code IN (28, 29, 35) AND mood_modifier = 0';
+
+    $db->query($sql);
+
+    $sql = 'UPDATE settlers_events SET count_ok = count_ok +1, event_result = 1 WHERE event_code = 150 AND event_status = 1 AND count_crit_ok = 0 AND ('.$ACTUAL_TICK.' - tick) > 80';
+
+    $db->query($sql);
+
+    $sql = 'UPDATE settlers_events SET count_ok = 0, count_crit_ok = 1 WHERE event_code = 150 AND event_status = 1 AND count_crit_ok = 0 AND count_ok = 4 AND ('.$ACTUAL_TICK.' - tick) > 80';
+
+    $db->query($sql);
+    
+    $sql = 'UPDATE settlers_events SET count_ok = count_ok +1 WHERE awayteam_alive = 1 AND event_status = 1 AND event_code IN (100, 101, 102, 103) AND planet_id IN (SELECT planet_id FROM settlers_relations WHERE log_code = 28 AND mood_modifier = -80)';
+    
+    $db->query($sql);
+    
+    $sql = 'SELECT settlers_events.user_id, settlers_events.planet_id
+            FROM settlers_events
+            INNER JOIN settlers_relations USING (planet_id)
+            WHERE settlers_relations.log_code = 28 AND
+                  settlers_relations.mood_modifier = -80 AND
+                  settlers_events.event_code IN (100, 101, 102, 103) AND
+                  settlers_events.awayteam_alive = 1 AND
+                  settlers_events.event_status = 1';
+    
+    $predator_list = $db->queryrowset($sql);
+    
+    foreach ($predator_list as $predator_item) {
+        // Use do_simple_relation() code in action_27 here
+        //$sql = 'INSERT INTO settlers_relations (planet_id, user_id, timestamp, log_code, mood_modifier) VALUES ('.$predator_item['planet_id'].', '.$predator_item['user_id'].', '.time().', 23, 5) ON DUPLICATE KEY UPDATE mood_modifier = mood_modifier + 5';
+        //$db->query($sql);
+        $sql='SELECT * FROM settlers_relations WHERE planet_id = '.$predator_item['planet_id'].' AND user_id = '.$predator_item['user_id'].' AND log_code = 23';
+
+        $pre_data = $db->queryrow($sql);
+
+        if(!isset($pre_data['mood_modifier']))
+        {
+            $sql='INSERT INTO settlers_relations (planet_id, user_id, timestamp, log_code, mood_modifier) VALUES ('.$predator_item['planet_id'].', '.$predator_item['user_id'].', '.time().', 23, 5';
+        }
+        else
+        {
+            $new_mood = min(80, ($pre_data['mood_modifier'] + 5));
+
+            $sql='UPDATE settlers_relations SET mood_modifier = '.$new_mood.', timestamp = '.time().'
+                    WHERE planet_id = '.$predator_item['planet_id'].' AND user_id = '.$predator_item['user_id'].' AND log_code = 23';
+        }
+
+        $sdl->log('DEBUG: SQL E5A:'.$sql);
+
+        $db->query($sql);        
+    }
+    
+    // Abbiamo ancora bisogno di questa?
+    $db->query('UPDATE settlers_relations SET mood_modifier = 80 WHERE log_code = 23 AND mood_modifier > 80');
+    
+    $diplo_list = $db->queryrowset('SELECT user_id, user_settler_best FROM user WHERE user_auth_level = 1 AND user_active = 1 AND user_settler_best > 0');
+    
+    foreach ($diplo_list AS $diplo_item) {
+        $add_diplo_points = 0.25*$diplo_item['user_settler_best'];
+        $sql = 'UPDATE user SET user_diplo_points = user_diplo_points + '.$add_diplo_points.' WHERE user_id = '.$diplo_item['user_id'];
+        $db->query($sql);
+        // $sdl->log('DEBUG: SQL E5B:'.$sql);
+    }
+    
+$sdl->finish_job('Settlers Events');
+
+$sdl->start_job('User SlowStats Update');
+
+    $xform_list = $db->queryrowset('SELECT user_id, COUNT(log_code) AS xform_count FROM user LEFT JOIN planet_details USING (user_id) WHERE user_active = 1 AND user_auth_level = 1 AND log_code = 31 GROUP BY user_id ORDER BY COUNT(log_code)');
+
+    foreach ($xform_list AS $xform_item) {
+        $db->query('UPDATE user SET user_tform_planets = '.$xform_item['xform_count'].' WHERE user_id = '.$xform_item['user_id']);
+    }
+    
+    $sql = 'UPDATE memory_alpha_triggers SET trigger_2 = 1 WHERE id = 1';
+    if(!$db->query($sql)) {
+            $sdl->log('<b>Error:</b>: could not update memory alpha triggers!.');
+    }    
+$sdl->finish_job('User SlowStats Update');
 
 // #######################################################################################
 // #######################################################################################

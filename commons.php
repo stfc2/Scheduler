@@ -293,12 +293,11 @@ function RetrieveRealCatId($id,$user_id)
 
 function GetBuildingTimeTicks($building,$planet,$user_race)
 {
-	global $db;
-	global $RACE_DATA, $BUILDING_NAME, $BUILDING_DATA, $MAX_BUILDING_LVL,$NEXT_TICK,$ACTUAL_TICK,$PLANETS_DATA;
+	global $RACE_DATA, $BUILDING_DATA, $PLANETS_DATA;
 
 	$time=($BUILDING_DATA[$building][3] + 3*pow($planet['building_'.($building+1)],$BUILDING_DATA[$building][4]));
-	if ($building==9)
-		$time=$BUILDING_DATA[$building][3];
+        if ($building==9) {$time=$BUILDING_DATA[$building][3];}
+        if ($building==12) {$time=$BUILDING_DATA[$building][3];}        
 	$time*=$RACE_DATA[$user_race][1];
 	$time/=100;
 	$time*=(100-2*($planet['research_4']*$RACE_DATA[$user_race][20]));
@@ -349,6 +348,12 @@ function ResourcesPerTickLatinum(&$planet) {
 	if($result < 10) $round = 1;
 	else $round = 0;
 	return round($result, $round);
+}
+
+function TechpointsPerTick(&$planet) {
+    global $RACE_DATA;
+    $result = ($planet['building_9'] > 0 ? 1 + round((($planet['building_9']/3)*$RACE_DATA[$planet['user_race']][20])/10,2) : 0);
+    return $result;
 }
 
 function UnitPrice($unit,$resource, $race)

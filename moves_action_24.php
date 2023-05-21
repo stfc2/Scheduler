@@ -176,7 +176,7 @@ class moves_action_24 extends moves_common {
                 $check_clear = false;
             }
             elseif($_check['planet_owner'] != 0) $check_clear = false;
-            elseif($_check['planet_type'] != 'a' && $_check['planet_type'] != 'b' && $_check['planet_type'] != 'c' && $_check['planet_type'] != 'd')$check_clear = false;
+            elseif($_check['planet_type'] != 'a' && $_check['planet_type'] != 'b' && $_check['planet_type'] != 'c' && $_check['planet_type'] != 'd' && $_check['planet_type'] != 'h' && $_check['planet_type'] != 'n')$check_clear = false;
 
             if(!$check_clear) {
                 $log_data[8] = -4;
@@ -191,41 +191,49 @@ class moves_action_24 extends moves_common {
                 case 0:
                 case 1:
                     $type_probabilities = array(
-                        'k' => 35,
-                        'e' => 13,
-                        'f' => 13,
-                        'g' => 13,
-                        'n' => 10,
-                        'l' => 8,
-                        'x' => 5,
+                        'k' => 18,
+                        'e' => 14,
+                        'f' => 14,
+                        'g' => 14,
+                        'l' => 14,
+                        'm' => 14,
+                        'q' => 2,
+                        'x' => 6,
                         'y' => 3
                     );
                 break;
                 case 2:
-                case 3:
+                case 3:                    
+                case 4:                      
                     $type_probabilities = array(
-                        'l' => 8,
-                        'e' => 20,
-                        'f' => 20,
-                        'g' => 20,
-                        'n' >= 15,
-                        'm' => 6,
-                        'o' => 5,
+                        'k' => 20,
+                        'l' => 20,
+                        'e' => 6,
+                        'f' => 6,
+                        'g' => 6,
+                        'm' => 12,
+                        'o' => 12,
+                        'q' => 2,
                         'x' => 4,
                         'y' => 2
                     );
-                break;
-                case 4:
+                break;          
                 case 5:
                 case 6:
                 case 7:
                     $type_probabilities = array(
-                        'h' => 25,
-                        'j' => 31,
-                        'k' => 15,
-                        'n' => 15,
-                        'p' => 10,
-                        'x' => 3,
+                        'e' => 8,
+                        'f' => 8,
+                        'g' => 8,
+                        'i' => 4,
+                        'j' => 4,
+                        'k' => 20,
+                        'l' => 14,
+                        'o' => 12,
+                        'p' => 14,
+                        'q' => 2,
+                        's' => 4,
+                        'x' => 2,
                         'y' => 1
                     );
                 break;
@@ -250,7 +258,7 @@ class moves_action_24 extends moves_common {
             if($rateo_2 < 0.1) $rateo_2 = 0.1;
             $rateo_3 = round(($PLANETS_DATA[$planet_type][2] + ((200 - mt_rand(0, 350))*0.001)), 2);
             if($rateo_3 < 0.1) $rateo_3 = 0.1;
-            $rateo_4 = $PLANETS_DATA[$planet_type][3] + 0.05;
+            $rateo_4 = $PLANETS_DATA[$planet_type][3] + 0.15;
 
             $sql = 'UPDATE planets SET
                            planet_type = "'.$planet_type.'",
@@ -273,6 +281,7 @@ class moves_action_24 extends moves_common {
 
             $sql = 'UPDATE ship_fleets
                     SET planet_id = '.$this->move['dest'].',
+                        system_id = '.$this->dest['system_id'].',
                         move_id = 0,
                         resource_3 = resource_3 - 150000
                     WHERE fleet_id IN ('.$this->fleet_ids_str.')';
@@ -313,15 +322,19 @@ class moves_action_24 extends moves_common {
             }
 
             // How many planets Settlers already controls?
-            $sql = 'SELECT COUNT(planet_id) AS n_planets FROM planets WHERE planet_owner = '.INDEPENDENT_USERID;
+            $sql = 'SELECT settler_n_planets FROM config';
 
             if(($pcount = $this->db->queryrow($sql)) === false) {
-                $this->log(MV_M_DATABASE, 'Could not query planets count data! CONTINUE USING INSTABLE VALUE');
-
-                $n_planets = $cur_move['user_planets'];
+                return $this->log(MV_M_DATABASE, 'Could not query settlers planets count data! SKIP!!!');
             }
-            else {
-                $n_planets = $pcount['n_planets'];
+            
+            $n_planets = $pcount['settler_n_planets'];
+            
+            if($n_planets >= SETTLERS_MAX_COLONY) {
+                $log_data[8] = -5;
+                add_logbook_entry($this->move['user_id'], LOGBOOK_TACTICAL, $ter_title.$this->dest['planet_name'].$ter_fail, $log_data);
+                
+                return MV_EXEC_OK;
             }
 
             // All seems ok, let's clear all the queue on the planet
@@ -348,29 +361,30 @@ class moves_action_24 extends moves_common {
                     planet_owned_date = '.time().',
                     planet_owner_enum = '.(($n_planets - 1) > 0 ? ($n_planets - 1) : 0).',
                     planet_name = "Colony'.$this->move['dest'].'",
+                    planet_available_points = 250,
                     npc_last_action = 0,
                     research_1 = 0,
                     research_2 = 0,
                     research_3 = 0,
                     research_4 = 0,
                     research_5 = 0,
-                    resource_1 = 100,
-                    resource_2 = 100,
-                    resource_3 = 100,
+                    resource_1 = 20000,
+                    resource_2 = 15000,
+                    resource_3 = 10000,
                     resource_4 = 100,
                     recompute_static = 1,
-                    building_1 = 1,
-                    building_2 = 0,
-                    building_3 = 0,
-                    building_4 = 0,
-                    building_5 = 0,
-                    building_6 = 0,
-                    building_7 = 0,
-                    building_8 = 0,
+                    building_1 = 9,
+                    building_2 = 9,
+                    building_3 = 9,
+                    building_4 = 9,
+                    building_5 = 6,
+                    building_6 = 9,
+                    building_7 = 4,
+                    building_8 = 1,
                     building_9 = 0,
                     building_10 = 0,
                     building_11 = 0,
-                    building_12 = 0,
+                    building_12 = 9,
                     building_13 = 0,
                     unit_1 = '.(($cship['unit_1'] - $cship['min_unit_1']) + 50).',
                     unit_2 = '.(($cship['unit_2'] - $cship['min_unit_2']) + 25).',
@@ -422,8 +436,9 @@ class moves_action_24 extends moves_common {
                     unittrainnumberleft_9 = 0,
                     unittrainnumberleft_10 = 0,
                     unittrain_actual = 0,
-                    unittrainid_nexttime=0,
-                    planet_surrender=0
+                    unittrainid_nexttime = 0,
+                    planet_surrender = 0,
+                    planet_insurrection_time = 0
                 WHERE planet_id = '.$this->move['dest'];
 
             if(!$this->db->query($sql)) {
@@ -452,7 +467,13 @@ class moves_action_24 extends moves_common {
             if(!$this->db->query($sql)) {
                 return $this->log(MV_M_DATABASE, 'Could not update fleets data! SKIP');
             }
-
+            
+            $sql = 'UPDATE config SET settler_n_planets = settler_n_planets + 1';
+            
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not update settlers planets in config! SKIP');
+            }
+            
             $log_data[8] = 1;
             $log_data[9] = $cship['name'];
             $log_data[10] = $cship['race'];
@@ -472,37 +493,18 @@ class moves_action_24 extends moves_common {
             // #############################################################################
             // Mood Records. We have to add log_code 1,30
 
-            if(isset($this->move['user_alliance']) && !empty($this->move['user_alliance']) && $this->move['user_alliance_status'] > 2)
-            {
-                // First Contact
-                $sql = 'INSERT INTO settlers_relations SET planet_id = '.$this->move['dest'].', race_id = '.$this->move['user_race'].', user_id = '.$this->move['user_id'].', alliance_id = '.$this->move['user_alliance'].', timestamp = '.time().', log_code = 1, mood_modifier = 20';
+            // First Contact
+            $sql = 'INSERT INTO settlers_relations SET planet_id = '.$this->move['dest'].', race_id = '.$this->move['user_race'].', user_id = '.$this->move['user_id'].', timestamp = '.time().', log_code = 1, mood_modifier = 10';
 
-                if(!$this->db->query($sql)) {
-                    return $this->log(MV_M_DATABASE, 'Could not create new settlers relations! SKIP!!!');
-                }
-
-                // Colo Founder, +1 to timestap to avoid duplicate key
-                $sql = 'INSERT INTO settlers_relations SET planet_id = '.$this->move['dest'].', user_id = '.$this->move['user_id'].', alliance_id = '.$this->move['user_alliance'].', race_id = '.$this->move['user_race'].', timestamp = '.(time() + 1).', log_code = 30, mood_modifier = 80';
-
-                if(!$this->db->query($sql)) {
-                    $this->log(MV_M_DATABASE, 'Could not update settlers moods! CONTINUE!');
-                }
+            if(!$this->db->query($sql)) {
+                return $this->log(MV_M_DATABASE, 'Could not create new settlers relations! SKIP!!!');
             }
-            else
-            {
-                // First Contact
-                $sql = 'INSERT INTO settlers_relations SET planet_id = '.$this->move['dest'].', race_id = '.$this->move['user_race'].', user_id = '.$this->move['user_id'].', timestamp = '.time().', log_code = 1, mood_modifier = 10';
 
-                if(!$this->db->query($sql)) {
-                    return $this->log(MV_M_DATABASE, 'Could not create new settlers relations! SKIP!!!');
-                }
+            // Colo Founder +1 to timestap to avoid duplicate key
+            $sql = 'INSERT INTO settlers_relations SET planet_id = '.$this->move['dest'].', user_id = '.$this->move['user_id'].', race_id = '.$this->move['user_race'].', timestamp = '.(time() + 1).', log_code = 30, mood_modifier = 80';
 
-                // Colo Founder +1 to timestap to avoid duplicate key
-                $sql = 'INSERT INTO settlers_relations SET planet_id = '.$this->move['dest'].', user_id = '.$this->move['user_id'].', race_id = '.$this->move['user_race'].', timestamp = '.(time() + 1).', log_code = 30, mood_modifier = 80';
-
-                if(!$this->db->query($sql)) {
-                    $this->log(MV_M_DATABASE, 'Could not update settlers moods! CONTINUE!');
-                }
+            if(!$this->db->query($sql)) {
+                $this->log(MV_M_DATABASE, 'Could not update settlers moods! CONTINUE!');
             }
 
             return MV_EXEC_OK;
@@ -648,8 +650,9 @@ class moves_action_24 extends moves_common {
                     unittrainnumberleft_9 = 0,
                     unittrainnumberleft_10 = 0,
                     unittrain_actual = 0,
-                    unittrainid_nexttime=0,
-                    planet_surrender=0
+                    unittrainid_nexttime = 0,
+                    planet_surrender = 0,
+                    planet_insurrection_time = 0
                 WHERE planet_id = '.$this->move['dest'];
 
         //$this->log('SQL Debug', ''.$sql.'');
@@ -708,6 +711,12 @@ class moves_action_24 extends moves_common {
         if(!$this->db->query($sql)) {
             $this->log(MV_M_DATABASE, 'Could not update/delete cships fleet data! CONTINUE');
         }
+        
+        $sql = 'UPDATE user SET recompute_protect_ratio = 1 WHERE user_id = '.$this->move['user_id'];
+
+        if(!$this->db->query($sql)) {
+            return $this->log(MV_M_DATABASE, 'Could not update user data after colonizing! SKIP');
+        }        
 
 
         // #############################################################################
@@ -715,6 +724,7 @@ class moves_action_24 extends moves_common {
 
         $sql = 'UPDATE ship_fleets
                 SET planet_id = '.$this->move['dest'].',
+                    system_id = '.$this->dest['system_id'].',
                     move_id = 0
                 WHERE fleet_id IN ('.$this->fleet_ids_str.')';
                 

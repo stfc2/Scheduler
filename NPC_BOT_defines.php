@@ -66,7 +66,7 @@ define ('BORG_MINATTACK', 10); // Attack only players with at least n planets
 
 define ('BORG_BIGPLAYER', 12000); // Send a cube instead of spheres to player above this points
 
-define ('BORG_MAXPLANETS', 0); // Start to assimilate below this planets amount; Set to ZERO to stop Borg activity
+define ('BORG_MAXPLANETS', 40); // Start to assimilate below this planets amount; Set to ZERO to stop Borg activity
 
 
 // Constant for Mayflower Settlers BOT

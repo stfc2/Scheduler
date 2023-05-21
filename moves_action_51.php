@@ -30,6 +30,7 @@ class moves_action_51 extends moves_common {
 
 $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
 		FROM (ship_fleets f)
+                LEFT JOIN officers o ON o.fleet_id = f.fleet_id
 		INNER JOIN user u ON u.user_id = f.user_id
 		WHERE f.fleet_id IN ('.$this->fleet_ids_str.')';
 
@@ -72,6 +73,7 @@ else {
         
         $sql = 'UPDATE ship_fleets
                 SET planet_id = '.$this->move['dest'].',
+                    system_id = '.$this->dest['system_id'].',
                     move_id = 0
                 WHERE fleet_id IN ('.$this->fleet_ids_str.')';
                 
@@ -125,6 +127,7 @@ $n_st_user = count($st_user);
 if($n_st_user > 0) {
     $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
              FROM (ship_fleets f)
+             LEFT JOIN officers o ON o.fleet_id = f.fleet_id
              INNER JOIN user u ON u.user_id = f.user_id
              WHERE f.planet_id = '.$this->move['start'].' AND
 			       (
@@ -141,6 +144,7 @@ if($n_st_user > 0) {
 else {
     $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
              FROM (ship_fleets f)
+             LEFT JOIN officers o ON o.fleet_id = f.fleet_id
              INNER JOIN user u ON u.user_id = f.user_id
              WHERE f.planet_id = '.$this->move['start'].' AND
                    f.user_id = '.$user_id;
@@ -211,6 +215,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
     $sql = 'UPDATE ship_fleets
             SET planet_id = '.$this->move['dest'].',
+                system_id = '.$this->dest['system_id'].',
                 move_id = 0
             WHERE fleet_id IN ('.$this->fleet_ids_str.')';
 
@@ -220,7 +225,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
     }
      // If the attack was on a settlers planet, they will get a little mad!
     
-    if($this->dest['user_id'] == INDEPENDENT_USERID) {
+    if($this->dest['user_id'] == INDEPENDENT_USERID && $planetary_attack) {
         $this->log(MV_M_NOTICE, 'Colony: Settlers being attacked!!! They gonna be mad!');
 
         $sql = 'DELETE FROM settlers_relations WHERE planet_id = '.$this->move['dest'].' AND user_id = '.$this->move['user_id'];
@@ -236,7 +241,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                         alliance_id = '.$this->move['user_alliance'].',
                         race_id = '.$this->move['user_race'].',
                         timestamp = '.time().',
-                        log_code = 10,
+                        log_code = 32,
                         mood_modifier = - 20';
         else
             $sql = 'INSERT INTO settlers_relations
@@ -244,7 +249,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                         user_id = '.$this->move['user_id'].',
                         race_id = '.$this->move['user_race'].',
                         timestamp = '.time().',
-                        log_code = 10,
+                        log_code = 32,
                         mood_modifier = - 20';
 
         if(!$this->db->query($sql)) {

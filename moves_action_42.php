@@ -45,6 +45,7 @@ while($_fleet = $this->db->fetchrow($q_atk_st_fleets)) {
 
 $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
         FROM (ship_fleets f)
+        LEFT JOIN officers o ON o.fleet_id = f.fleet_id
         INNER JOIN user u ON u.user_id = f.user_id
         WHERE f.fleet_id IN ('.$atk_fleet_ids_str.')';
 
@@ -95,6 +96,7 @@ $n_st_user = count($st_user);
 if($n_st_user > 0) {
     $sql = 'SELECT  '.$this->get_combat_query_fleet_columns().'
              FROM (ship_fleets f)
+             LEFT JOIN officers o ON o.fleet_id = f.fleet_id
              INNER JOIN user u ON u.user_id = f.user_id
              WHERE f.planet_id = '.$this->move['dest'].' AND
                   (
@@ -111,6 +113,7 @@ if($n_st_user > 0) {
 else {
     $sql = 'SELECT  '.$this->get_combat_query_fleet_columns().'
              FROM (ship_fleets f)
+             LEFT JOIN officers o ON o.fleet_id = f.fleet_id
              INNER JOIN user u ON u.user_id = f.user_id
              WHERE f.planet_id = '.$this->move['dest'].' AND
                    f.user_id = '.$this->dest['user_id'];

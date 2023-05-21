@@ -105,6 +105,7 @@ $this->log(MV_M_NOTICE,'Allied in orbit: <b>'.$a_st_user.'</b> common assault');
 if($a_st_user > 0) {
     $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
              FROM (ship_fleets f)
+             LEFT JOIN officers o ON o.fleet_id = f.fleet_id
              INNER JOIN user u ON u.user_id = f.user_id
              LEFT JOIN (scheduler_shipmovement ssm) ON ssm.move_id=f.move_id
              WHERE ssm.dest='.$this->move['dest'].' AND ssm.action_code!=31 AND ssm.action_code!=33 AND ssm.action_code!=34 AND ssm.action_code!=14 AND ssm.action_code!=22 AND ssm.action_code!=23 AND ssm.move_finish<='.$this->move['move_finish'].' AND ssm.move_status=0 AND f.move_id!=0 AND
@@ -122,6 +123,7 @@ if($a_st_user > 0) {
 else {
 $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
 		FROM (ship_fleets f)
+                LEFT JOIN officers o ON o.fleet_id = f.fleet_id
 		INNER JOIN user u ON u.user_id = f.user_id
 		JOIN (scheduler_shipmovement ssm) ON ssm.user_id=f.user_id
 		WHERE ssm.dest='.$this->move['dest'].' AND ssm.action_code!=31 AND ssm.action_code!=33 AND ssm.action_code!=34 AND ssm.action_code!=14 AND ssm.action_code!=22 AND ssm.action_code!=23 AND ssm.move_finish<='.$this->move['move_finish'].' AND ssm.move_status=0 AND f.move_id!=0 AND
@@ -187,6 +189,7 @@ $n_st_user = count($st_user);
 if($n_st_user > 0) {
     $sql = 'SELECT  '.$this->get_combat_query_fleet_columns().'
              FROM (ship_fleets f)
+             LEFT JOIN officers o ON o.fleet_id = f.fleet_id
              INNER JOIN (user u) ON u.user_id = f.user_id
              WHERE f.planet_id = '.$this->move['dest'].' AND
                    (
@@ -203,6 +206,7 @@ if($n_st_user > 0) {
 else {
     $sql = 'SELECT  '.$this->get_combat_query_fleet_columns().'
              FROM (ship_fleets f)
+             LEFT JOIN officers o ON o.fleet_id = f.fleet_id
              INNER JOIN user u ON u.user_id = f.user_id
              WHERE f.planet_id = '.$this->move['dest'].' AND
                    f.user_id = '.$this->dest['user_id'];

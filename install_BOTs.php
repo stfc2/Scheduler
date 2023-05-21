@@ -36,7 +36,7 @@ include($game_path . 'include/libs/world.php');
 // include BOTs classes definitions
 include('NPC_BOT.php');
 include('ferengi.php');
-include('borg.php');
+include('memory_alpha.php');
 include('settlers.php');
 
 // include commons classes and functions
@@ -72,7 +72,7 @@ $quark = new Ferengi($db,$sdl);
 $quark->Install();
 
 // Install SevenOfNine BOT
-$borg = new Borg($db,$sdl);
+$borg = new MemoryAlpha($db,$sdl);
 $borg->Install();
 
 // Install Settlers BOT

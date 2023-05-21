@@ -168,6 +168,7 @@ class Ferengi extends NPC
             }
         }
 
+        /*
         // Check whether the ship already has templates
         $reloading=0;
         if($this->bot['ship_t_1'] == 0) {
@@ -240,6 +241,8 @@ class Ferengi extends NPC
             if(!$this->db->query($sql)) 
                 $this->sdl->log('<b>Error:</b> could not update Ramona ID card with ship templates info - CONTINUED', $log);
         }
+         * 
+         */
         $this->sdl->finish_job('Ramona basic system', $log);
 
         // ########################################################################################
@@ -1535,6 +1538,7 @@ class Ferengi extends NPC
                         '<b>Siete sui nostri sensori</b>');
 
         $this->CheckSensors($ACTUAL_TICK,$titles,$messages);
+        /*
         // ########################################################################################
         // ########################################################################################
         // Ships creation
@@ -1640,6 +1644,7 @@ class Ferengi extends NPC
 
         $this->sdl->finish_job('Creating ships', TICK_LOG_FILE_NPC);
 
+        */
         // ########################################################################################
         // ########################################################################################
 

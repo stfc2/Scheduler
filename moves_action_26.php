@@ -36,7 +36,7 @@ class moves_action_26 extends moves_common {
 		//
 		//#############################################################################
 
-		$sql = 'SELECT s.ship_name, s.experience, s.ship_id, t.name FROM ship_fleets f
+		$sql = 'SELECT s.ship_name, s.experience, s.awayteam, s.ship_id, t.name FROM ship_fleets f
 		               LEFT JOIN ships s ON s.fleet_id = f.fleet_id
 		               LEFT JOIN ship_templates t ON t.id = s.template_id
 		        WHERE f.fleet_id IN ('.$this->fleet_ids_str.')';
@@ -57,21 +57,32 @@ class moves_action_26 extends moves_common {
 		// Calcolo Exp per missione
 		if($ship_details['experience'] < 50) {
 
-			$actual_exp = $ship_details['experience'];
+		    $actual_exp = $ship_details['experience'];
 
-			if($actual_exp < 1) $actual_exp = 1;
+		    if($actual_exp < 1) $actual_exp = 1;
 
-            $exp = ($actual_exp > 0) ? (2.5/((float)$actual_exp*0.0635))+0.6 : 40;
+		    $exp = ($actual_exp > 0) ? (2.5/((float)$actual_exp*0.0635))+0.6 : 40;
 
-			$sql = 'UPDATE ships SET experience = experience+'.$exp.'
-                    WHERE ship_id = '.$ship_details['ship_id'];
+		    $sql = 'UPDATE ships SET experience = experience+'.$exp.'
+			    WHERE ship_id = '.$ship_details['ship_id'];
 		
-			if(!$this->db->query($sql)) {
-				$this->log(MV_M_DATABASE, 'Could not update ship exp! CONTINUE');
-			}
+		    if(!$this->db->query($sql)) {
+			$this->log(MV_M_DATABASE, 'Could not update ship exp! CONTINUE');
+		    }
 
 		}
 
+		// Calcolo Exp new system
+		if($ship_details['awayteam'] > 0)
+		{
+			$awayteamlvl = round($ship_details['awayteam'], 0);
+                	$exp_award = round(1.81 / $awayteamlvl, 3);
+                	$ship_details['awayteam'] += $exp_award;
+                	$sql = 'UPDATE ships SET awayteam = '.$ship_details['awayteam'].' WHERE ship_id = '.$ship_details['ship_id'];
+                	if(!$this->db->query($sql)) {
+		    		return $this->log(MV_M_DATABASE, 'Could not update ship exp! SKIP');
+			}
+		}
 
 		$sql = 'SELECT ss.system_name, p.* FROM planets p LEFT JOIN starsystems ss ON p.system_id = ss.system_id WHERE planet_id = '.$this->move['dest'];
 
@@ -182,6 +193,7 @@ class moves_action_26 extends moves_common {
 
 		$sql = 'UPDATE ship_fleets
 		        SET planet_id = '.$this->move['dest'].',
+                            system_id = '.$this->dest['system_id'].',
 		            move_id = 0
 		        WHERE fleet_id IN ('.$this->fleet_ids_str.')';
 

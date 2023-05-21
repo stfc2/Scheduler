@@ -81,8 +81,23 @@ if(!$db->query($sql)) {
 // #############################################################################
 
 
+$sql = 'UPDATE scheduler_shipmovement 
+        SET remaining_distance = remaining_distance - tick_speed
+        WHERE move_status = 0 AND total_distance > 0 AND remaining_distance > tick_speed';
+
+if(!$q_moves = $db->query($sql)) {
+    $sdl->log('- Moves Database Error: Could not update moves data! MOVES ABORTED');
+
+    return MV_EXEC_ERROR;
+}
+
+$affected_rows = $db->affected_rows();
+
+$sdl->log('- Moves: updated distances on '.$affected_rows.' movements');
+
+
 $sql = 'SELECT ss.*,
-               u.user_name, u.user_active, u.user_race, u.user_alliance, u.user_alliance_status, u.user_planets
+               u.user_name, u.user_active, u.user_race, u.user_alliance, u.user_alliance_status, u.user_planets, u.user_capital
         FROM (scheduler_shipmovement ss)
         INNER JOIN user u ON u.user_id = ss.user_id
         WHERE ss.move_finish <= '.$CURRENT_TICK.' AND

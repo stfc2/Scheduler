@@ -23,11 +23,14 @@
 class moves_action_55 extends moves_common {
     function _action_main() {
 
+    global $ACTUAL_TICK,$PLANETS_DATA,$RACE_DATA;
+    
 // #############################################################################
 // Data from the attacker
 
 $sql = 'SELECT '.$this->get_combat_query_fleet_columns().', f.resource_4, f.unit_1, f.unit_2, f.unit_3, f.unit_4
         FROM (ship_fleets f)
+        LEFT JOIN officers o ON o.fleet_id = f.fleet_id
         INNER JOIN user u ON u.user_id = f.user_id
         WHERE f.fleet_id IN ('.$this->fleet_ids_str.')';
 
@@ -58,7 +61,18 @@ if(($atk_crews = $this->db->queryrowset($sql)) === false) {
 
 $user_id = $this->dest['user_id'];
 $planetary_attack = true;
+$make_felon = false;
 
+$sql = 'SELECT * FROM user_felony WHERE user1_id = '.$user_id.' AND user2_id = '.$this->move['user_id'];
+
+$res = $this->db->queryrow($sql);
+
+if(($res = $this->db->queryrow($sql)) === false) {
+    return $this->log(MV_M_DATABASE, 'Could not query user felony data! SKIP');
+}        
+        
+if(!isset($res['uf_id'])) {$make_felon = true;}
+    
 // The course could be optimized, but it should be possible
 // compatibility to provide much action_51.php maintained
 $cur_user = array(
@@ -109,6 +123,7 @@ $n_st_user = count($st_user);
 if($n_st_user > 0) {
     $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
              FROM (ship_fleets f)
+             LEFT JOIN officers o ON o.fleet_id = f.fleet_id
              INNER JOIN user u ON u.user_id = f.user_id
              WHERE f.planet_id = '.$this->move['dest'].' AND
                    (
@@ -125,6 +140,7 @@ if($n_st_user > 0) {
 else {
     $sql = 'SELECT '.$this->get_combat_query_fleet_columns().'
              FROM (ship_fleets f)
+             LEFT JOIN officers o ON o.fleet_id = f.fleet_id
              INNER JOIN user u ON u.user_id = f.user_id
              WHERE f.planet_id = '.$this->move['dest'].' AND
                    f.user_id = '.$user_id;
@@ -223,12 +239,14 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
         }
 
         // 090408 DC:  ------ Let those fucking soldiers on ships do their job!!!!
+        /*
         for($i = 0; $i < count($atk_crews); ++$i) {
             $atk_units[0] += $atk_crews[$i]['troop_1'];
             $atk_units[1] += $atk_crews[$i]['troop_2'];
             $atk_units[2] += $atk_crews[$i]['troop_3'];
             $atk_units[3] += $atk_crews[$i]['troop_4'];
         }
+         */
         // 090409 DC:  ------
 
         $dfd_units = array($this->dest['unit_1'], $this->dest['unit_2'], $this->dest['unit_3'], $this->dest['unit_4'],$this->dest['resource_4']);
@@ -236,7 +254,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
         // Are there some defenders?
         if (array_sum($dfd_units)>0)
         {
-            $ucmb = UnitFight($atk_units, $this->move['user_race'], $dfd_units, $this->dest['user_race'], $this->mid);
+            $ucmb = UnitFight($atk_units, $this->move['user_race'], $dfd_units, $this->dest['user_race'], $this->mid, $this->dest['building_10'], $this->dest['building_13']);
             $n_atk_alive = array_sum($ucmb[0]);
             $atk_alive = $ucmb[0];
             $dfd_alive = $ucmb[1];
@@ -287,6 +305,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             }
 
             // 090408 DC:  ------ Finally the fucking soldiers have done their job!!!!
+            /*
             $this->log(MV_M_NOTICE, 'Update ships with the minimum troops value');
 
             $sql = 'UPDATE ships ss, ship_templates st
@@ -299,6 +318,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
             if(!$this->db->query($sql))
                 return $this->log(MV_M_DATABASE, 'Could not update attacking ships! SKIP');
+             */
             // 090408 DC:  ------
 
             $action_status = -1;
@@ -343,13 +363,18 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
             $planet_units = array(0, 0, 0, 0);
 
             // 21/06/08 - AC: Check available space on target planet
+            /*
             $sql = 'SELECT max_units FROM planets WHERE planet_id = '.$this->move['dest'];
 
             if(($plspace = $this->db->queryrow($sql)) === false) {
                 $this->log(MV_M_DATABASE, 'Could not query planet max units data! CONTINUE AND USE INSTABLE VALUE');
                 $plspace['max_units'] = 1300; // Minimum size available
             }
-
+             * 
+             */
+            
+            $plspace['max_units'] = $PLANETS_DATA[$this->dest['planet_type']][7]+($this->dest['research_1']*$RACE_DATA[$this->move['user_race']][20]*500);
+            
             if(($atk_alive[0] * 2 + $atk_alive[1] * 3 + $atk_alive[2] * 4 + $atk_alive[3] * 4) > $plspace['max_units'])
             {
                 $this->log(MV_M_NOTICE, 'Alive units exceed planet maximum units, we need to recall aboard the surplus');
@@ -554,6 +579,8 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
             $building_damage = 0.01 * mt_rand(40, 60);
 
+            $lost_struct_score = $this->dest['planet_points'];
+
             // Set new home world
             if($this->move['dest'] == $this->dest['user_capital']) {
                 for($i = 0; $i < $n_buildings; ++$i) {
@@ -665,6 +692,13 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                 $this->log(MV_M_DATABASE, 'Could not delete ship trade data! CONTINUE');
             }
 
+            $sql = 'UPDATE planets SET best_mood_planet = DEFAULT 
+                    WHERE best_mood_planet = '.$this->move['dest'];
+            
+            if(!$this->db->query($sql)) {
+                $this->log(MV_M_DATABASE, 'Could not delete settlers trade data! CONTINUE');
+            }
+            
             $sql = 'UPDATE planets
                     SET planet_owner = '.$this->move['user_id'].',
                         planet_owned_date = '.time().',
@@ -672,7 +706,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                         best_mood = 0,
                         best_mood_user = 0,
                         planet_available_points = '.($this->get_structure_points($this->move['user_id'], $this->move['dest'])).',
-                        resource_4 = 0,
+                        resource_4 = 0,                        
                         recompute_static = 1,
                         building_1 = '.$building_levels[0].',
                         building_2 = '.$building_levels[1].',
@@ -693,6 +727,9 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                         unit_4 = '.$planet_units[3].',
                         unit_5 = 0,
                         unit_6 = 0,
+                        max_resources = '.($PLANETS_DATA[$this->dest['planet_type']][6]+($building_levels[12]*20000*$RACE_DATA[$this->move['user_race']][20])).',
+                        max_worker = '.($PLANETS_DATA[$this->dest['planet_type']][7]+($this->dest['research_1']*$RACE_DATA[$this->move['user_race']][20]*500)).',
+                        max_units = '.($PLANETS_DATA[$this->dest['planet_type']][7]+($this->dest['research_1']*$RACE_DATA[$this->move['user_race']][20]*500)).',                        
                         workermine_1 = 100,
                         workermine_2 = 100,
                         workermine_3 = 100,
@@ -756,6 +793,14 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                 $this->log(MV_M_DATABASE, 'Could not update planet details data! CONTINUE');
             }
 
+            $this->check_rc_status();
+            
+            $this->spam_takeover($this->move['user_id'], $this->move['user_name'], $this->dest['user_id'], $this->dest['user_name'], $this->dest['planet_name'], $this->dest['system_name']);            
+            
+            $this->check_sytem_ownership($this->dest['system_id']);
+            
+            if($make_felon) {$this->make_felon($this->dest['user_id'], $this->dest['user_name'], $this->move['owner_id']);}
+            
             // If the attack was on a settlers planet, we get rid of the moods data!
 
             if($this->dest['user_id'] == INDEPENDENT_USERID) {
@@ -791,35 +836,28 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                 $sql = 'DELETE FROM settlers_relations WHERE planet_id = '.$this->dest['planet_id'];
 
                 if(!$this->db->query($sql)) {
-                    $this->log(MV_M_DATABASE, 'Could not delete settlers moods! CONTINUE!');
+                    $this->log(MV_M_DATABASE, 'Could not delete settlers moods! CONTINUE! '.$sql);
                 }
 
-                $sql = 'SELECT planet_id FROM settlers_relations WHERE user_id = '.$this->move['user_id'].' GROUP BY planet_id';
+                $sql = 'DELETE FROM settlers_events WHERE planet_id = '.$this->dest['planet_id'];
 
-                if($res=$this->db->queryrowset($sql))
-                {
-                    foreach($res as $res_item)
-                    {
-                        // Clear all + logs on the planet
-                        $sql = 'DELETE FROM settlers_relations
-                                WHERE user_id = '.$this->move['user_id'].'
-                                AND planet_id = '.$res_item['planet_id'].'
-                                AND log_code IN ("2", "3", "4")';
+                if(!$this->db->query($sql)) {
+                    $this->log(MV_M_DATABASE, 'Could not delete settlers events! CONTINUE! '.$sql);
+                }                
+                
+                $sql = 'INSERT INTO settlers_relations SET planet_id = '.$this->dest['planet_id'].',
+                                                           user_id = '.$this->move['user_id'].',
+                                                           timestamp = '.time().', log_code = 34,
+                                                           mood_modifier = -80';
 
-                        if(!$this->db->query($sql)) {
-                            $this->log(MV_M_DATABASE, 'Could not delete settlers relations data! '.$sql.' CONTINUE');
-                        }
-
-                        $sql = 'INSERT INTO settlers_relations SET planet_id = '.$res_item['planet_id'].',
-                                                                   user_id = '.$this->move['user_id'].',
-                                                                   timestamp = '.time().', log_code = 12,
-                                                                   mood_modifier = -50';
-
-                        $this->db->query($sql);
-
-                        $this->check_best_mood($res_item['planet_id'], false);
-                    }
+                if(!$this->db->query($sql)) {
+                        $this->log(MV_M_DATABASE, 'Could not update settlers moods! CONTINUE!');
                 }
+
+                $this->check_best_mood($res_item['planet_id'], false);
+                
+                $this->db->query('UPDATE config SET settler_n_planets = settler_n_planets - 1');
+                        
             }
 // DC ----
 
@@ -886,19 +924,22 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                     }
                 }
 
-                $num_item = ($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "o" || $this->dest['planet_type'] == "y"  ||
-                             $this->dest['planet_type'] == "x" || $this->dest['planet_type'] == "f" || $this->dest['planet_type'] == "g" ? 2 : 1);
-                send_premonition_to_user($this->move['user_id'], $num_item);
+                send_premonition_to_user($this->move['user_id'], 1);
 
                 $sql = 'SELECT threat_level FROM borg_target WHERE user_id = '.$this->move['user_id'];
                 $bot_target_data = $this->db->query($sql);
                 $already_acquired = $this->db->num_rows($bot_target_data);
                 if($already_acquired < 1)
                 {
-                    $honor_prize = ($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "o" || $this->dest['planet_type'] == "y"  ||
-                                    $this->dest['planet_type'] == "x" || $this->dest['planet_type'] == "f" || $this->dest['planet_type'] == "g" ? 40 : 15);
+                    $honor_prize = ($this->dest['planet_type'] == "e" || $this->dest['planet_type'] == "f" || $this->dest['planet_type'] == "g"  ||
+                                    $this->dest['planet_type'] == "l" || $this->dest['planet_type'] == "k" || $this->dest['planet_type'] == "m"  ||
+                                    $this->dest['planet_type'] == "o" || $this->dest['planet_type'] == "p" ? 40 : 15);
                     $sql='INSERT INTO borg_target (user_id, planets_taken, battle_win) VALUES ('.$this->move['user_id'].', 1, 1)';
                     $this->db->query($sql);
+                    $diplospeech = $this->db->queryrowset('SELECT planet_id FROM settlers_relations WHERE user_id = '.$this->move['user_id'].' AND log_code = 2');
+                    foreach ($diplospeech AS $diploitem) {
+                        $this->db->query('INSERT INTO settlers_relations (planet_id, user_id, timestamp, log_code, mood_modifier) VALUES ('.$diploitem['planet_id'].', '.$this->move['user_id'].', '.time().', 22, 10)');
+                    }                    
                 }
                 else
                 {
@@ -914,9 +955,11 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                         $honor_bonus = 1.5;
                     else
                         $honor_bonus = 1.0;
-                    $honor_prize = ($this->dest['planet_type'] == "m" || $this->dest['planet_type'] == "n" || $this->dest['planet_type'] == "y"  || $this->dest['planet_type'] == "e" || $this->dest['planet_type'] == "f" || $this->dest['planet_type'] == "g" ? 40 : 15) * $honor_bonus;
+                    $honor_prize = ($this->dest['planet_type'] == "e" || $this->dest['planet_type'] == "f" || $this->dest['planet_type'] == "g"  ||
+                                    $this->dest['planet_type'] == "l" || $this->dest['planet_type'] == "k" || $this->dest['planet_type'] == "m"  ||
+                                    $this->dest['planet_type'] == "o" || $this->dest['planet_type'] == "p" ? 40 : 15) * $honor_bonus;
                     $sql='UPDATE borg_target SET planets_taken = planets_taken + 1, battle_win = battle_win +1 WHERE user_id = '.$this->move['user_id'];
-                    $this->db->query($sql);
+                    $this->db->query($sql);                    
                 }
 
                 $sql = 'UPDATE user SET user_honor = user_honor + '.$honor_prize.' WHERE user_id = '.$this->move['user_id'];
@@ -931,6 +974,11 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
                     }
                 }
 
+                $sql = 'INSERT INTO borg_npc_target (planet_id, tries, priority, primary_planet, delay, timeout)
+                                             VALUES ('.$this->move['dest'].', 0, 1, 2, 1, '.($ACTUAL_TICK+20*24*5).')';
+                
+                $this->db->query($sql);
+                
                 // #############################################################################
                 // 03/04/08 - AC: Retrieve player language
                 switch($this->move['language'])
@@ -1017,6 +1065,7 @@ if($this->cmb[MV_CMB_WINNER] == MV_CMB_ATTACKER) {
 
     $sql = 'UPDATE ship_fleets
             SET planet_id = '.$this->move['dest'].',
+                system_id = '.$this->dest['system_id'].',
                 move_id = 0
             WHERE fleet_id IN ('.$this->fleet_ids_str.')';
 
@@ -1068,6 +1117,10 @@ $log1_data[17] = $log2_data[17] = $action_status;
 
 $log1_data[20] = $this->dest['user_race'];
 $log2_data[20] = $this->move['user_race'];
+
+if($this->dest['planet_owner'] > 10 ) {
+    $log1_data[21] = $log2_data[21] = $lost_struct_score;
+}
 
 for($i = 0; $i < 5; ++$i) {
     $log1_data[18][$i] = $log2_data[19][$i] = $atk_losses[$i];

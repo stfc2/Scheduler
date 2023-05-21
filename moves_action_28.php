@@ -30,6 +30,7 @@ class moves_action_28 extends moves_common {
         
         $sql = 'UPDATE ship_fleets
                 SET planet_id = '.$this->move['dest'].',
+                    system_id = '.$this->dest['system_id'].',
                     move_id = 0
                 WHERE fleet_id IN ('.$this->fleet_ids_str.')';
 
